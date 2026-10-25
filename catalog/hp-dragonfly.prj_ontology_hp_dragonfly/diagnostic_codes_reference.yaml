@@ -1,0 +1,89 @@
+name: hp-dragonfly.prj_ontology_hp_dragonfly/diagnostic_codes_reference
+type: dataplex-types.global.bigquery-table
+resource:
+  name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/diagnostic_codes_reference
+  displayName: diagnostic_codes_reference
+  description: 'HP PC Hardware Diagnostics UEFI/Windows failure codes, power/battery LED blink patterns,
+    and ESD/thermal thresholds (Node Table: DiagnosticCode)'
+  labels:
+    datacloud: jetski
+    domain: hp-dragonfly-ontology
+  location: us
+  ancestors:
+  - name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly
+    type: dataplex-types.global.bigquery-dataset
+  createTime: 2026-10-25 02:36:36.296000+00:00
+  updateTime: 2026-10-25 02:36:38.473000+00:00
+aspects:
+  dataplex-types.global.bigquery-table:
+    type: TABLE
+    tableType: TABLE
+  dataplex-types.global.schema:
+    fields:
+    - name: diagnostic_code
+      description: Unique diagnostic code or LED blink identifier (Primary Key, e.g., LED-CAPS-3-2, UEFI-24DIGIT-SSD)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: diagnostic_category
+      description: Diagnostic category (Power/Battery LED, CapsLock Blink Code, UEFI Hardware Diagnostics,
+        ESD Threshold)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: signal_pattern
+      description: Observed LED blink pattern, failure code format, or voltage measurement
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: indicated_condition
+      description: Hardware fault or system condition indicated by the pattern
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: Suspected_component_category
+      description: Primary suspected hardware component category
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: recommended_action
+      description: Official HP recommended troubleshooting and remediation action
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: manual_reference
+      description: Service manual chapter and page citation
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+  dataplex-types.global.storage:
+    service: BIGQUERY
+    resourceName: //bigquery.googleapis.com/projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/diagnostic_codes_reference
+  dataplex-types.global.overview:
+    contentType: MARKDOWN
+    content: "# Overview\n\n`hp-dragonfly.prj_ontology_hp_dragonfly.diagnostic_codes_reference` (8 rows)\
+      \ — HP PC Hardware Diagnostics UEFI/Windows failure codes, power/battery LED blink patterns, and\
+      \ ESD/thermal thresholds (Node Table: DiagnosticCode)[^bq-source]\n\nStandardizes hardware symptom\
+      \ codes including `LED-BLINK-2.2` (Main area of BIOS corrupted -> HP Sure Start recovery), `LED-BLINK-3.2`\
+      \ (Pre-video memory error on soldered LPDDR5 -> System Board replacement), `LED-BLINK-5.2` (Embedded\
+      \ Controller failure), `UEFI-24DIGIT-NVME-DST-FAIL`, and the 700V (0.7 kV) MOS electrostatic discharge\
+      \ damage threshold.[^hp-msg-n17344]\n\n- **BigQuery Property Graph Role:** Node Table (`DiagnosticCode`,\
+      \ Key: `diagnostic_code`)\n- **Grounded Service Manual Section:** Chapter 7: Troubleshooting & POST\
+      \ Diagnostic Blink Codes (pp. 77–84), Chapter 8: Electrostatic Discharge (pp. 85–86)[^hp-msg-n17344]\n\
+      \n# Schema\n\n| Column | Type | Mode | Description |\n| :--- | :--- | :--- | :--- |\n| `diagnostic_code`\
+      \ | `STRING` | `REQUIRED` | Unique diagnostic code or LED blink identifier (Primary Key, e.g., LED-CAPS-3-2,\
+      \ UEFI-24DIGIT-SSD) |\n| `diagnostic_category` | `STRING` | `REQUIRED` | Diagnostic category (Power/Battery\
+      \ LED, CapsLock Blink Code, UEFI Hardware Diagnostics, ESD Threshold) |\n| `signal_pattern` | `STRING`\
+      \ | `REQUIRED` | Observed LED blink pattern, failure code format, or voltage measurement |\n| `indicated_condition`\
+      \ | `STRING` | `REQUIRED` | Hardware fault or system condition indicated by the pattern |\n| `Suspected_component_category`\
+      \ | `STRING` | `REQUIRED` | Primary suspected hardware component category |\n| `recommended_action`\
+      \ | `STRING` | `REQUIRED` | Official HP recommended troubleshooting and remediation action |\n|\
+      \ `manual_reference` | `STRING` | `REQUIRED` | Service manual chapter and page citation |\n\n# Cross-Concept\
+      \ Links\n\n**Related BigQuery Tables:**\n- [`tables/community_troubleshooting_cases`](community_troubleshooting_cases.md)\n\
+      - [`tables/hardware_components_catalog`](hardware_components_catalog.md)\n\n**Grounded Manual References:**\n\
+      - [`references/post-led-blink-and-uefi-diagnostics`](../references/post-led-blink-and-uefi-diagnostics.md)\n\
+      - [`references/no-boot-bios-sure-start-recovery`](../references/no-boot-bios-sure-start-recovery.md)\n\
+      \n# Examples\n\n```sql\nSELECT\n  diagnostic_code,\n  signal_type,\n  blink_pattern_or_code,\n \
+      \ subsystem_affected,\n  root_cause_meaning,\n  recommended_action,\n  manual_page_ref\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.diagnostic_codes_reference`\n\
+      ORDER BY diagnostic_code;\n```\n\n[^bq-source]: BigQuery Table `hp-dragonfly.prj_ontology_hp_dragonfly.diagnostic_codes_reference`\n\
+      [^hp-msg-n17344]: HP Dragonfly Folio 13.5 inch G3 Maintenance and Service Guide (Doc Part N17344-001)"

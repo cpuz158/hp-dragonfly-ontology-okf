@@ -1,0 +1,110 @@
+name: hp-dragonfly.prj_ontology_hp_dragonfly/firmware_bios_and_nvm
+type: dataplex-types.global.bigquery-table
+resource:
+  name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/firmware_bios_and_nvm
+  displayName: firmware_bios_and_nvm
+  description: System BIOS releases, SoftPaq driver packages, and Nonvolatile Memory (NVM) / TPM 2.0 security
+    specifications
+  labels:
+    datacloud: jetski
+    domain: hp-dragonfly-ontology
+  location: us
+  ancestors:
+  - name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly
+    type: dataplex-types.global.bigquery-dataset
+  createTime: 2026-10-25 02:36:31.528000+00:00
+  updateTime: 2026-10-25 02:36:35.109000+00:00
+aspects:
+  dataplex-types.global.bigquery-table:
+    type: TABLE
+    tableType: TABLE
+  dataplex-types.global.schema:
+    fields:
+    - name: release_or_nvm_id
+      description: Unique firmware, driver, or NVM item identifier (Primary Key)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: model_id
+      description: Target model ID (FK -> dragonfly_series_models.model_id)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: item_type
+      description: Item classification (System BIOS, Driver SoftPaq, Dock Firmware, Nonvolatile Memory,
+        Security Chip)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: name_or_version
+      description: Firmware version or nonvolatile memory component name
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: softpaq_id
+      description: Official HP SoftPaq package identifier (e.g., sp148210)
+      dataType: STRING
+      metadataType: STRING
+      mode: NULLABLE
+    - name: storage_size
+      description: Nonvolatile memory capacity or SoftPaq package size (e.g., 8 MB, 9 MB, 7 MB)
+      dataType: STRING
+      metadataType: STRING
+      mode: NULLABLE
+    - name: stores_customer_data
+      description: Whether the nonvolatile memory stores customer/personal data (per Chapter 10 Statement
+        of Memory Volatility)
+      dataType: BOOLEAN
+      metadataType: BOOLEAN
+      mode: REQUIRED
+    - name: retains_data_power_off
+      description: Whether data is retained when all power sources are removed
+      dataType: BOOLEAN
+      metadataType: BOOLEAN
+      mode: REQUIRED
+    - name: write_protection_mechanism
+      description: Hardware/cryptographic write-protection mechanism (HP Sure Start EC, Intel Digitally
+        Signed Utility)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: sanitization_or_update_steps
+      description: Standard BIOS sanitization (Secure Erase / Factory Reset) or firmware update instructions
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+  dataplex-types.global.storage:
+    service: BIGQUERY
+    resourceName: //bigquery.googleapis.com/projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/firmware_bios_and_nvm
+  dataplex-types.global.overview:
+    contentType: MARKDOWN
+    content: "# Overview\n\n`hp-dragonfly.prj_ontology_hp_dragonfly.firmware_bios_and_nvm` (8 rows) —\
+      \ System BIOS releases, SoftPaq driver packages, and Nonvolatile Memory (NVM) / TPM 2.0 security\
+      \ specifications[^bq-source]\n\nMaps SoftPaq packages (`sp148210` BIOS U95, `sp146831` Intel Smart\
+      \ Sound Technology, `sp149503` Thunderbolt Dock G4 Firmware, `sp147415` Intel 5000 5G WWAN) and\
+      \ onboard SPI/NVM flash chips (64 Mbit / 8 MB isolated HP Sure Start Golden BIOS flash, 72 Mbit\
+      \ / 9 MB System BIOS, 56 Mbit / 7 MB Intel CSE/ME, Infineon SLB9672 TPM 2.0).[^hp-msg-n17344]\n\n\
+      - **BigQuery Property Graph Role:** Firmware & Security Reference Table\n- **Grounded Service Manual\
+      \ Section:** Chapter 6: Backing Up, Restoring, and Recovering (pp. 73–76), Appendix B: Non-Volatile\
+      \ Memory & HP Sure Start (pp. 87–89)[^hp-msg-n17344]\n\n# Schema\n\n| Column | Type | Mode | Description\
+      \ |\n| :--- | :--- | :--- | :--- |\n| `release_or_nvm_id` | `STRING` | `REQUIRED` | Unique firmware,\
+      \ driver, or NVM item identifier (Primary Key) |\n| `model_id` | `STRING` | `REQUIRED` | Target\
+      \ model ID (FK -> dragonfly_series_models.model_id) |\n| `item_type` | `STRING` | `REQUIRED` | Item\
+      \ classification (System BIOS, Driver SoftPaq, Dock Firmware, Nonvolatile Memory, Security Chip)\
+      \ |\n| `name_or_version` | `STRING` | `REQUIRED` | Firmware version or nonvolatile memory component\
+      \ name |\n| `softpaq_id` | `STRING` | `NULLABLE` | Official HP SoftPaq package identifier (e.g.,\
+      \ sp148210) |\n| `storage_size` | `STRING` | `NULLABLE` | Nonvolatile memory capacity or SoftPaq\
+      \ package size (e.g., 8 MB, 9 MB, 7 MB) |\n| `stores_customer_data` | `BOOLEAN` | `REQUIRED` | Whether\
+      \ the nonvolatile memory stores customer/personal data (per Chapter 10 Statement of Memory Volatility)\
+      \ |\n| `retains_data_power_off` | `BOOLEAN` | `REQUIRED` | Whether data is retained when all power\
+      \ sources are removed |\n| `write_protection_mechanism` | `STRING` | `REQUIRED` | Hardware/cryptographic\
+      \ write-protection mechanism (HP Sure Start EC, Intel Digitally Signed Utility) |\n| `sanitization_or_update_steps`\
+      \ | `STRING` | `REQUIRED` | Standard BIOS sanitization (Secure Erase / Factory Reset) or firmware\
+      \ update instructions |\n\n# Cross-Concept Links\n\n**Related BigQuery Tables:**\n- [`tables/dragonfly_series_models`](dragonfly_series_models.md)\n\
+      - [`tables/community_troubleshooting_cases`](community_troubleshooting_cases.md)\n\n**Grounded Manual\
+      \ References:**\n- [`references/bios-nvm-and-hp-sure-start-security`](../references/bios-nvm-and-hp-sure-start-security.md)\n\
+      - [`references/no-boot-bios-sure-start-recovery`](../references/no-boot-bios-sure-start-recovery.md)\n\
+      \n# Examples\n\n```sql\nSELECT\n  firmware_id,\n  component_type,\n  softpaq_id,\n  version_string,\n\
+      \  nvm_chip_capacity_mbit,\n  hardware_root_of_trust,\n  remediation_target\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.firmware_bios_and_nvm`\n\
+      ORDER BY firmware_id;\n```\n\n[^bq-source]: BigQuery Table `hp-dragonfly.prj_ontology_hp_dragonfly.firmware_bios_and_nvm`\n\
+      [^hp-msg-n17344]: HP Dragonfly Folio 13.5 inch G3 Maintenance and Service Guide (Doc Part N17344-001)"

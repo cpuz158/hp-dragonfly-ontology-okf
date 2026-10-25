@@ -1,0 +1,156 @@
+name: hp-dragonfly.prj_ontology_hp_dragonfly/dragonfly_series_models
+type: dataplex-types.global.bigquery-table
+resource:
+  name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/dragonfly_series_models
+  displayName: dragonfly_series_models
+  description: 'Master lineup and physical specifications for the HP Dragonfly product family (G1, G2,
+    Max, G3, Folio G3, G4) (Node Table: ProductModel)'
+  labels:
+    datacloud: jetski
+    domain: hp-dragonfly-ontology
+  location: us
+  ancestors:
+  - name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly
+    type: dataplex-types.global.bigquery-dataset
+  createTime: 2026-10-25 02:36:11.266000+00:00
+  updateTime: 2026-10-25 02:36:13.632000+00:00
+aspects:
+  dataplex-types.global.bigquery-table:
+    type: TABLE
+    tableType: TABLE
+  dataplex-types.global.schema:
+    fields:
+    - name: model_id
+      description: Unique model identifier (Primary Key, e.g., MDL-DF-G3, MDL-DF-FOLIO-G3)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: model_name
+      description: Official HP commercial product name (e.g., HP Elite Dragonfly G3 Notebook PC)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: generation
+      description: Generation designation (G1, G2, Max, G3, Folio G3, G4)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: release_year
+      description: Commercial release year
+      dataType: INTEGER
+      metadataType: NUMBER
+      mode: REQUIRED
+    - name: form_factor
+      description: Chassis form factor (Clamshell 180°, 360° Convertible 2-in-1, Pull-Forward Folio 2-in-1)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: cpu_architecture
+      description: Supported Intel Core processor generation and series
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: display_size_inch
+      description: Active display diagonal size in inches
+      dataType: FLOAT
+      metadataType: NUMBER
+      mode: REQUIRED
+    - name: aspect_ratio
+      description: Display aspect ratio (16:9 or 3:2)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: memory_type
+      description: System memory specification (LPDDR3, LPDDR4x, LPDDR5-6400, soldered onboard status)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: max_memory_gb
+      description: Maximum supported system memory capacity in GB
+      dataType: INTEGER
+      metadataType: NUMBER
+      mode: REQUIRED
+    - name: max_storage_tb
+      description: Maximum supported M.2 PCIe NVMe SSD capacity in TB
+      dataType: FLOAT
+      metadataType: NUMBER
+      mode: REQUIRED
+    - name: camera_spec
+      description: Integrated webcam, IR sensor, and privacy shutter/key specifications
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: audio_spec
+      description: Audio subsystem, speaker configuration, and microphone specifications
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: battery_options
+      description: Supported battery cell count and watt-hour (Whr) options
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: starting_weight_kg
+      description: Minimum starting weight in kilograms (kg)
+      dataType: FLOAT
+      metadataType: NUMBER
+      mode: REQUIRED
+    - name: dimensions_mm
+      description: Physical dimensions (Width x Depth x Height in mm)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: chassis_material
+      description: Chassis construction material and finish color options
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: service_manual_doc_no
+      description: Official HP Maintenance and Service Guide document part number (e.g., N17344-001)
+      dataType: STRING
+      metadataType: STRING
+      mode: NULLABLE
+  dataplex-types.global.storage:
+    service: BIGQUERY
+    resourceName: //bigquery.googleapis.com/projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/dragonfly_series_models
+  dataplex-types.global.overview:
+    contentType: MARKDOWN
+    content: "# Overview\n\n`hp-dragonfly.prj_ontology_hp_dragonfly.dragonfly_series_models` (6 rows)\
+      \ — Master lineup and physical specifications for the HP Dragonfly product family (G1, G2, Max,\
+      \ G3, Folio G3, G4) (Node Table: ProductModel)[^bq-source]\n\nCaptures the structural evolution\
+      \ of the HP Dragonfly product line from G1/G2/Max (13.3-inch 16:9 convertible clamshell) to the\
+      \ G3 (13.5-inch 3:2 ultralight clamshell) and the Folio G3 (13.5-inch 3:2 pull-forward magnesium/aluminum\
+      \ convertible with wrap-around polyurethane leather). All SKUs in [product_skus_and_configs](product_skus_and_configs.md)\
+      \ and field cases in [community_troubleshooting_cases](community_troubleshooting_cases.md) anchor\
+      \ to `model_id`.[^hp-msg-n17344]\n\n- **BigQuery Property Graph Role:** Node Table (`ProductModel`,\
+      \ Key: `model_id`)\n- **Grounded Service Manual Section:** Chapter 1: Product Description (pp. 1–4),\
+      \ Chapter 2: Getting to Know the Computer (pp. 5–16)[^hp-msg-n17344]\n\n# Schema\n\n| Column | Type\
+      \ | Mode | Description |\n| :--- | :--- | :--- | :--- |\n| `model_id` | `STRING` | `REQUIRED` |\
+      \ Unique model identifier (Primary Key, e.g., MDL-DF-G3, MDL-DF-FOLIO-G3) |\n| `model_name` | `STRING`\
+      \ | `REQUIRED` | Official HP commercial product name (e.g., HP Elite Dragonfly G3 Notebook PC) |\n\
+      | `generation` | `STRING` | `REQUIRED` | Generation designation (G1, G2, Max, G3, Folio G3, G4)\
+      \ |\n| `release_year` | `INTEGER` | `REQUIRED` | Commercial release year |\n| `form_factor` | `STRING`\
+      \ | `REQUIRED` | Chassis form factor (Clamshell 180°, 360° Convertible 2-in-1, Pull-Forward Folio\
+      \ 2-in-1) |\n| `cpu_architecture` | `STRING` | `REQUIRED` | Supported Intel Core processor generation\
+      \ and series |\n| `display_size_inch` | `FLOAT` | `REQUIRED` | Active display diagonal size in inches\
+      \ |\n| `aspect_ratio` | `STRING` | `REQUIRED` | Display aspect ratio (16:9 or 3:2) |\n| `memory_type`\
+      \ | `STRING` | `REQUIRED` | System memory specification (LPDDR3, LPDDR4x, LPDDR5-6400, soldered\
+      \ onboard status) |\n| `max_memory_gb` | `INTEGER` | `REQUIRED` | Maximum supported system memory\
+      \ capacity in GB |\n| `max_storage_tb` | `FLOAT` | `REQUIRED` | Maximum supported M.2 PCIe NVMe\
+      \ SSD capacity in TB |\n| `camera_spec` | `STRING` | `REQUIRED` | Integrated webcam, IR sensor,\
+      \ and privacy shutter/key specifications |\n| `audio_spec` | `STRING` | `REQUIRED` | Audio subsystem,\
+      \ speaker configuration, and microphone specifications |\n| `battery_options` | `STRING` | `REQUIRED`\
+      \ | Supported battery cell count and watt-hour (Whr) options |\n| `starting_weight_kg` | `FLOAT`\
+      \ | `REQUIRED` | Minimum starting weight in kilograms (kg) |\n| `dimensions_mm` | `STRING` | `REQUIRED`\
+      \ | Physical dimensions (Width x Depth x Height in mm) |\n| `chassis_material` | `STRING` | `REQUIRED`\
+      \ | Chassis construction material and finish color options |\n| `service_manual_doc_no` | `STRING`\
+      \ | `NULLABLE` | Official HP Maintenance and Service Guide document part number (e.g., N17344-001)\
+      \ |\n\n# Cross-Concept Links\n\n**Related BigQuery Tables:**\n- [`tables/product_skus_and_configs`](product_skus_and_configs.md)\n\
+      - [`tables/hardware_components_catalog`](hardware_components_catalog.md)\n- [`tables/ports_sensors_and_docks`](ports_sensors_and_docks.md)\n\
+      - [`tables/firmware_bios_and_nvm`](firmware_bios_and_nvm.md)\n- [`tables/community_troubleshooting_cases`](community_troubleshooting_cases.md)\n\
+      \n**Grounded Manual References:**\n- [`references/hp-folio-g3-service-manual-n17344`](../references/hp-folio-g3-service-manual-n17344.md)\n\
+      - [`references/thunderbolt-4-port-and-dock-architecture`](../references/thunderbolt-4-port-and-dock-architecture.md)\n\
+      \n# Examples\n\n```sql\nSELECT\n  model_id,\n  model_name,\n  generation,\n  form_factor,\n  cpu_architecture,\n\
+      \  aspect_ratio,\n  min_weight_kg,\n  service_manual_doc_id\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.dragonfly_series_models`\n\
+      ORDER BY release_year, model_id;\n```\n\n[^bq-source]: BigQuery Table `hp-dragonfly.prj_ontology_hp_dragonfly.dragonfly_series_models`\n\
+      [^hp-msg-n17344]: HP Dragonfly Folio 13.5 inch G3 Maintenance and Service Guide (Doc Part N17344-001)"

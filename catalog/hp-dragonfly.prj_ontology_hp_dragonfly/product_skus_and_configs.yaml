@@ -1,0 +1,177 @@
+name: hp-dragonfly.prj_ontology_hp_dragonfly/product_skus_and_configs
+type: dataplex-types.global.bigquery-table
+resource:
+  name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/product_skus_and_configs
+  displayName: product_skus_and_configs
+  description: 'Commercial SKU configurations and hardware specifications for HP Elite Dragonfly G3, Dragonfly
+    Folio G3, and series models (Node Table: ProductSKU)'
+  labels:
+    datacloud: jetski
+    domain: hp-dragonfly-ontology
+  location: us
+  ancestors:
+  - name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly
+    type: dataplex-types.global.bigquery-dataset
+  createTime: 2026-10-25 02:36:14.950000+00:00
+  updateTime: 2026-10-25 02:36:17.253000+00:00
+aspects:
+  dataplex-types.global.bigquery-table:
+    type: TABLE
+    tableType: TABLE
+  dataplex-types.global.schema:
+    fields:
+    - name: sku_id
+      description: Official HP product number / SKU ID (Primary Key, e.g., 6J175UTR#ABA)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: model_id
+      description: Parent model identifier (FK -> dragonfly_series_models.model_id)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: region_code
+      description: Target market region code (US, KR, EU, APAC, GLOBAL)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: cpu_model
+      description: Installed processor model (e.g., Intel Core i7-1265U)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: vpro_supported
+      description: Whether Intel vPro Enterprise management is supported
+      dataType: BOOLEAN
+      metadataType: BOOLEAN
+      mode: REQUIRED
+    - name: cpu_cores
+      description: Total CPU core count (Performance + Efficient cores)
+      dataType: INTEGER
+      metadataType: NUMBER
+      mode: REQUIRED
+    - name: cpu_max_turbo_ghz
+      description: Maximum Intel Turbo Boost clock frequency in GHz
+      dataType: FLOAT
+      metadataType: NUMBER
+      mode: REQUIRED
+    - name: ram_gb
+      description: Onboard soldered memory capacity in GB
+      dataType: INTEGER
+      metadataType: NUMBER
+      mode: REQUIRED
+    - name: ram_spec
+      description: Detailed memory specification (e.g., 16 GB LPDDR5-6400 Dual-Channel Soldered)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: ssd_capacity_gb
+      description: Installed primary NVMe SSD capacity in GB
+      dataType: INTEGER
+      metadataType: NUMBER
+      mode: REQUIRED
+    - name: ssd_spec
+      description: SSD interface and encryption specification (e.g., M.2 2280 PCIe Gen4x4 NVMe TLC SED
+        OPAL2)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: display_resolution
+      description: Display resolution (e.g., WUXGA+ 1920x1280, 3K2K 3000x2000)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: display_panel_type
+      description: Display panel technology and surface treatment (IPS Anti-Glare, IPS BrightView Touch,
+        OLED BrightView)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: brightness_nits
+      description: Peak display luminance in nits
+      dataType: INTEGER
+      metadataType: NUMBER
+      mode: REQUIRED
+    - name: sure_view_privacy
+      description: Whether HP Sure View Reflect integrated privacy screen is equipped
+      dataType: BOOLEAN
+      metadataType: BOOLEAN
+      mode: REQUIRED
+    - name: wwan_module
+      description: Installed cellular WWAN modem specification (None, Intel XMM 7560 R+ LTE, Intel 5000
+        5G)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: wlan_module
+      description: Onboard wireless LAN and Bluetooth specification (e.g., Intel AX211 Wi-Fi 6E + BT 5.2)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: battery_whr
+      description: Installed battery capacity in Whr
+      dataType: INTEGER
+      metadataType: NUMBER
+      mode: REQUIRED
+    - name: os_preinstalled
+      description: Factory preinstalled operating system
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: system_board_part_no
+      description: Mapped system board spare part number (FK -> hardware_components_catalog.part_number)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: msrp_usd
+      description: Estimated launch MSRP in USD
+      dataType: INTEGER
+      metadataType: NUMBER
+      mode: REQUIRED
+  dataplex-types.global.storage:
+    service: BIGQUERY
+    resourceName: //bigquery.googleapis.com/projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/product_skus_and_configs
+  dataplex-types.global.overview:
+    contentType: MARKDOWN
+    content: "# Overview\n\n`hp-dragonfly.prj_ontology_hp_dragonfly.product_skus_and_configs` (12 rows)\
+      \ — Commercial SKU configurations and hardware specifications for HP Elite Dragonfly G3, Dragonfly\
+      \ Folio G3, and series models (Node Table: ProductSKU)[^bq-source]\n\nBecause LPDDR5-6400 Dual-Channel\
+      \ memory (16 GB or 32 GB) and the 12th Gen Intel Core Alder Lake-U processor (i5-1235U, i5-1245U\
+      \ vPro, i7-1255U, i7-1265U vPro) are permanently soldered onto the motherboard, every commercial\
+      \ SKU (`sku_id`) maps deterministically to a specific System Board spare part number (`system_board_part_no`)\
+      \ in [hardware_components_catalog](hardware_components_catalog.md).[^hp-msg-n17344]\n\n- **BigQuery\
+      \ Property Graph Role:** Node Table (`ProductSKU`, Key: `sku_id`) & Edge Tables (`BELONGS_TO_MODEL`,\
+      \ `USES_SYSTEM_BOARD`)\n- **Grounded Service Manual Section:** Chapter 1: Product Description (pp.\
+      \ 1–4), Chapter 5: System Board Spare Part Matrix (pp. 63–65)[^hp-msg-n17344]\n\n# Schema\n\n| Column\
+      \ | Type | Mode | Description |\n| :--- | :--- | :--- | :--- |\n| `sku_id` | `STRING` | `REQUIRED`\
+      \ | Official HP product number / SKU ID (Primary Key, e.g., 6J175UTR#ABA) |\n| `model_id` | `STRING`\
+      \ | `REQUIRED` | Parent model identifier (FK -> dragonfly_series_models.model_id) |\n| `region_code`\
+      \ | `STRING` | `REQUIRED` | Target market region code (US, KR, EU, APAC, GLOBAL) |\n| `cpu_model`\
+      \ | `STRING` | `REQUIRED` | Installed processor model (e.g., Intel Core i7-1265U) |\n| `vpro_supported`\
+      \ | `BOOLEAN` | `REQUIRED` | Whether Intel vPro Enterprise management is supported |\n| `cpu_cores`\
+      \ | `INTEGER` | `REQUIRED` | Total CPU core count (Performance + Efficient cores) |\n| `cpu_max_turbo_ghz`\
+      \ | `FLOAT` | `REQUIRED` | Maximum Intel Turbo Boost clock frequency in GHz |\n| `ram_gb` | `INTEGER`\
+      \ | `REQUIRED` | Onboard soldered memory capacity in GB |\n| `ram_spec` | `STRING` | `REQUIRED`\
+      \ | Detailed memory specification (e.g., 16 GB LPDDR5-6400 Dual-Channel Soldered) |\n| `ssd_capacity_gb`\
+      \ | `INTEGER` | `REQUIRED` | Installed primary NVMe SSD capacity in GB |\n| `ssd_spec` | `STRING`\
+      \ | `REQUIRED` | SSD interface and encryption specification (e.g., M.2 2280 PCIe Gen4x4 NVMe TLC\
+      \ SED OPAL2) |\n| `display_resolution` | `STRING` | `REQUIRED` | Display resolution (e.g., WUXGA+\
+      \ 1920x1280, 3K2K 3000x2000) |\n| `display_panel_type` | `STRING` | `REQUIRED` | Display panel technology\
+      \ and surface treatment (IPS Anti-Glare, IPS BrightView Touch, OLED BrightView) |\n| `brightness_nits`\
+      \ | `INTEGER` | `REQUIRED` | Peak display luminance in nits |\n| `sure_view_privacy` | `BOOLEAN`\
+      \ | `REQUIRED` | Whether HP Sure View Reflect integrated privacy screen is equipped |\n| `wwan_module`\
+      \ | `STRING` | `REQUIRED` | Installed cellular WWAN modem specification (None, Intel XMM 7560 R+\
+      \ LTE, Intel 5000 5G) |\n| `wlan_module` | `STRING` | `REQUIRED` | Onboard wireless LAN and Bluetooth\
+      \ specification (e.g., Intel AX211 Wi-Fi 6E + BT 5.2) |\n| `battery_whr` | `INTEGER` | `REQUIRED`\
+      \ | Installed battery capacity in Whr |\n| `os_preinstalled` | `STRING` | `REQUIRED` | Factory preinstalled\
+      \ operating system |\n| `system_board_part_no` | `STRING` | `REQUIRED` | Mapped system board spare\
+      \ part number (FK -> hardware_components_catalog.part_number) |\n| `msrp_usd` | `INTEGER` | `REQUIRED`\
+      \ | Estimated launch MSRP in USD |\n\n# Cross-Concept Links\n\n**Related BigQuery Tables:**\n- [`tables/dragonfly_series_models`](dragonfly_series_models.md)\n\
+      - [`tables/hardware_components_catalog`](hardware_components_catalog.md)\n- [`tables/community_troubleshooting_cases`](community_troubleshooting_cases.md)\n\
+      \n**Grounded Manual References:**\n- [`references/hp-folio-g3-service-manual-n17344`](../references/hp-folio-g3-service-manual-n17344.md)\n\
+      - [`references/bios-nvm-and-hp-sure-start-security`](../references/bios-nvm-and-hp-sure-start-security.md)\n\
+      \n# Examples\n\n```sql\nSELECT\n  s.sku_id,\n  s.region_code,\n  s.cpu_model,\n  s.ram_gb,\n  s.display_panel_type,\n\
+      \  s.wwan_module,\n  s.system_board_part_no,\n  c.component_name AS mapped_system_board\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.product_skus_and_configs`\
+      \ AS s\nJOIN `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components_catalog` AS c\n  ON s.system_board_part_no\
+      \ = c.part_number\nORDER BY s.model_id, s.sku_id;\n```\n\n[^bq-source]: BigQuery Table `hp-dragonfly.prj_ontology_hp_dragonfly.product_skus_and_configs`\n\
+      [^hp-msg-n17344]: HP Dragonfly Folio 13.5 inch G3 Maintenance and Service Guide (Doc Part N17344-001)"

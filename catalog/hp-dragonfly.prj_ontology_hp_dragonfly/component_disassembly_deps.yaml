@@ -1,0 +1,120 @@
+name: hp-dragonfly.prj_ontology_hp_dragonfly/component_disassembly_deps
+type: dataplex-types.global.bigquery-table
+resource:
+  name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/component_disassembly_deps
+  displayName: component_disassembly_deps
+  description: 'Physical disassembly prerequisite edges defining which component must be removed before
+    another component (Edge Table: REQUIRES_REMOVAL_OF)'
+  labels:
+    datacloud: jetski
+    domain: hp-dragonfly-ontology
+  location: us
+  ancestors:
+  - name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly
+    type: dataplex-types.global.bigquery-dataset
+  createTime: 2026-10-25 02:36:23.392000+00:00
+  updateTime: 2026-10-25 02:36:25.725000+00:00
+aspects:
+  dataplex-types.global.bigquery-table:
+    type: TABLE
+    tableType: TABLE
+  dataplex-types.global.schema:
+    fields:
+    - name: dependency_id
+      description: Unique disassembly dependency rule ID (Primary Key)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: model_id
+      description: Target model ID (FK -> dragonfly_series_models.model_id)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: target_part_number
+      description: Target spare part number to be serviced/removed (FK -> hardware_components_catalog.part_number)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: target_component_name
+      description: Target component name
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: prerequisite_part_number
+      description: Prerequisite spare part number that must be removed first (FK -> hardware_components_catalog.part_number)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: prerequisite_component_name
+      description: Prerequisite component name
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: step_order
+      description: Ordered disassembly prerequisite sequence step (1, 2, 3...)
+      dataType: INTEGER
+      metadataType: NUMBER
+      mode: REQUIRED
+    - name: fastener_screw_spec
+      description: Fastener screw dimensions and connector types (e.g., 5x Torx T5 + 2x Phillips M2.0x4.0,
+        ZIF connector)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: required_tools
+      description: Required service tools (e.g., Magnetic Phillips P0/P1, Torx T5, Nonconductive pry tool,
+        Tweezers)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: caution_note
+      description: Critical service caution note to prevent hardware damage during disassembly/reassembly
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: manual_page_ref
+      description: Service manual page reference (e.g., N17344-001 p.35-36)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+  dataplex-types.global.storage:
+    service: BIGQUERY
+    resourceName: //bigquery.googleapis.com/projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/component_disassembly_deps
+  dataplex-types.global.overview:
+    contentType: MARKDOWN
+    content: "# Overview\n\n`hp-dragonfly.prj_ontology_hp_dragonfly.component_disassembly_deps` (15 rows)\
+      \ — Physical disassembly prerequisite edges defining which component must be removed before another\
+      \ component (Edge Table: REQUIRES_REMOVAL_OF)[^bq-source]\n\nEncodes the physical service dependency\
+      \ DAG from Chapter 5 of N17344-001. For example, replacing System Board `N20728-601` requires ordered\
+      \ removal of Bottom Cover `N22918-001` (Step 1), Battery `M90788-005` (Step 2), and Heat Sink/Dual\
+      \ Fan Assembly `N22936-001` (Step 3), while replacing the 8 MP Camera Module `N23306-001` requires\
+      \ removing the stretch-release adhesive display panel `N23305-001` and Display Hub Board `N22937-001`.[^hp-msg-n17344]\n\
+      \n- **BigQuery Property Graph Role:** Edge Table (`REQUIRES_REMOVAL_OF`: `HardwareComponent` ->\
+      \ `HardwareComponent`)\n- **Grounded Service Manual Section:** Chapter 5: Removal and Replacement\
+      \ Procedures (pp. 32–72), Chapter 8: Screw Listing & ESD Specifications (pp. 85–90)[^hp-msg-n17344]\n\
+      \n# Schema\n\n| Column | Type | Mode | Description |\n| :--- | :--- | :--- | :--- |\n| `dependency_id`\
+      \ | `STRING` | `REQUIRED` | Unique disassembly dependency rule ID (Primary Key) |\n| `model_id`\
+      \ | `STRING` | `REQUIRED` | Target model ID (FK -> dragonfly_series_models.model_id) |\n| `target_part_number`\
+      \ | `STRING` | `REQUIRED` | Target spare part number to be serviced/removed (FK -> hardware_components_catalog.part_number)\
+      \ |\n| `target_component_name` | `STRING` | `REQUIRED` | Target component name |\n| `prerequisite_part_number`\
+      \ | `STRING` | `REQUIRED` | Prerequisite spare part number that must be removed first (FK -> hardware_components_catalog.part_number)\
+      \ |\n| `prerequisite_component_name` | `STRING` | `REQUIRED` | Prerequisite component name |\n|\
+      \ `step_order` | `INTEGER` | `REQUIRED` | Ordered disassembly prerequisite sequence step (1, 2,\
+      \ 3...) |\n| `fastener_screw_spec` | `STRING` | `REQUIRED` | Fastener screw dimensions and connector\
+      \ types (e.g., 5x Torx T5 + 2x Phillips M2.0x4.0, ZIF connector) |\n| `required_tools` | `STRING`\
+      \ | `REQUIRED` | Required service tools (e.g., Magnetic Phillips P0/P1, Torx T5, Nonconductive pry\
+      \ tool, Tweezers) |\n| `caution_note` | `STRING` | `REQUIRED` | Critical service caution note to\
+      \ prevent hardware damage during disassembly/reassembly |\n| `manual_page_ref` | `STRING` | `REQUIRED`\
+      \ | Service manual page reference (e.g., N17344-001 p.35-36) |\n\n# Cross-Concept Links\n\n**Related\
+      \ BigQuery Tables:**\n- [`tables/hardware_components_catalog`](hardware_components_catalog.md)\n\
+      - [`tables/community_troubleshooting_cases`](community_troubleshooting_cases.md)\n\n**Grounded Manual\
+      \ References:**\n- [`references/disassembly-prerequisite-graph-and-esd`](../references/disassembly-prerequisite-graph-and-esd.md)\n\
+      - [`references/oled-camera-and-cable-replacement`](../references/oled-camera-and-cable-replacement.md)\n\
+      \n# Examples\n\n```sql\nSELECT\n  d.dependency_id,\n  d.target_part_number,\n  t.component_name\
+      \ AS target_component,\n  d.step_order,\n  d.prerequisite_part_number,\n  p.component_name AS prerequisite_component,\n\
+      \  d.fastener_screw_spec,\n  d.caution_note\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.component_disassembly_deps`\
+      \ AS d\nJOIN `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components_catalog` AS t\n  ON d.target_part_number\
+      \ = t.part_number\nJOIN `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components_catalog` AS\
+      \ p\n  ON d.prerequisite_part_number = p.part_number\nORDER BY d.target_part_number, d.step_order;\n\
+      ```\n\n[^bq-source]: BigQuery Table `hp-dragonfly.prj_ontology_hp_dragonfly.component_disassembly_deps`\n\
+      [^hp-msg-n17344]: HP Dragonfly Folio 13.5 inch G3 Maintenance and Service Guide (Doc Part N17344-001)"

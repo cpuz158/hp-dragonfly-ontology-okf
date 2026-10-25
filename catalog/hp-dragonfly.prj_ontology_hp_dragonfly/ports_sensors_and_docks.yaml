@@ -1,0 +1,98 @@
+name: hp-dragonfly.prj_ontology_hp_dragonfly/ports_sensors_and_docks
+type: dataplex-types.global.bigquery-table
+resource:
+  name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/ports_sensors_and_docks
+  displayName: ports_sensors_and_docks
+  description: External I/O ports, internal sensors, status LEDs, active pen, and official HP docking
+    station compatibility matrix
+  labels:
+    datacloud: jetski
+    domain: hp-dragonfly-ontology
+  location: us
+  ancestors:
+  - name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly
+    type: dataplex-types.global.bigquery-dataset
+  createTime: 2026-10-25 02:36:27.271000+00:00
+  updateTime: 2026-10-25 02:36:29.841000+00:00
+aspects:
+  dataplex-types.global.bigquery-table:
+    type: TABLE
+    tableType: TABLE
+  dataplex-types.global.schema:
+    fields:
+    - name: feature_id
+      description: Unique port, sensor, or dock identifier (Primary Key)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: model_id
+      description: Target model ID (FK -> dragonfly_series_models.model_id)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: feature_category
+      description: Feature classification (External Port, Internal Sensor, Status LED, Docking Station,
+        Active Pen)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: feature_name
+      description: Port, sensor, or peripheral name
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: location_on_chassis
+      description: Physical location (Left Side, Right Side, Top Display Bezel, System Board, External
+        USB-C)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: protocol_or_spec
+      description: Supported electrical/data protocols and specifications (Thunderbolt 4 40Gbps, DP 1.4,
+        USB-PD 65W/100W)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: spare_part_number
+      description: Associated replacement or accessory spare part number
+      dataType: STRING
+      metadataType: STRING
+      mode: NULLABLE
+    - name: operational_behavior
+      description: Operational behavior and mode-specific constraints (e.g., keyboard auto-disable in
+        tablet mode)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+  dataplex-types.global.storage:
+    service: BIGQUERY
+    resourceName: //bigquery.googleapis.com/projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/ports_sensors_and_docks
+  dataplex-types.global.overview:
+    contentType: MARKDOWN
+    content: "# Overview\n\n`hp-dragonfly.prj_ontology_hp_dragonfly.ports_sensors_and_docks` (10 rows)\
+      \ — External I/O ports, internal sensors, status LEDs, active pen, and official HP docking station\
+      \ compatibility matrix[^bq-source]\n\nDocuments physical placement (`LEFT_SIDE`, `RIGHT_SIDE`, `TOP_BEZEL`,\
+      \ `INTERNAL_BOARD`, `EXTERNAL_DOCK`), electrical protocols (40 Gbps Thunderbolt 4 / USB4, DisplayPort\
+      \ 1.4, USB Power Delivery), automatic 3.5mm audio jack speaker cutoff logic (Manual p. 6), Time-of-Flight\
+      \ human presence sensor, and official HP Thunderbolt 120W/280W G4 Dock spare part numbers (`M97105-001`,\
+      \ `M97106-001`).[^hp-msg-n17344]\n\n- **BigQuery Property Graph Role:** Attribute & Compatibility\
+      \ Reference Table\n- **Grounded Service Manual Section:** Chapter 1: External Ports & Docks (p.\
+      \ 3), Chapter 2: Left/Right Side & Display Components (pp. 5–9)[^hp-msg-n17344]\n\n# Schema\n\n\
+      | Column | Type | Mode | Description |\n| :--- | :--- | :--- | :--- |\n| `feature_id` | `STRING`\
+      \ | `REQUIRED` | Unique port, sensor, or dock identifier (Primary Key) |\n| `model_id` | `STRING`\
+      \ | `REQUIRED` | Target model ID (FK -> dragonfly_series_models.model_id) |\n| `feature_category`\
+      \ | `STRING` | `REQUIRED` | Feature classification (External Port, Internal Sensor, Status LED,\
+      \ Docking Station, Active Pen) |\n| `feature_name` | `STRING` | `REQUIRED` | Port, sensor, or peripheral\
+      \ name |\n| `location_on_chassis` | `STRING` | `REQUIRED` | Physical location (Left Side, Right\
+      \ Side, Top Display Bezel, System Board, External USB-C) |\n| `protocol_or_spec` | `STRING` | `REQUIRED`\
+      \ | Supported electrical/data protocols and specifications (Thunderbolt 4 40Gbps, DP 1.4, USB-PD\
+      \ 65W/100W) |\n| `spare_part_number` | `STRING` | `NULLABLE` | Associated replacement or accessory\
+      \ spare part number |\n| `operational_behavior` | `STRING` | `REQUIRED` | Operational behavior and\
+      \ mode-specific constraints (e.g., keyboard auto-disable in tablet mode) |\n\n# Cross-Concept Links\n\
+      \n**Related BigQuery Tables:**\n- [`tables/dragonfly_series_models`](dragonfly_series_models.md)\n\
+      - [`tables/firmware_bios_and_nvm`](firmware_bios_and_nvm.md)\n- [`tables/community_troubleshooting_cases`](community_troubleshooting_cases.md)\n\
+      \n**Grounded Manual References:**\n- [`references/thunderbolt-4-port-and-dock-architecture`](../references/thunderbolt-4-port-and-dock-architecture.md)\n\
+      \n# Examples\n\n```sql\nSELECT\n  interface_id,\n  model_id,\n  interface_category,\n  interface_name,\n\
+      \  physical_location,\n  max_data_rate_gbps,\n  compatible_dock_part_no\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.ports_sensors_and_docks`\n\
+      ORDER BY interface_id;\n```\n\n[^bq-source]: BigQuery Table `hp-dragonfly.prj_ontology_hp_dragonfly.ports_sensors_and_docks`\n\
+      [^hp-msg-n17344]: HP Dragonfly Folio 13.5 inch G3 Maintenance and Service Guide (Doc Part N17344-001)"

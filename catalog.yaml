@@ -1,0 +1,13 @@
+scope: bq-dataset.hp-dragonfly.prj_ontology_hp_dragonfly
+snapshot:
+  entries:
+  - dataplex-types.global.bigquery-dataset
+  - dataplex-types.global.bigquery-table
+  aspects:
+  - dataplex-types.global.overview
+publishing:
+  entries:
+  - dataplex-types.global.bigquery-dataset
+  - dataplex-types.global.bigquery-table
+  aspects:
+  - dataplex-types.global.overview

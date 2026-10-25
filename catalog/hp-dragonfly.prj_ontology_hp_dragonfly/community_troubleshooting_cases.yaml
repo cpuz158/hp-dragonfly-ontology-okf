@@ -1,0 +1,146 @@
+name: hp-dragonfly.prj_ontology_hp_dragonfly/community_troubleshooting_cases
+type: dataplex-types.global.bigquery-table
+resource:
+  name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/community_troubleshooting_cases
+  displayName: community_troubleshooting_cases
+  description: 'Real-world hardware, firmware, and OS troubleshooting cases collected from HP Support
+    Community, Reddit, and enterprise field escalations (Node Table: TroubleshootingCase)'
+  labels:
+    datacloud: jetski
+    domain: hp-dragonfly-ontology
+  location: us
+  ancestors:
+  - name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly
+    type: dataplex-types.global.bigquery-dataset
+  createTime: 2026-10-25 02:36:40.547000+00:00
+  updateTime: 2026-10-25 02:36:42.928000+00:00
+aspects:
+  dataplex-types.global.bigquery-table:
+    type: TABLE
+    tableType: TABLE
+  dataplex-types.global.schema:
+    fields:
+    - name: case_id
+      description: Unique troubleshooting case ID (Primary Key, e.g., TS-DFG3-001)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: model_id
+      description: Affected model ID (FK -> dragonfly_series_models.model_id)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: sku_id
+      description: Representative affected SKU ID (FK -> product_skus_and_configs.sku_id)
+      dataType: STRING
+      metadataType: STRING
+      mode: NULLABLE
+    - name: issue_category
+      description: Issue domain (BIOS & Boot, Thunderbolt & Docking, Audio & Mic, Camera & Presence, Battery
+        & Standby, Thermal & Fan, WWAN & 5G, Display & Sure View, Pen & Charging, Linux Compatibility)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: severity
+      description: Impact severity level (CRITICAL, HIGH, MEDIUM, LOW)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: source_channel
+      description: Reporting source channel (HP Support Community, Reddit r/Hewlett_Packard, Enterprise
+        Field Escalation, Linux Kernel Bugzilla)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: reported_symptom
+      description: Detailed user-reported symptom and failure behavior in English
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: error_or_diagnostic_code
+      description: Associated diagnostic or blink code (FK -> diagnostic_codes_reference.diagnostic_code)
+      dataType: STRING
+      metadataType: STRING
+      mode: NULLABLE
+    - name: affected_part_number
+      description: Root-cause or replacement HP spare part number (FK -> hardware_components_catalog.part_number)
+      dataType: STRING
+      metadataType: STRING
+      mode: NULLABLE
+    - name: resolving_softpaq_id
+      description: Resolving BIOS or driver SoftPaq ID (FK -> firmware_bios_and_nvm.softpaq_id)
+      dataType: STRING
+      metadataType: STRING
+      mode: NULLABLE
+    - name: root_cause_analysis
+      description: Technical root cause analysis in English
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: resolution_steps
+      description: Step-by-step troubleshooting and remediation procedure in English
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: requires_part_replacement
+      description: Whether physical hardware component (FRU) replacement is required
+      dataType: BOOLEAN
+      metadataType: BOOLEAN
+      mode: REQUIRED
+    - name: occurrence_count
+      description: Number of similar community/field incident reports
+      dataType: INTEGER
+      metadataType: NUMBER
+      mode: REQUIRED
+    - name: avg_resolution_time_min
+      description: Average time to resolution in minutes
+      dataType: INTEGER
+      metadataType: NUMBER
+      mode: REQUIRED
+  dataplex-types.global.storage:
+    service: BIGQUERY
+    resourceName: //bigquery.googleapis.com/projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/community_troubleshooting_cases
+  dataplex-types.global.overview:
+    contentType: MARKDOWN
+    content: "# Overview\n\n`hp-dragonfly.prj_ontology_hp_dragonfly.community_troubleshooting_cases` (12\
+      \ rows) — Real-world hardware, firmware, and OS troubleshooting cases collected from HP Support\
+      \ Community, Reddit, and enterprise field escalations (Node Table: TroubleshootingCase)[^bq-source]\n\
+      \nBridges unstructured customer symptoms (black screen after BIOS update, dual 4K dock flicker,\
+      \ Windows 11 Intel SST red X audio loss, Modern Standby hot-bag drain, 8 MP camera disconnect, 5G\
+      \ WWAN thermal throttling) to structured diagnostic codes (`error_or_diagnostic_code`), SoftPaq\
+      \ fixes (`resolving_softpaq_id`), and exact replacement spare parts (`affected_part_number`).[^hp-msg-n17344]\n\
+      \n- **BigQuery Property Graph Role:** Node Table (`TroubleshootingCase`, Key: `case_id`) & Edge\
+      \ Tables (`AFFECTS_COMPONENT`, `TRIGGERS_DIAGNOSTIC`)\n- **Grounded Service Manual Section:** Cross-links\
+      \ Chapters 3, 5, 6, and 7 of Service Guide N17344-001 with field incident reports[^hp-msg-n17344]\n\
+      \n# Schema\n\n| Column | Type | Mode | Description |\n| :--- | :--- | :--- | :--- |\n| `case_id`\
+      \ | `STRING` | `REQUIRED` | Unique troubleshooting case ID (Primary Key, e.g., TS-DFG3-001) |\n\
+      | `model_id` | `STRING` | `REQUIRED` | Affected model ID (FK -> dragonfly_series_models.model_id)\
+      \ |\n| `sku_id` | `STRING` | `NULLABLE` | Representative affected SKU ID (FK -> product_skus_and_configs.sku_id)\
+      \ |\n| `issue_category` | `STRING` | `REQUIRED` | Issue domain (BIOS & Boot, Thunderbolt & Docking,\
+      \ Audio & Mic, Camera & Presence, Battery & Standby, Thermal & Fan, WWAN & 5G, Display & Sure View,\
+      \ Pen & Charging, Linux Compatibility) |\n| `severity` | `STRING` | `REQUIRED` | Impact severity\
+      \ level (CRITICAL, HIGH, MEDIUM, LOW) |\n| `source_channel` | `STRING` | `REQUIRED` | Reporting\
+      \ source channel (HP Support Community, Reddit r/Hewlett_Packard, Enterprise Field Escalation, Linux\
+      \ Kernel Bugzilla) |\n| `reported_symptom` | `STRING` | `REQUIRED` | Detailed user-reported symptom\
+      \ and failure behavior in English |\n| `error_or_diagnostic_code` | `STRING` | `NULLABLE` | Associated\
+      \ diagnostic or blink code (FK -> diagnostic_codes_reference.diagnostic_code) |\n| `affected_part_number`\
+      \ | `STRING` | `NULLABLE` | Root-cause or replacement HP spare part number (FK -> hardware_components_catalog.part_number)\
+      \ |\n| `resolving_softpaq_id` | `STRING` | `NULLABLE` | Resolving BIOS or driver SoftPaq ID (FK\
+      \ -> firmware_bios_and_nvm.softpaq_id) |\n| `root_cause_analysis` | `STRING` | `REQUIRED` | Technical\
+      \ root cause analysis in English |\n| `resolution_steps` | `STRING` | `REQUIRED` | Step-by-step\
+      \ troubleshooting and remediation procedure in English |\n| `requires_part_replacement` | `BOOLEAN`\
+      \ | `REQUIRED` | Whether physical hardware component (FRU) replacement is required |\n| `occurrence_count`\
+      \ | `INTEGER` | `REQUIRED` | Number of similar community/field incident reports |\n| `avg_resolution_time_min`\
+      \ | `INTEGER` | `REQUIRED` | Average time to resolution in minutes |\n\n# Cross-Concept Links\n\n\
+      **Related BigQuery Tables:**\n- [`tables/dragonfly_series_models`](dragonfly_series_models.md)\n\
+      - [`tables/product_skus_and_configs`](product_skus_and_configs.md)\n- [`tables/hardware_components_catalog`](hardware_components_catalog.md)\n\
+      - [`tables/component_disassembly_deps`](component_disassembly_deps.md)\n- [`tables/firmware_bios_and_nvm`](firmware_bios_and_nvm.md)\n\
+      - [`tables/diagnostic_codes_reference`](diagnostic_codes_reference.md)\n\n**Grounded Manual References:**\n\
+      - [`references/post-led-blink-and-uefi-diagnostics`](../references/post-led-blink-and-uefi-diagnostics.md)\n\
+      - [`references/bios-nvm-and-hp-sure-start-security`](../references/bios-nvm-and-hp-sure-start-security.md)\n\
+      - [`references/disassembly-prerequisite-graph-and-esd`](../references/disassembly-prerequisite-graph-and-esd.md)\n\
+      \n# Examples\n\n```sql\nSELECT\n  case_id,\n  model_id,\n  issue_category,\n  severity,\n  error_or_diagnostic_code,\n\
+      \  affected_part_number,\n  resolving_softpaq_id,\n  requires_part_replacement,\n  occurrence_count,\n\
+      \  avg_resolution_time_min\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.community_troubleshooting_cases`\n\
+      ORDER BY occurrence_count DESC;\n```\n\n[^bq-source]: BigQuery Table `hp-dragonfly.prj_ontology_hp_dragonfly.community_troubleshooting_cases`\n\
+      [^hp-msg-n17344]: HP Dragonfly Folio 13.5 inch G3 Maintenance and Service Guide (Doc Part N17344-001)"

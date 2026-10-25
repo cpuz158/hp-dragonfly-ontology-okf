@@ -1,0 +1,115 @@
+name: hp-dragonfly.prj_ontology_hp_dragonfly/hardware_components_catalog
+type: dataplex-types.global.bigquery-table
+resource:
+  name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/hardware_components_catalog
+  displayName: hardware_components_catalog
+  description: 'Official spare parts catalog for HP Dragonfly G3 and Folio G3 including major components,
+    display subcomponents, and kits (Node Table: HardwareComponent)'
+  labels:
+    datacloud: jetski
+    domain: hp-dragonfly-ontology
+  location: us
+  ancestors:
+  - name: projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly
+    type: dataplex-types.global.bigquery-dataset
+  createTime: 2026-10-25 02:36:19.075000+00:00
+  updateTime: 2026-10-25 02:36:21.465000+00:00
+aspects:
+  dataplex-types.global.bigquery-table:
+    type: TABLE
+    tableType: TABLE
+  dataplex-types.global.schema:
+    fields:
+    - name: part_number
+      description: Official HP Spare Part Number (Primary Key, e.g., M90788-005, M52027-005, N20728-601)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: model_id
+      description: Compatible model ID (FK -> dragonfly_series_models.model_id)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: component_category
+      description: Component category (System Board, Solid-State Drive, Battery, Display Subcomponent,
+        Thermal, WWAN, Audio, Input/Cover, Kit/Accessory)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: component_name
+      description: Official component name
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: technical_specs
+      description: Detailed component technical specifications, capacity, interface, and included accessories
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: serviceability_tier
+      description: Service replacement tier (End-User Replaceable, Authorized Service Provider Only)
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: esd_sensitive
+      description: Whether the part is sensitive to Electrostatic Discharge (degrades at >= 700V)
+      dataType: BOOLEAN
+      metadataType: BOOLEAN
+      mode: REQUIRED
+    - name: requires_thermal_paste
+      description: Whether thermal grease or thermal pad replacement is required during service
+      dataType: BOOLEAN
+      metadataType: BOOLEAN
+      mode: REQUIRED
+    - name: manual_chapter_page
+      description: Reference chapter and page numbers in the HP Maintenance and Service Guide
+      dataType: STRING
+      metadataType: STRING
+      mode: REQUIRED
+    - name: estimated_replace_min
+      description: Standard estimated service replacement time in minutes
+      dataType: INTEGER
+      metadataType: NUMBER
+      mode: REQUIRED
+    - name: unit_price_usd
+      description: Reference spare part unit price in USD
+      dataType: FLOAT
+      metadataType: NUMBER
+      mode: REQUIRED
+  dataplex-types.global.storage:
+    service: BIGQUERY
+    resourceName: //bigquery.googleapis.com/projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly/tables/hardware_components_catalog
+  dataplex-types.global.overview:
+    contentType: MARKDOWN
+    content: "# Overview\n\n`hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components_catalog` (38 rows)\
+      \ — Official spare parts catalog for HP Dragonfly G3 and Folio G3 including major components, display\
+      \ subcomponents, and kits (Node Table: HardwareComponent)[^bq-source]\n\nContains 38 official HP\
+      \ spare parts across System Boards, Memory (Soldered), Primary Storage (M.2 2280 PCIe Gen4x4 NVMe\
+      \ SSDs), Battery (`M90788-005`), Thermal (`N22936-001`), WWAN/WLAN modules, Display Subcomponents\
+      \ (`N23304-001`, `N23305-001`, `N23306-001`), and Top Cover/Keyboard assemblies. Distinguishes Customer\
+      \ Self-Repair (`CUSTOMER_SELF_Repair_OPTIONAL`) from `AUTHORIZED_SERVICE_PROVIDER_ONLY` components.[^hp-msg-n17344]\n\
+      \n- **BigQuery Property Graph Role:** Node Table (`HardwareComponent`, Key: `part_number`)\n- **Grounded\
+      \ Service Manual Section:** Chapter 3: Illustrated Parts Catalog (pp. 17–28), Chapter 5: Removal\
+      \ and Replacement Procedures (pp. 32–72)[^hp-msg-n17344]\n\n# Schema\n\n| Column | Type | Mode |\
+      \ Description |\n| :--- | :--- | :--- | :--- |\n| `part_number` | `STRING` | `REQUIRED` | Official\
+      \ HP Spare Part Number (Primary Key, e.g., M90788-005, M52027-005, N20728-601) |\n| `model_id` |\
+      \ `STRING` | `REQUIRED` | Compatible model ID (FK -> dragonfly_series_models.model_id) |\n| `component_category`\
+      \ | `STRING` | `REQUIRED` | Component category (System Board, Solid-State Drive, Battery, Display\
+      \ Subcomponent, Thermal, WWAN, Audio, Input/Cover, Kit/Accessory) |\n| `component_name` | `STRING`\
+      \ | `REQUIRED` | Official component name |\n| `technical_specs` | `STRING` | `REQUIRED` | Detailed\
+      \ component technical specifications, capacity, interface, and included accessories |\n| `serviceability_tier`\
+      \ | `STRING` | `REQUIRED` | Service replacement tier (End-User Replaceable, Authorized Service Provider\
+      \ Only) |\n| `esd_sensitive` | `BOOLEAN` | `REQUIRED` | Whether the part is sensitive to Electrostatic\
+      \ Discharge (degrades at >= 700V) |\n| `requires_thermal_paste` | `BOOLEAN` | `REQUIRED` | Whether\
+      \ thermal grease or thermal pad replacement is required during service |\n| `manual_chapter_page`\
+      \ | `STRING` | `REQUIRED` | Reference chapter and page numbers in the HP Maintenance and Service\
+      \ Guide |\n| `estimated_replace_min` | `INTEGER` | `REQUIRED` | Standard estimated service replacement\
+      \ time in minutes |\n| `unit_price_usd` | `FLOAT` | `REQUIRED` | Reference spare part unit price\
+      \ in USD |\n\n# Cross-Concept Links\n\n**Related BigQuery Tables:**\n- [`tables/component_disassembly_deps`](component_disassembly_deps.md)\n\
+      - [`tables/product_skus_and_configs`](product_skus_and_configs.md)\n- [`tables/community_troubleshooting_cases`](community_troubleshooting_cases.md)\n\
+      \n**Grounded Manual References:**\n- [`references/hp-folio-g3-service-manual-n17344`](../references/hp-folio-g3-service-manual-n17344.md)\n\
+      - [`references/disassembly-prerequisite-graph-and-esd`](../references/disassembly-prerequisite-graph-and-esd.md)\n\
+      \n# Examples\n\n```sql\nSELECT\n  part_number,\n  component_category,\n  component_name,\n  serviceability_tier,\n\
+      \  is_soldered,\n  requires_thermal_paste_renewal,\n  manual_page_ref\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components_catalog`\n\
+      ORDER BY component_category, part_number;\n```\n\n[^bq-source]: BigQuery Table `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components_catalog`\n\
+      [^hp-msg-n17344]: HP Dragonfly Folio 13.5 inch G3 Maintenance and Service Guide (Doc Part N17344-001)"
