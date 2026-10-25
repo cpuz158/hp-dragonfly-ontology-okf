@@ -3608,10 +3608,15 @@ body.dark-mode .agent-composer-card {
   height: auto;
 }
 
+.intro-fig-canvas svg foreignObject {
+  overflow: visible;
+}
+
 .intro-fig-canvas .nodeLabel p,
 .intro-fig-canvas .edgeLabel p,
 .intro-fig-canvas .label p {
   margin: 0;
+  line-height: 1.38;
 }
 
 .intro-fig figcaption {

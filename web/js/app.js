@@ -25,7 +25,8 @@
       ? "en"
       : localStorage.getItem("hp_studio_lang") || "ko");
   let ACTIVE_MODULE = "intro";
-  let INTRO_TAB = "arch"; // 'arch' | 'pipeline'
+  let INTRO_TAB = "sys"; // 'sys' | 'graph' | 'agent'
+  let INTRO_SEQ_MODE = "graph"; // 'graph' | 'rag'
   let MGMT_TAB = "kcmd"; // 'kcmd' | 'git'
   let GRAPH_MODE = false;
   let CURRENT_OKF_IDX = 0;
@@ -299,193 +300,819 @@
   }
 
   // =========================================================================
-  // 3. MODULE 01: Intro (3-Plane Architecture & Pipeline)
+  // 3. MODULE 01: Intro (3-Subtab Architecture: System · Graph · Agent)
+  //    100% Aligned with krda-ontology-studio (mod-pages.js + intro_arch.json)
   // =========================================================================
   window.setIntroTab = function (tabId) {
+    if (tabId === "arch") tabId = "sys";
+    if (tabId === "pipeline") tabId = "agent";
     INTRO_TAB = tabId;
     renderIntroModule();
   };
+
+  window.switchIntroTab = window.setIntroTab;
+
+  window.switchIntroSeq = function (mode) {
+    INTRO_SEQ_MODE = mode === "rag" ? "rag" : "graph";
+    const fg = document.getElementById("intro-fig-3-3");
+    const fr = document.getElementById("intro-fig-3-4");
+    if (fg) fg.hidden = INTRO_SEQ_MODE !== "graph";
+    if (fr) fr.hidden = INTRO_SEQ_MODE !== "rag";
+    document.querySelectorAll("[data-intro-seq]").forEach((b) => {
+      b.classList.toggle("on", b.getAttribute("data-intro-seq") === INTRO_SEQ_MODE);
+    });
+    const hostId = INTRO_SEQ_MODE === "rag" ? "intro-mmd-3-4" : "intro-mmd-3-3";
+    const host = document.getElementById(hostId);
+    if (host && !host.querySelector("svg")) {
+      renderIntroMermaidDiagrams();
+    }
+  };
+
+  function getIntroArchSpec(k) {
+    return {
+      tabs: {
+        sys: {
+          title: k ? "시스템 아키텍처" : "System Architecture",
+          hero: {
+            eyebrow: k ? "왜 Knowledge Graph 인가" : "Why an Enterprise Knowledge Graph",
+            title: k
+              ? "비정형 서비스 매뉴얼(109p)과 정형 부품 테이블(9종) 사이의 질문은<br/>문서 유사도 검색이 아니라 <em>관계 그래프 순회</em>로 풀어야 합니다"
+              : "Cross-Domain Questions Spanning Service Manuals (109p) & Spare Part Tables (9)<br/>Require <em>Deterministic Graph Traversal</em>, Not Chunk Similarity",
+            sub: k
+              ? "현장 엔지니어의 질문 하나에는 제품 SKU 사양, 온보드 부품 종속성, 필수 선행 분해 순서(DAG), LED 점멸 진단 코드, 그리고 폐기된 구버전 내규 여부가 동시에 얽혀 있습니다. 문단을 잘라 임베딩 유사도로 찾는 Vector RAG와, 이를 10종 노드·12종 엣지로 연결해 순회하는 Knowledge Graph는 같은 질문에 전혀 다르게 답합니다."
+              : "A single field-engineering question simultaneously spans SKU specs, soldered board dependencies, mandatory prerequisite disassembly order (DAG), LED blink diagnostics, and deprecated SOP governance. Vector RAG chunk similarity and a 10-Node / 12-Edge Property Graph answer the exact same question in fundamentally different ways.",
+            q: k
+              ? "HP Dragonfly Folio G3(i7-1265U, 32GB 온보드 LPDDR5)에서 Caps Lock LED 3.2 점멸 오류가 발생했을 때 교체할 정확한 시스템 보드 파트 번호와 필수 선행 분해 부품 순서(DAG)는?"
+              : "On an HP Dragonfly Folio G3 (i7-1265U, 32GB soldered LPDDR5) with Caps Lock 3.2 blink error, what is the exact replacement system board part number and mandatory prerequisite removal order (DAG)?",
+            bad: {
+              name: k ? "문서 검색 (Vector RAG)" : "Chunk Search (Vector RAG)",
+              verdict: k ? "오답 · 선행 순서 누락" : "Incorrect · Missing DAG Order",
+              answer: k
+                ? "메모리 모듈(SO-DIMM) 재장착 또는 일반 보드(N09241-601 등) 안내"
+                : "Suggests reseating SO-DIMM or wrong G3 board (N09241-601)",
+              points: k
+                ? [
+                    "<b>LPDDR5 온보드 납땜(Soldered)</b> 제약을 놓치고 일반 슬롯 재장착을 권고",
+                    "16종 시스템 보드 중 <b>Folio G3 i7-1265U 32GB (N20728-601 / M90788-601)</b> 특정 실패",
+                    "시스템 보드 분리 전 <b>하판 커버 → 배터리(700V 방전) → 방열판</b> 선행 분해 DAG 누락"
+                  ]
+                : [
+                    "Misses <b>soldered LPDDR5</b> constraint and advises reseating non-existent memory slots",
+                    "Fails to isolate <b>Folio G3 i7-1265U 32GB board (N20728-601 / M90788-601)</b> among 16 SKUs",
+                    "Omits mandatory <b>Bottom Cover → Battery (700V ESD) → Heatsink</b> disassembly DAG"
+                  ]
+            },
+            good: {
+              name: k ? "Knowledge Graph (Graph Agent)" : "Knowledge Graph (Graph Agent)",
+              verdict: k ? "정답 · 100% 근거 검증" : "Verified & Deterministic",
+              answer: k
+                ? "Win+B Sure Start 복구 1차 수행 → 실패 시 N20728-601 교체 (4단계 DAG 준수)"
+                : "1st: Win+B Sure Start Recovery → 2nd: Replace N20728-601 (4-Step DAG)",
+              points: k
+                ? [
+                    "<code>LED-CAPS-3-2</code> <span class=\"edge\">GOVERNED_BY_PLAYBOOK</span> → <b>무분해 Win+B HP Sure Start 복구</b> 1차 안내",
+                    "<code>SKU</code> <span class=\"edge\">USES_SYSTEM_BOARD</span> → <b>i7-1265U 32GB 전용 보드</b> 정확히 1:1 매핑",
+                    "<code>SystemBoard</code> <span class=\"edge\">REQUIRES_REMOVAL_OF</span> → <b>하판 커버 → 배터리 → 방열판</b> 선행 순서 및 나사 규격 도출"
+                  ]
+                : [
+                    "<code>LED-CAPS-3-2</code> <span class=\"edge\">GOVERNED_BY_PLAYBOOK</span> → Guides <b>non-invasive Win+B HP Sure Start recovery</b> first",
+                    "<code>SKU</code> <span class=\"edge\">USES_SYSTEM_BOARD</span> → Maps 1:1 to exact <b>i7-1265U 32GB System Board FRU</b>",
+                    "<code>SystemBoard</code> <span class=\"edge\">REQUIRES_REMOVAL_OF</span> → Traverses <b>Bottom Cover → Battery → Heatsink</b> DAG & screw specs"
+                  ]
+            },
+            reasonsTitle: k
+              ? "왜 온톨로지 그래프에서만 이 답이 나오는가"
+              : "Why Only an Ontology Property Graph Produces This Answer",
+            reasons: k
+              ? [
+                  {
+                    t: "① 정형 테이블 ↔ 비정형 매뉴얼 2-Layer 결합",
+                    d: "BigQuery 9종 정형 부품·진단 테이블(Layer 1)과 34개 한/영 OKF 매뉴얼·플레이북 조항(Layer 2)이 <span class=\"edge\">GOVERNED_BY_OKF</span> · <span class=\"edge\">REQUIRES_REMOVAL_OF</span> 엣지로 직결됩니다."
+                  },
+                  {
+                    t: "② 부품 선행 분해 DAG 및 사양 제약 순회",
+                    d: "텍스트 유사도로는 알 수 없는 분해 선행 작업 순서(<span class=\"edge\">REQUIRES_REMOVAL_OF</span>)와 OLED 풀탭 비파괴 분리(<span class=\"edge\">MANDATES_PULL_TAB_REMOVAL</span>)를 GQL 경로로 확정합니다."
+                  },
+                  {
+                    t: "③ 폐기 내규(Deprecated) 결정론적 차단",
+                    d: "Dataplex Knowledge Catalog의 <code>okf.status=deprecated</code> 및 <code>superseded_by</code> 메타데이터를 실시간 대조해 금속 헤라 지렛대 사용(v0.1.0) 등 위험 구버전을 원천 차단합니다."
+                  }
+                ]
+              : [
+                  {
+                    t: "① 2-Layer Unification (Structured Tables ↔ OKF Manual)",
+                    d: "Directly links 9 structured BigQuery spare-part/diagnostic tables (Layer 1) with 34 bilingual OKF manual & playbook specifications (Layer 2) via <span class=\"edge\">GOVERNED_BY_OKF</span> & <span class=\"edge\">REQUIRES_REMOVAL_OF</span> edges."
+                  },
+                  {
+                    t: "② Multi-Hop Disassembly DAG & Safety Traversal",
+                    d: "Deterministically resolves prerequisite component removal chains (<span class=\"edge\">REQUIRES_REMOVAL_OF</span>) and non-destructive OLED pull-tab rules via ISO GQL path traversal."
+                  },
+                  {
+                    t: "③ Deterministic Blocking of Deprecated SOPs",
+                    d: "Cross-checks Dataplex Knowledge Catalog <code>okf.status=deprecated</code> & <code>superseded_by</code> lineage to block hazardous legacy instructions (v0.1.0 metal pry tools) before synthesis."
+                  }
+                ],
+            foot: k
+              ? "본 시스템은 세 책임을 세 Google Cloud 매니지드 서비스에 1:1로 분리합니다 — <b>위상 Plane</b>(BigQuery Property Graph: 무엇이 무엇과 연결되는가) · <b>거버넌스 Plane</b>(Dataplex Knowledge Catalog: 지금 유효한 정본인가) · <b>원문 Plane</b>(Cloud Storage & GitHub OKF: 한/영 이중화 마크다운 원문)."
+              : "This architecture cleanly separates three responsibilities across three Google Cloud services — <b>Topology Plane</b> (BigQuery Property Graph: how entities connect) · <b>Governance Plane</b> (Dataplex Knowledge Catalog: whether a spec is valid or deprecated) · <b>Document Plane</b> (Cloud Storage & GitHub OKF: bilingual okf-kr/okf-en markdown)."
+          },
+          figures: [
+            {
+              id: "1",
+              title: k ? "그림 1 · 전체 시스템 구성도" : "Figure 1 · End-to-End 3-Plane System Architecture",
+              caption: k
+                ? "원천 서비스 매뉴얼 PDF(109p)와 정형 테이블(9종)로부터 OKF 이중화 번들(<code>okf-kr</code> · <code>okf-en</code>)을 생성하고 3-Plane(BigQuery Graph · Dataplex Knowledge Catalog · Cloud Storage/Git)에 적재한 뒤, Google ADK 기반 <code>Graph Agent</code>와 비교군 <code>RAG Agent</code>가 스튜디오 6개 모듈에 서빙하는 전체 흐름."
+                : "End-to-end flow from the 109-page HP Service Manual PDF and 9 structured tables through the OKF Enrichment & kcmd pipeline into the 3-Plane data layer, serving the Google ADK Graph Agent, baseline Vector RAG Agent, and 6 Studio modules.",
+              mermaid: k
+                ? `flowchart LR
+  subgraph SRC["원천 데이터 (HP Dragonfly)"]
+    PDF[("공식 서비스 매뉴얼 PDF<br/>N17344-001 · 109p")]:::store
+    SRCDB[("정형 원천 테이블<br/>9종 · 부품/SKU/진단/DAG")]:::store
+  end
+  subgraph PIPE["구축 파이프라인 (Metadata as Code)"]
+    B1["① OKF 번들 추출·생성<br/>Enrichment Agent (34개)"]:::llm
+    B2["② Git 한·영 이중화 적재<br/>okf-kr · okf-en (GitHub)"]
+    B3["③ 카탈로그 양방향 동기화<br/>kcmd push · okf Aspect"]
+    B4["④ 온톨로지 그래프 구성<br/>노드·엣지 뷰 + DDL"]
+    B1 --> B2 --> B3 --> B4
+  end
+  subgraph DATA["3-Plane 엔터프라이즈 지식 계층"]
+    GCS[("원문 Plane<br/>Cloud Storage & GitHub<br/>okf-kr · okf-en (34×2)")]:::store
+    KC[("거버넌스 Plane<br/>Dataplex Knowledge Catalog<br/>okf Aspect · 정본/폐기")]:::store
+    BQ[("위상 Plane<br/>BigQuery Property Graph<br/>10 노드 · 12 엣지 클래스")]:::store
+  end
+  subgraph BASE["비교군 전용"]
+    VEC[("Vector RAG 청크<br/>512-token 단순 분할")]:::store
+  end
+  subgraph RUN["Agent Runtime · Google ADK (gemini-3.8-flash)"]
+    GA["Graph Agent<br/>GQL 순회 ➔ KC 검증 ➔ OKF 인출"]:::llm
+    RA["RAG Agent (비교군)<br/>단순 청크 유사도 검색"]:::llm
+  end
+  subgraph UI["HP Dragonfly Ontology Studio"]
+    M02["02 · OKF 검증<br/>PDF 1:1 대조 · 지식그래프"]
+    M03["03 · OKF 관리<br/>한/영 편집 · kcmd · Git"]
+    M04["04 · BigQueryGraph<br/>3D 위상 · GQL 실행"]
+    M05["05 · Ontology Agent<br/>하이브리드 정비 추론"]
+    M06["06 · RAG vs Graph<br/>라이브 ADK 비교"]
+  end
+  PDF --> B1
+  SRCDB --> B4
+  B2 --> GCS
+  B3 --> KC
+  B4 --> BQ
+  PDF -. "청크 분할" .-> VEC
+  BQ & KC & GCS --> GA
+  VEC --> RA
+  GCS & KC -.-> M02 & M03
+  BQ -.-> M04
+  GA --> M05 & M06
+  RA --> M06`
+                : `flowchart LR
+  subgraph SRC["Source Assets (HP Dragonfly)"]
+    PDF[("Official Service Manual PDF<br/>N17344-001 · 109p")]:::store
+    SRCDB[("Structured Source Tables<br/>9 Tables · SKU/Parts/DAG")]:::store
+  end
+  subgraph PIPE["Build Pipeline (Metadata as Code)"]
+    B1["① OKF Bundle Extraction<br/>Enrichment Agent (34 specs)"]:::llm
+    B2["② Bilingual Git Sync<br/>okf-kr · okf-en (GitHub)"]
+    B3["③ Catalog Synchronization<br/>kcmd push · okf Aspect"]
+    B4["④ Ontology Graph Build<br/>Node/Edge Views + DDL"]
+    B1 --> B2 --> B3 --> B4
+  end
+  subgraph DATA["3-Plane Enterprise Knowledge Layer"]
+    GCS[("Document Plane<br/>Cloud Storage & GitHub<br/>okf-kr · okf-en (34×2)")]:::store
+    KC[("Governance Plane<br/>Dataplex Knowledge Catalog<br/>okf Aspect · Status/Lineage")]:::store
+    BQ[("Topology Plane<br/>BigQuery Property Graph<br/>10 Node · 12 Edge Classes")]:::store
+  end
+  subgraph BASE["Baseline Only"]
+    VEC[("Vector RAG Chunks<br/>512-token Naive Split")]:::store
+  end
+  subgraph RUN["Agent Runtime · Google ADK (gemini-3.8-flash)"]
+    GA["Graph Agent<br/>GQL ➔ KC Gate ➔ OKF Fetch"]:::llm
+    RA["RAG Agent (Baseline)<br/>Chunk Top-K Search"]:::llm
+  end
+  subgraph UI["HP Dragonfly Ontology Studio"]
+    M02["02 · OKF Validation<br/>1:1 PDF Split · Graph"]
+    M03["03 · OKF Management<br/>KO/EN Editor · kcmd · Git"]
+    M04["04 · BigQueryGraph<br/>3D Topology · Live GQL"]
+    M05["05 · Ontology Agent<br/>Hybrid Triage Studio"]
+    M06["06 · RAG vs Graph<br/>Live ADK Benchmark"]
+  end
+  PDF --> B1
+  SRCDB --> B4
+  B2 --> GCS
+  B3 --> KC
+  B4 --> BQ
+  PDF -. "chunking" .-> VEC
+  BQ & KC & GCS --> GA
+  VEC --> RA
+  GCS & KC -.-> M02 & M03
+  BQ -.-> M04
+  GA --> M05 & M06
+  RA --> M06`
+            }
+          ]
+        },
+        graph: {
+          title: k ? "그래프 아키텍처" : "Graph Architecture",
+          lead: k
+            ? "단일 <b>BigQuery Property Graph</b>(<code>hp_dragonfly_ontology_graph</code>, ISO/IEC 39075 GQL) 위에 정형 하드웨어·부품·진단 레코드 7종(Layer 1)과 비정형 OKF 매뉴얼·플레이북 3종(Layer 2)을 결합합니다. 그래프는 <b>위상과 포인터</b>만 보유하고, 정본·폐기 판정은 <b>Dataplex Knowledge Catalog</b>, 마크다운 전문은 <b>Cloud Storage / GitHub (okf-kr · okf-en)</b>에 두어 사실의 중복을 제거합니다."
+            : "Unites 7 structured hardware/part/diagnostic node classes (Layer 1) and 3 unstructured OKF manual/playbook classes (Layer 2) inside a single <b>BigQuery Property Graph</b> (<code>hp_dragonfly_ontology_graph</code>, ISO/IEC 39075 GQL). The graph stores <b>topology and pointers</b> only, delegating validity governance to <b>Dataplex Knowledge Catalog</b> and full markdown bodies to <b>Cloud Storage / GitHub (okf-kr · okf-en)</b>.",
+          figures: [
+            {
+              id: "2-1",
+              title: k ? "그림 2-1 · 물리 배치 및 2-Layer 노드·엣지 매핑" : "Figure 2-1 · Physical Layout & 2-Layer Node/Edge Mapping",
+              caption: k
+                ? "BigQuery 정형 원천 테이블 9종과 GitHub/Cloud Storage의 한·영 이중화 OKF 번들(34개)이 온톨로지 노드·엣지 뷰를 통해 단일 <code>PROPERTY GRAPH hp_dragonfly_ontology_graph</code>로 노출됩니다. 아래 표는 10개 온톨로지 클래스와 물리 테이블의 1:1 매핑입니다."
+                : "9 structured BigQuery tables and 34 bilingual OKF bundles (okf-kr / okf-en) are projected through ontology node/edge views into a single <code>PROPERTY GRAPH hp_dragonfly_ontology_graph</code>. The table below maps each ontology class to its physical source.",
+              mermaid: k
+                ? `flowchart TB
+  subgraph BQ["BigQuery · hp-dragonfly.prj_ontology_hp_dragonfly"]
+    direction TB
+    subgraph S1["정형 원천 테이블 (Layer 1 · 9종)"]
+      T1[("dragonfly_series_models · sku_configurations<br/>spare_parts_catalog · disassembly_procedures<br/>component_dependencies · diagnostic_blink_beep_codes<br/>bios_f10_settings · troubleshooting_symptom_trees · ports_sensors_docking")]:::store
+    end
+    subgraph S2["온톨로지 노드·엣지 통합 뷰 (Layer 1 ↔ Layer 2)"]
+      VN["노드 클래스 10종<br/>ProductModel · ProductSKU · HardwareComponent · DisassemblyStep<br/>DiagnosticCode · BiosSetting · TroubleshootingCase<br/>ServiceManualDocument · ServiceManualChapter · ServicePlaybook"]
+      VE["엣지 클래스 12종<br/>HAS_SKU_CONFIG · USES_SYSTEM_BOARD · REQUIRES_REMOVAL_OF<br/>INDICATES_FAULT_IN · HAS_CHAPTER · GOVERNED_BY_OKF · GOVERNED_BY_PLAYBOOK<br/>SUPERSEDES_OKF · MANDATES_PULL_TAB_REMOVAL · REQUIRES_ESD_DISSIPATION"]
+    end
+    PG{{"PROPERTY GRAPH<br/>hp_dragonfly_ontology_graph"}}
+    T1 --> VN & VE --> PG
+  end
+  subgraph EXT["비정형 원문 & 거버넌스 (Layer 2)"]
+    GCS2[("Cloud Storage & GitHub<br/>bundles/okf-kr · bundles/okf-en<br/>34개 OKF v0.2 마크다운")]:::store
+    KC2[("Dataplex Knowledge Catalog<br/>EntryGroup: okf_hp_dragonfly<br/>Aspect: okf + overview")]:::store
+  end
+  GCS2 -. "YAML 프론트매터 · 시맨틱 링크 인덱싱" .-> VN & VE
+  KC2 -. "kc_entry_id · status(active/deprecated)" .-> VN`
+                : `flowchart TB
+  subgraph BQ["BigQuery · hp-dragonfly.prj_ontology_hp_dragonfly"]
+    direction TB
+    subgraph S1["Structured Source Tables (Layer 1 · 9 Tables)"]
+      T1[("dragonfly_series_models · sku_configurations<br/>spare_parts_catalog · disassembly_procedures<br/>component_dependencies · diagnostic_blink_beep_codes<br/>bios_f10_settings · troubleshooting_symptom_trees · ports_sensors_docking")]:::store
+    end
+    subgraph S2["Ontology Node & Edge Views (Layer 1 ↔ Layer 2)"]
+      VN["10 Node Classes<br/>ProductModel · ProductSKU · HardwareComponent · DisassemblyStep<br/>DiagnosticCode · BiosSetting · TroubleshootingCase<br/>ServiceManualDocument · ServiceManualChapter · ServicePlaybook"]
+      VE["12 Edge Classes<br/>HAS_SKU_CONFIG · USES_SYSTEM_BOARD · REQUIRES_REMOVAL_OF<br/>INDICATES_FAULT_IN · HAS_CHAPTER · GOVERNED_BY_OKF · GOVERNED_BY_PLAYBOOK<br/>SUPERSEDES_OKF · MANDATES_PULL_TAB_REMOVAL · REQUIRES_ESD_DISSIPATION"]
+    end
+    PG{{"PROPERTY GRAPH<br/>hp_dragonfly_ontology_graph"}}
+    T1 --> VN & VE --> PG
+  end
+  subgraph EXT["Unstructured Text & Governance (Layer 2)"]
+    GCS2[("Cloud Storage & GitHub<br/>bundles/okf-kr · bundles/okf-en<br/>34 OKF v0.2 Markdown Files")]:::store
+    KC2[("Dataplex Knowledge Catalog<br/>EntryGroup: okf_hp_dragonfly<br/>Aspect: okf + overview")]:::store
+  end
+  GCS2 -. "YAML frontmatter & semantic links" .-> VN & VE
+  KC2 -. "kc_entry_id · status(active/deprecated)" .-> VN`,
+              table: {
+                head: k
+                  ? ["온톨로지 클래스 / 계층", "저장소", "원천 테이블 / 번들 → 그래프 매핑", "건수 · 매뉴얼 범위"]
+                  : ["Ontology Class / Layer", "Storage", "Source Table / Bundle → Graph Mapping", "Rows · Manual Span"],
+                rows: [
+                  [
+                    "ProductModel",
+                    k ? "제품 시리즈 마스터 (Layer 1)" : "Product Series Master (Layer 1)",
+                    "BigQuery",
+                    "<code>dragonfly_series_models</code> → <code>ProductModel</code>",
+                    "4 rows · pp.1–11"
+                  ],
+                  [
+                    "ProductSKU",
+                    k ? "CPU·온보드 RAM·OLED SKU 구성 (Layer 1)" : "CPU/Soldered RAM/OLED SKU Config (Layer 1)",
+                    "BigQuery",
+                    "<code>sku_configurations</code> → <code>ProductSKU</code> + <code>USES_SYSTEM_BOARD</code>",
+                    "14 rows · pp.1–11"
+                  ],
+                  [
+                    "HardwareComponent",
+                    k ? "교체용 스페어 파트 FRU 카탈로그 (Layer 1)" : "Spare Parts FRU Catalog (Layer 1)",
+                    "BigQuery",
+                    "<code>spare_parts_catalog</code> → <code>HardwareComponent</code>",
+                    "32 rows · pp.22–34"
+                  ],
+                  [
+                    "DisassemblyStep & DAG",
+                    k ? "분해 공정 및 선행 부품 의존성 DAG (Layer 1)" : "Disassembly Steps & Prerequisite DAG (Layer 1)",
+                    "BigQuery",
+                    "<code>disassembly_procedures</code> + <code>component_dependencies</code> → <code>REQUIRES_REMOVAL_OF</code>",
+                    "24 steps / 9 edges · pp.38–83"
+                  ],
+                  [
+                    "DiagnosticCode",
+                    k ? "Caps Lock LED 점멸 및 POST 코드 (Layer 1)" : "Caps Lock LED Blink & POST Codes (Layer 1)",
+                    "BigQuery",
+                    "<code>diagnostic_blink_beep_codes</code> → <code>DiagnosticCode</code> + <code>INDICATES_FAULT_IN</code>",
+                    "11 rows · pp.89–96"
+                  ],
+                  [
+                    "BiosSetting & Case",
+                    k ? "F10 BIOS 보안 설정 및 증상 의사결정 트리 (Layer 1)" : "F10 BIOS Security & Symptom Trees (Layer 1)",
+                    "BigQuery",
+                    "<code>bios_f10_settings</code> + <code>troubleshooting_symptom_trees</code>",
+                    "20 rows · pp.84–96"
+                  ],
+                  [
+                    "PortSensorDock",
+                    k ? "Thunderbolt 4 포트·센서·독 매트릭스 (Layer 1)" : "Thunderbolt 4 Ports, Sensors & Docks (Layer 1)",
+                    "BigQuery",
+                    "<code>ports_sensors_docking</code> → <code>PortSensorDock</code>",
+                    "13 rows · pp.12–21"
+                  ],
+                  [
+                    "ServiceManualDocument",
+                    k ? "매뉴얼·정비내규 루트 문서 (Layer 2)" : "Service Manual & SOP Document Roots (Layer 2)",
+                    "BQ + KC + Git",
+                    "<code>OKF_DOC_ROOTS ([01]~[08])</code> → <code>ServiceManualDocument</code>",
+                    "8 doc roots · pp.1–109"
+                  ],
+                  [
+                    "ServiceManualChapter",
+                    k ? "챕터별 비정형 분해·안전·진단 조항 (Layer 2)" : "Chapter Unstructured Safety & Disassembly Specs (Layer 2)",
+                    "BQ + KC + Git",
+                    "<code>bundles/okf-kr/*.md</code> & <code>bundles/okf-en/*.md</code> → <code>GOVERNED_BY_OKF</code>",
+                    "21 active + 2 deprecated"
+                  ],
+                  [
+                    "ServicePlaybook",
+                    k ? "현장 복합 장애 조치 표준 플레이북 (Layer 2)" : "Field Compound Triage Playbooks (Layer 2)",
+                    "BQ + KC + Git",
+                    "<code>bundles/okf-kr/playbooks/*.md</code> → <code>GOVERNED_BY_PLAYBOOK</code>",
+                    "5 playbooks (+6 tabular refs)"
+                  ]
+                ]
+              }
+            },
+            {
+              id: "2-2",
+              title: k ? "그림 2-2 · 3-Plane 불변식 — 한 사실은 한 곳에만" : "Figure 2-2 · 3-Plane Invariant — One Fact in One Place",
+              caption: k
+                ? "<code>ServiceManualChapter</code> · <code>ServicePlaybook</code> 노드는 BigQuery에 <code>concept_id</code>, <code>kc_entry_id</code>, <code>rel_path</code> 포인터만 저장합니다. 문서 폐기·개정(예: <code>v0.1.0</code> 금속 헤라 금지 ➔ <code>v0.2.0</code> 풀탭 적용)이 발생해도 BigQuery 그래프 재구축 없이 <b>Dataplex Knowledge Catalog</b>의 <code>okf Aspect</code>와 <b>Git/Cloud Storage</b> 원문만 갱신하면 즉시 에이전트에 반영됩니다."
+                : "<code>ServiceManualChapter</code> and <code>ServicePlaybook</code> nodes store only lightweight pointers (<code>concept_id</code>, <code>kc_entry_id</code>, <code>rel_path</code>) in BigQuery. When an SOP is deprecated or revised (e.g., <code>v0.1.0</code> metal pry tool ➔ <code>v0.2.0</code> pull-tab), updating the <b>Dataplex Knowledge Catalog</b> <code>okf Aspect</code> and <b>Git/GCS</b> markdown takes effect immediately without rebuilding the graph.",
+              mermaid: k
+                ? `flowchart LR
+  subgraph P1["위상 Plane · BigQuery Graph"]
+    PART["HardwareComponent<br/>M90788-601 (System Board)<br/>M90790-001 (3K2K OLED)"]
+    DOC["ServiceManualChapter<br/>concept_id · kc_entry_id · rel_path<br/>(본문·폐기상태 미보유)"]
+    PART -- "GOVERNED_BY_OKF" --> DOC
+  end
+  subgraph P2["거버넌스 Plane · Dataplex Knowledge Catalog"]
+    KCE[("Entry + okf Aspect<br/>status: active | deprecated<br/>superseded_by · verified: true")]:::store
+  end
+  subgraph P3["원문 Plane · Cloud Storage & GitHub"]
+    MDF[("okf-kr / okf-en 마크다운<br/>YAML 프론트매터 + 정본 본문<br/>(한국어 / 영문 이중화)")]:::store
+  end
+  DOC -- "kc_entry_id" --> KCE
+  DOC -- "rel_path (okf-kr / okf-en)" --> MDF`
+                : `flowchart LR
+  subgraph P1["Topology Plane · BigQuery Graph"]
+    PART["HardwareComponent<br/>M90788-601 (System Board)<br/>M90790-001 (3K2K OLED)"]
+    DOC["ServiceManualChapter<br/>concept_id · kc_entry_id · rel_path<br/>(Pointers Only)"]
+    PART -- "GOVERNED_BY_OKF" --> DOC
+  end
+  subgraph P2["Governance Plane · Dataplex Knowledge Catalog"]
+    KCE[("Entry + okf Aspect<br/>status: active | deprecated<br/>superseded_by · verified: true")]:::store
+  end
+  subgraph P3["Document Plane · Cloud Storage & GitHub"]
+    MDF[("okf-kr / okf-en Markdown<br/>YAML Frontmatter + Full Text<br/>(Bilingual KO / EN)")]:::store
+  end
+  DOC -- "kc_entry_id" --> KCE
+  DOC -- "rel_path (okf-kr / okf-en)" --> MDF`
+            },
+            {
+              id: "2-3",
+              title: k
+                ? "그림 2-3 · 벡터 검색이 놓치는 세 가지를 그래프 경로로 해결"
+                : "Figure 2-3 · Three Failure Modes of Vector Search Solved by Graph Paths",
+              caption: k
+                ? "벤치마크(<code>06 · RAG vs Graph Studio</code>)에서 일반 Vector RAG가 반복적으로 오답을 내는 세 가지 구조적 원인(① 다단계 분해 순서 DAG 누락, ② 폐기된 위험 내규 인용, ③ 점멸 코드↔온보드 부품↔플레이북 멀티홉 단절)과 이를 해결하는 BigQuery GQL 그래프 순회 경로."
+                : "Three structural failure modes where naive Vector RAG fails in Module 06 (① missing multi-hop disassembly DAG order, ② citing deprecated hazardous SOPs, ③ broken blink-code-to-board-to-playbook hops) and the exact BigQuery GQL graph paths that solve them.",
+              panels: [
+                {
+                  id: "2-3a",
+                  title: k ? "① 멀티홉 선행 분해 순서 (DAG) — EQ01" : "① Multi-Hop Disassembly DAG — EQ01",
+                  caption: k
+                    ? "시스템 보드(<code>N20728-601</code>) 교체 시 매뉴얼 여러 페이지(p.41, p.43, p.60, p.63)에 흩어진 <b>하판 커버 → 배터리(700V 방전) → 방열판 → 시스템 보드</b> 선행 순서를 <code>REQUIRES_REMOVAL_OF</code> 엣지 체인으로 누락 없이 역추적합니다."
+                    : "Traces the mandatory prerequisite chain (<b>Bottom Cover → Battery 700V ESD → Heatsink → System Board</b>) scattered across pages 41, 43, 60, and 63 via directed <code>REQUIRES_REMOVAL_OF</code> edges.",
+                  gql: `GRAPH prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph\nMATCH (target:HardwareComponent {spare_part_number: 'M90788-601'})\n      -[e:REQUIRES_REMOVAL_OF]->(prereq:HardwareComponent)\nRETURN target.component_name, e.execution_order,\n       prereq.spare_part_number, prereq.component_name, e.safety_warning\nORDER BY e.execution_order ASC`,
+                  mermaid: k
+                    ? `flowchart TB
+  SKU["ProductSKU<br/>Folio G3 · i7-1265U · 32GB"]
+  SB["HardwareComponent<br/>System Board (N20728-601 / M90788-601)"]
+  HS["선행 3 · Heatsink 방열판<br/>(N09033-001 · 써멀 재도포)"]
+  BAT["선행 2 · 68Wh 배터리<br/>(M90788-005 · 700V 방전 필수)"]
+  BC["선행 1 · Bottom Cover 하판<br/>(N22918-001 · Torx T5×5)"]
+  SKU -- "USES_SYSTEM_BOARD" --> SB
+  SB -- "REQUIRES_REMOVAL_OF (order 1)" --> BC
+  SB -- "REQUIRES_REMOVAL_OF (order 2)" --> BAT
+  SB -- "REQUIRES_REMOVAL_OF (order 3)" --> HS`
+                    : `flowchart TB
+  SKU["ProductSKU<br/>Folio G3 · i7-1265U · 32GB"]
+  SB["HardwareComponent<br/>System Board (N20728-601 / M90788-601)"]
+  HS["Step 3 · Heatsink Assembly<br/>(N09033-001 · Re-paste Thermal)"]
+  BAT["Step 2 · 68Wh Battery<br/>(M90788-005 · 700V ESD Drain)"]
+  BC["Step 1 · Bottom Cover<br/>(N22918-001 · Torx T5×5)"]
+  SKU -- "USES_SYSTEM_BOARD" --> SB
+  SB -- "REQUIRES_REMOVAL_OF (order 1)" --> BC
+  SB -- "REQUIRES_REMOVAL_OF (order 2)" --> BAT
+  SB -- "REQUIRES_REMOVAL_OF (order 3)" --> HS`
+                },
+                {
+                  id: "2-3b",
+                  title: k ? "② 폐기 내규 차단 및 정본 대체 — EQ04 · EQ13" : "② Deprecated SOP Blocking & Supersession — EQ04 · EQ13",
+                  caption: k
+                    ? "Vector RAG는 단어 유사도가 높은 폐기 문서(<code>v0.1.0</code> 금속 헤라 지렛대 분리 허용 · 700V 방전 생략)를 그대로 인용합니다. Graph Agent는 Dataplex KC <code>status=deprecated</code>를 감지해 즉시 차단(<b>BLOCKED</b>)하고 <code>SUPERSEDES_OKF</code> 정본(<code>v0.2.0</code>)으로 자동 대체합니다."
+                    : "Vector RAG retrieves high-similarity deprecated chunks (<code>v0.1.0</code> metal pry tool allowed). Graph Agent checks Dataplex KC <code>status=deprecated</code>, blocks the legacy file, and traverses <code>SUPERSEDES_OKF</code> to the active <code>v0.2.0</code> pull-tab spec.",
+                  gql: `GRAPH prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph\nMATCH (p:HardwareComponent {spare_part_number: 'M90790-001'})\n      -[:GOVERNED_BY_OKF]->(old:ServiceManualChapter {status: 'deprecated'})\n      <-[:SUPERSEDES_OKF]-(cur:ServiceManualChapter {status: 'active'})\nRETURN old.concept_id AS blocked_v01, cur.concept_id AS active_v02, cur.rel_path`,
+                  mermaid: k
+                    ? `flowchart TB
+  OLED["HardwareComponent<br/>13.5 3K2K OLED 패널 (M90790-001)"]
+  OLD["ServiceManualChapter · v0.1.0<br/>status = deprecated (금속 헤라 허용)<br/>❌ 가드레일 차단 (BLOCKED)"]:::stop
+  NEW["ServiceManualChapter · v0.2.0<br/>status = active · verified = true<br/>✓ 정본 인출 (Stretch-Release 풀탭)"]:::llm
+  OLED -- "GOVERNED_BY_OKF" --> OLD
+  NEW -- "SUPERSEDES_OKF (대체 정본)" --> OLD
+  OLED -- "MANDATES_PULL_TAB_REMOVAL" --> NEW`
+                    : `flowchart TB
+  OLED["HardwareComponent<br/>13.5 3K2K OLED Panel (M90790-001)"]
+  OLD["ServiceManualChapter · v0.1.0<br/>status = deprecated (Metal Pry Tool)<br/>❌ Guardrail BLOCKED"]:::stop
+  NEW["ServiceManualChapter · v0.2.0<br/>status = active · verified = true<br/>✓ Active Spec (Stretch-Release Pull-Tab)"]:::llm
+  OLED -- "GOVERNED_BY_OKF" --> OLD
+  NEW -- "SUPERSEDES_OKF" --> OLD
+  OLED -- "MANDATES_PULL_TAB_REMOVAL" --> NEW`
+                },
+                {
+                  id: "2-3c",
+                  title: k ? "③ 점멸 코드 ↔ 온보드 부품 ↔ 플레이북 매핑 — EQ02 · EQ03" : "③ Blink Code ↔ Soldered Board ↔ Playbook — EQ02 · EQ03",
+                  caption: k
+                    ? "Caps Lock <code>3.2</code> 점멸(메모리 오류) 시 Dragonfly G3의 LPDDR5는 온보드 납땜 구조이므로 슬롯 재장착이 불가능합니다. 그래프는 <code>INDICATES_FAULT_IN</code>과 <code>GOVERNED_BY_PLAYBOOK</code>을 함께 순회해 무분해 <b>Win+B HP Sure Start 복구</b> 후 <b>시스템 보드 FRU 교체</b>를 정확히 도출합니다."
+                    : "When Caps Lock blinks <code>3.2</code> (memory error), LPDDR5 is soldered onboard so SO-DIMM reseating is impossible. Graph traversal links <code>INDICATES_FAULT_IN</code> and <code>GOVERNED_BY_PLAYBOOK</code> to prescribe <b>Win+B Sure Start recovery</b> followed by <b>System Board FRU replacement</b>.",
+                  gql: `GRAPH prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph\nMATCH (d:DiagnosticCode {code_id: 'LED-CAPS-3-2'})\n      -[:INDICATES_FAULT_IN]->(c:HardwareComponent),\n      (d)-[:GOVERNED_BY_PLAYBOOK]->(pb:ServicePlaybook)\nRETURN d.blink_pattern, c.spare_part_number, c.is_soldered_onboard,\n       pb.concept_id, pb.first_response_action`,
+                  mermaid: k
+                    ? `flowchart TB
+  LED["DiagnosticCode · LED-CAPS-3-2<br/>Caps Lock 긴 3회 · 짧은 2회 (메모리 오류)"]
+  BRD["HardwareComponent · System Board<br/>is_soldered_onboard = true (슬롯 없음)"]
+  PB["ServicePlaybook<br/>no-boot-bios-sure-start-recovery.md"]
+  ACT["정답 처방<br/>1차: Win+B HP Sure Start 복구 (무분해)<br/>2차: SKU별 시스템 보드 통교체"]:::llm
+  LED -- "INDICATES_FAULT_IN" --> BRD
+  LED -- "GOVERNED_BY_PLAYBOOK" --> PB
+  BRD & PB --> ACT`
+                    : `flowchart TB
+  LED["DiagnosticCode · LED-CAPS-3-2<br/>Caps Lock 3 Long · 2 Short (Memory Error)"]
+  BRD["HardwareComponent · System Board<br/>is_soldered_onboard = true (No SO-DIMM)"]
+  PB["ServicePlaybook<br/>no-boot-bios-sure-start-recovery.md"]
+  ACT["Verified Prescription<br/>1st: Win+B HP Sure Start Recovery<br/>2nd: Replace Soldered System Board FRU"]:::llm
+  LED -- "INDICATES_FAULT_IN" --> BRD
+  LED -- "GOVERNED_BY_PLAYBOOK" --> PB
+  BRD & PB --> ACT`
+                }
+              ]
+            }
+          ]
+        },
+        agent: {
+          title: k ? "에이전트 아키텍처" : "Agent Architecture",
+          lead: k
+            ? "<b>Google ADK</b>(<code>google-adk</code>)와 <b>Gemini 3.8 Flash</b>(<code>gemini-3.8-flash</code>) 위에서 동작하는 <code>Graph Agent</code>는 LLM이 임의로 답을 지어내지 않도록 <b>Step 0(앵커 바인딩) → Step 1(BigQuery GQL 실행) → Step 2(Dataplex KC 정본/폐기 검증) → Step 3(한/영 OKF 원문 인출)</b>의 4단계를 결정론적으로 실행합니다."
+            : "Built on <b>Google ADK</b> (<code>google-adk</code>) and <b>Gemini 3.8 Flash</b> (<code>gemini-3.8-flash</code>), the <code>Graph Agent</code> enforces a deterministic 4-stage pipeline: <b>Step 0 (Entity Anchor Binding) → Step 1 (BigQuery GQL Traversal) → Step 2 (Dataplex KC Governance Gate) → Step 3 (Bilingual OKF Fetch)</b>.",
+          legend: k
+            ? "범례 — 원통: 저장소 · 파랑: Gemini 3.8 Flash 호출 · 빨강: 폐기 차단(BLOCKED) · 점선: 참조 · 둥근 끝: 시작/끝."
+            : "Legend — Cylinder: Store · Blue: Gemini 3.8 Flash Call · Red: Deprecated Blocked · Dashed: Reference · Rounded: Start/End.",
+          figures: [
+            {
+              id: "3-1",
+              title: k ? "그림 3-1 · 에이전트 컴포넌트 설계도 (Google ADK · gemini-3.8-flash)" : "Figure 3-1 · Agent Component Blueprint (Google ADK · gemini-3.8-flash)",
+              caption: k
+                ? "Google ADK 오케스트레이터는 <code>gemini-3.8-flash</code>와 3종 핵심 도구(BigQuery GQL 실행기 · Dataplex KC Aspect 검증기 · OKF 한/영 원문 리더) 및 가드레일 콜백을 결합하여 100% 출처가 검증된 응답만 반환합니다."
+                : "The Google ADK orchestrator combines <code>gemini-3.8-flash</code> with 3 deterministic tools (BigQuery GQL Runner, Dataplex KC Aspect Validator, Bilingual OKF Reader) and guardrail callbacks.",
+              mermaid: k
+                ? `flowchart LR
+  subgraph UI["HP Dragonfly Ontology Studio"]
+    U["현장 엔지니어 / 사용자<br/>05 · Ontology Agent<br/>06 · RAG vs Graph Studio"]
+  end
+  subgraph RT["Agent Runtime · Graph Agent (scripts/adk_live_runner.py)"]
+    direction TB
+    ORCH["Google ADK 오케스트레이터<br/>Step 0 → Step 1 → Step 2 → Step 3"]
+    LLM["Gemini 3.8 Flash<br/>(gemini-3.8-flash)<br/>의도 파싱 · 최종 브리핑 합성"]:::llm
+    subgraph CB["가드레일 콜백"]
+      CB1["before_tool · KC status=deprecated 차단"]
+      CB2["after_model · 파트번호·페이지 인용 검증"]
+    end
+    subgraph TL["핵심 도구 3종"]
+      T1["① execute_bq_gql<br/>BigQuery GQL 그래프 순회"]
+      T2["② verify_dataplex_kc<br/>okf Aspect 유효성·대체본 확인"]
+      T3["③ read_okf_bundle<br/>okf-kr / okf-en 정본 원문 인출"]
+    end
+    ORCH --> LLM & CB & TL
+  end
+  subgraph ST["3-Plane 엔터프라이즈 저장소"]
+    BQ[("위상 Plane · BigQuery<br/>hp_dragonfly_ontology_graph")]:::store
+    KC[("거버넌스 Plane · Dataplex KC<br/>EntryGroup: okf_hp_dragonfly")]:::store
+    GCS[("원문 Plane · GCS & GitHub<br/>bundles/okf-kr · bundles/okf-en")]:::store
+  end
+  U -- "자연어 질의 (KO / EN)" --> ORCH
+  ORCH -- "답변 + GQL/KC/OKF 아티팩트" --> U
+  T1 --> BQ
+  T2 --> KC
+  T3 --> GCS`
+                : `flowchart LR
+  subgraph UI["HP Dragonfly Ontology Studio"]
+    U["Field Engineer / User<br/>05 · Ontology Agent<br/>06 · RAG vs Graph Studio"]
+  end
+  subgraph RT["Agent Runtime · Graph Agent (scripts/adk_live_runner.py)"]
+    direction TB
+    ORCH["Google ADK Orchestrator<br/>Step 0 → Step 1 → Step 2 → Step 3"]
+    LLM["Gemini 3.8 Flash<br/>(gemini-3.8-flash)<br/>Intent Parsing & Grounded Synthesis"]:::llm
+    subgraph CB["Guardrail Callbacks"]
+      CB1["before_tool · Block status=deprecated"]
+      CB2["after_model · Verify FRU & Page Citations"]
+    end
+    subgraph TL["3 Core Tools"]
+      T1["① execute_bq_gql<br/>BigQuery GQL Graph Traversal"]
+      T2["② verify_dataplex_kc<br/>okf Aspect Validity & Lineage"]
+      T3["③ read_okf_bundle<br/>Fetch okf-kr / okf-en Markdown"]
+    end
+    ORCH --> LLM & CB & TL
+  end
+  subgraph ST["3-Plane Enterprise Storage"]
+    BQ[("Topology Plane · BigQuery<br/>hp_dragonfly_ontology_graph")]:::store
+    KC[("Governance Plane · Dataplex KC<br/>EntryGroup: okf_hp_dragonfly")]:::store
+    GCS[("Document Plane · GCS & GitHub<br/>bundles/okf-kr · bundles/okf-en")]:::store
+  end
+  U -- "Natural Language Query (KO / EN)" --> ORCH
+  ORCH -- "Answer + GQL/KC/OKF Artifacts" --> U
+  T1 --> BQ
+  T2 --> KC
+  T3 --> GCS`
+            },
+            {
+              id: "3-2",
+              title: k ? "그림 3-2 · 순서도 — Step 0–3 결정론적 실행 흐름" : "Figure 3-2 · Flowchart — Step 0–3 Deterministic Execution Flow",
+              caption: k
+                ? "Step 2에서 Dataplex Knowledge Catalog의 <code>okf.status = deprecated</code>가 감지되면 Step 3 원문 인출로 넘어가지 않고 즉시 차단(<b>BLOCKED</b>) 또는 <code>superseded_by</code> 정본(<code>v0.2.0</code>)으로 우회하여 구버전 내규 인용을 원천 봉쇄합니다."
+                : "If Dataplex Knowledge Catalog reports <code>okf.status = deprecated</code> at Step 2, the pipeline immediately blocks the legacy file or redirects via <code>superseded_by</code> to the active <code>v0.2.0</code> specification before Step 3.",
+              mermaid: k
+                ? `flowchart LR
+  S(["질문 수신<br/>(KO / EN)"]):::term
+  S0["Step 0 · 앵커 바인딩<br/>모델·파트번호·점멸코드 추출"]:::llm
+  S1["Step 1 · GQL 그래프 순회<br/>BigQuery Property Graph"]
+  D1{"경로 존재?"}
+  G1(["근거 없음 안내<br/>추측 생성 금지"]):::stop
+  S2["Step 2 · KC 거버넌스 검증<br/>Dataplex okf Aspect 조회"]
+  D2{"okf.status?"}
+  G2(["구버전(v0.1.0) 차단<br/>BLOCKED + v0.2.0 대체"]):::stop
+  S3["Step 3 · OKF 정본 인출<br/>okf-kr / okf-en 마크다운"]
+  LLM["Gemini 3.8 Flash<br/>근거 기반 최종 브리핑 합성"]:::llm
+  E(["응답 + 3-Plane 아티팩트 반환"]):::term
+  S --> S0 --> S1 --> D1
+  D1 -- "0건" --> G1
+  D1 -- "1건+" --> S2 --> D2
+  D2 -- "deprecated" --> G2
+  G2 -. "superseded_by 정본 전환" .-> S3
+  D2 -- "active (ALLOW)" --> S3 --> LLM --> E`
+                : `flowchart LR
+  S(["Query Received<br/>(KO / EN)"]):::term
+  S0["Step 0 · Anchor Binding<br/>Extract SKU / FRU / Blink Code"]:::llm
+  S1["Step 1 · GQL Graph Traversal<br/>BigQuery Property Graph"]
+  D1{"Path Found?"}
+  G1(["No Grounded Path<br/>Refuse Hallucination"]):::stop
+  S2["Step 2 · KC Governance Gate<br/>Check Dataplex okf Aspect"]
+  D2{"okf.status?"}
+  G2(["Block Legacy v0.1.0<br/>BLOCKED + Redirect v0.2.0"]):::stop
+  S3["Step 3 · Fetch Active OKF<br/>okf-kr / okf-en Markdown"]
+  LLM["Gemini 3.8 Flash<br/>Grounded Briefing Synthesis"]:::llm
+  E(["Return Response + 3-Plane Artifacts"]):::term
+  S --> S0 --> S1 --> D1
+  D1 -- "0 rows" --> G1
+  D1 -- "1+ rows" --> S2 --> D2
+  D2 -- "deprecated" --> G2
+  G2 -. "superseded_by redirect" .-> S3
+  D2 -- "active (ALLOW)" --> S3 --> LLM --> E`
+            },
+            {
+              id: "3-3",
+              seq: "graph",
+              title: k
+                ? "그림 3-3 · 시퀀스 다이어그램 — Graph (Ontology Graph Agent)"
+                : "Figure 3-3 · Sequence Diagram — Graph (Ontology Graph Agent)",
+              caption: k
+                ? "<code>Graph Agent</code>의 실제 호출 순서. BigQuery GQL ➔ Dataplex Knowledge Catalog ➔ Cloud Storage/Git(<code>okf-kr</code>/<code>okf-en</code>) 3-Plane을 차례로 검증한 뒤 <code>gemini-3.8-flash</code>가 최종 정비 브리핑을 합성합니다."
+                : "Live execution sequence of the <code>Graph Agent</code> across BigQuery GQL ➔ Dataplex Knowledge Catalog ➔ Cloud Storage/Git (<code>okf-kr</code>/<code>okf-en</code>) followed by <code>gemini-3.8-flash</code> synthesis.",
+              mermaid: k
+                ? `sequenceDiagram
+  autonumber
+  actor U as 현장 엔지니어
+  participant A as Graph Agent (Google ADK)
+  participant G as Gemini 3.8 Flash
+  participant B as BigQuery Property Graph
+  participant K as Dataplex Knowledge Catalog
+  participant S as GCS / Git (okf-kr · okf-en)
+  U->>A: 질문 입력 (예: Folio G3 LED 3.2 점멸 및 보드 교체 순서)
+  rect rgba(26, 115, 232, 0.09)
+    Note over A,G: Step 0 · 엔티티 앵커 바인딩
+    A->>G: 질문에서 모델(Folio G3)·코드(LED-CAPS-3-2)·부품 추출
+    G-->>A: 앵커 바인딩 완료 (SKU + DiagnosticCode + SystemBoard)
+  end
+  Note over A,B: Step 1 · 위상 Plane (BigQuery GQL 순회)
+  A->>B: MATCH (SKU)-[:USES_SYSTEM_BOARD]->(Board)-[:REQUIRES_REMOVAL_OF]->(Prereq)
+  B-->>A: 보드(N20728-601/M90788-601) + 분해 DAG 4단계 + kc_entry_id 반환
+  Note over A,K: Step 2 · 거버넌스 Plane (Dataplex KC 검증)
+  A->>K: LookupEntry(kc_entry_id) · okf Aspect 조회
+  K-->>A: status=active, verified=true (폐기 v0.1.0 문서는 BLOCKED 차단)
+  Note over A,S: Step 3 · 원문 Plane (한/영 OKF 정본 인출)
+  A->>S: Read bundles/okf-kr/ (또는 okf-en) 정본 마크다운 & Playbook
+  S-->>A: YAML 프론트매터 + 700V 방전·Win+B 복구·나사 규격 원문
+  rect rgba(26, 115, 232, 0.09)
+    Note over A,G: 최종 브리핑 합성 (gemini-3.8-flash)
+    A->>G: GQL 결과 행 + KC 검증 배지 + OKF 정본 원문 전달
+    G-->>A: 출처 인용 포함 한국어/영문 정비 보고서 생성
+  end
+  A-->>U: 최종 답변 + [GQL 결과 · KC Aspect · OKF 원문] 아티팩트 반환`
+                : `sequenceDiagram
+  autonumber
+  actor U as Field Engineer
+  participant A as Graph Agent (Google ADK)
+  participant G as Gemini 3.8 Flash
+  participant B as BigQuery Property Graph
+  participant K as Dataplex Knowledge Catalog
+  participant S as GCS / Git (okf-kr · okf-en)
+  U->>A: Submit Question (e.g., Folio G3 LED 3.2 & System Board DAG)
+  rect rgba(26, 115, 232, 0.09)
+    Note over A,G: Step 0 · Entity Anchor Binding
+    A->>G: Extract SKU (Folio G3), Code (LED-CAPS-3-2), Target Component
+    G-->>A: Bound Anchors (SKU + DiagnosticCode + SystemBoard)
+  end
+  Note over A,B: Step 1 · Topology Plane (BigQuery GQL Traversal)
+  A->>B: MATCH (SKU)-[:USES_SYSTEM_BOARD]->(Board)-[:REQUIRES_REMOVAL_OF]->(Prereq)
+  B-->>A: Board (N20728-601/M90788-601) + 4-Step DAG + kc_entry_id
+  Note over A,K: Step 2 · Governance Plane (Dataplex KC Gate)
+  A->>K: LookupEntry(kc_entry_id) · Inspect okf Aspect
+  K-->>A: status=active, verified=true (Deprecated v0.1.0 BLOCKED)
+  Note over A,S: Step 3 · Document Plane (Fetch Bilingual OKF)
+  A->>S: Read bundles/okf-en/ (or okf-kr) Markdown & Playbook
+  S-->>A: YAML Frontmatter + 700V ESD, Win+B Recovery & Screw Specs
+  rect rgba(26, 115, 232, 0.09)
+    Note over A,G: Grounded Synthesis (gemini-3.8-flash)
+    A->>G: Pass GQL Rows + KC Verdict + Verbatim OKF Text
+    G-->>A: Generate Cited Engineering Triage Briefing
+  end
+  A-->>U: Final Answer + [GQL Rows · KC Aspect · OKF Spec] Artifacts`
+            },
+            {
+              id: "3-4",
+              seq: "rag",
+              title: k
+                ? "그림 3-4 · 시퀀스 다이어그램 — Vector RAG (비교군 Vector RAG Agent)"
+                : "Figure 3-4 · Sequence Diagram — Vector RAG (Baseline Vector RAG Agent)",
+              caption: k
+                ? "비교군 <code>RAG Agent</code>는 512-토큰 청크 Top-K 검색 후 <code>gemini-3.8-flash</code>를 1회 호출합니다. BigQuery 정형 테이블 조인, <code>REQUIRES_REMOVAL_OF</code> 분해 순서 그래프, Dataplex KC <code>status=deprecated</code> 차단이 모두 생략되어 오답 또는 위험한 구버전 지침을 생성합니다."
+                : "The baseline <code>RAG Agent</code> retrieves Top-K 512-token PDF chunks and calls <code>gemini-3.8-flash</code> once. Because it lacks BigQuery SKU table joins, <code>REQUIRES_REMOVAL_OF</code> DAG edges, and Dataplex KC deprecation checks, it hallucinates part numbers or cites hazardous legacy instructions.",
+              mermaid: k
+                ? `sequenceDiagram
+  autonumber
+  actor U as 현장 엔지니어
+  participant R as RAG Agent (비교군 · Google ADK)
+  participant V as PDF 512-Token Chunks
+  participant G as Gemini 3.8 Flash
+  U->>R: 동일한 질문 입력
+  R->>V: 키워드/임베딩 유사도 Top-K 청크 검색
+  V-->>R: 단편 문단 반환 (타 모델 보드 혼입 · 폐기 v0.1.0 청크 포함)
+  Note right of V: ❌ BigQuery SKU·부품 정형 테이블 미연결<br/>❌ REQUIRES_REMOVAL_OF 분해 순서 DAG 부재<br/>❌ Dataplex KC status=deprecated 검증 부재
+  rect rgba(26, 115, 232, 0.09)
+    R->>G: 단편 청크만으로 답변 생성 (gemini-3.8-flash)
+    G-->>R: 부분 인용 · 선행 분해 누락 · 구버전 인용 응답
+  end
+  R-->>U: 불완전하거나 위험한 오답 반환`
+                : `sequenceDiagram
+  autonumber
+  actor U as Field Engineer
+  participant R as RAG Agent (Baseline · Google ADK)
+  participant V as PDF 512-Token Chunks
+  participant G as Gemini 3.8 Flash
+  U->>R: Submit Identical Question
+  R->>V: Retrieve Top-K Chunks by Text/Embedding Similarity
+  V-->>R: Disjointed Snippets (Mixed SKUs + Deprecated v0.1.0 Chunks)
+  Note right of V: ❌ No BigQuery SKU/Part Table Joins<br/>❌ No REQUIRES_REMOVAL_OF Disassembly DAG<br/>❌ No Dataplex KC status=deprecated Gate
+  rect rgba(26, 115, 232, 0.09)
+    R->>G: Synthesize from Raw Chunks Only (gemini-3.8-flash)
+    G-->>R: Hallucinated Part / Missing DAG / Deprecated Advice
+  end
+  R-->>U: Incomplete or Unsafe Baseline Answer`
+            }
+          ]
+        }
+      }
+    };
+  }
+
+  function renderIntroHeroHtml(h) {
+    if (!h) return "";
+    const arm = (a, cls) => `
+      <div class="intro-hero-arm ${cls}">
+        <div class="intro-hero-arm-k">
+          <span>${a.name}</span>
+          <span class="intro-hero-verdict">${a.verdict}</span>
+        </div>
+        <div class="intro-hero-ans" style="font-size:18px; line-height:1.4;">${a.answer}</div>
+        <ol>${(a.points || []).map((p) => `<li>${p}</li>`).join("")}</ol>
+      </div>`;
+    const reasons = (h.reasons || [])
+      .map((r) => `<div><b>${r.t}</b>${r.d}</div>`)
+      .join("");
+    return `
+      <section class="intro-hero">
+        <p class="intro-hero-eyebrow">${h.eyebrow}</p>
+        <h1 class="intro-hero-title" style="font-size:25px;">${h.title}</h1>
+        <p class="intro-hero-sub">${h.sub}</p>
+        <div class="intro-hero-q">
+          <span class="material-symbols-outlined">chat</span>
+          <span>"${h.q}"</span>
+        </div>
+        <div class="intro-hero-ba">
+          ${arm(h.bad, "bad")}
+          ${arm(h.good, "good")}
+        </div>
+        <h2 class="intro-hero-h2">${h.reasonsTitle || ""}</h2>
+        <div class="intro-hero-reasons">${reasons}</div>
+        ${h.foot ? `<p class="intro-hero-foot">${h.foot}</p>` : ""}
+      </section>`;
+  }
+
+  function renderIntroTableHtml(t) {
+    if (!t) return "";
+    const ths = t.head.map((h) => `<th>${h}</th>`).join("");
+    const trs = t.rows
+      .map(
+        (r) => `
+      <tr>
+        <td><b>${r[0]}</b><div class="intro-cell-sub">${r[1]}</div></td>
+        <td>${r[2]}</td>
+        <td>${r[3]}</td>
+        <td class="intro-num">${r[4]}</td>
+      </tr>`
+      )
+      .join("");
+    return `<div class="intro-table-wrap"><table class="intro-table"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+  }
+
+  function renderIntroFigureHtml(fig) {
+    if (fig.panels) {
+      const subs = fig.panels
+        .map(
+          (p) => `
+        <div class="intro-sub">
+          <div class="intro-sub-h">${p.title}</div>
+          <div class="intro-fig-canvas" id="intro-mmd-${p.id}"></div>
+          <div class="intro-sub-c">${p.caption}</div>
+          ${p.gql ? `<pre class="intro-gql">${escapeHtml(p.gql)}</pre>` : ""}
+        </div>`
+        )
+        .join("");
+      return `
+        <figure class="intro-fig" id="intro-fig-${fig.id}">
+          <div class="intro-grid3">${subs}</div>
+          <figcaption><b>${fig.title}</b> — ${fig.caption}</figcaption>
+        </figure>`;
+    }
+    const hide = fig.seq && fig.seq !== INTRO_SEQ_MODE ? " hidden" : "";
+    return `
+      <figure class="intro-fig" id="intro-fig-${fig.id}"${hide}>
+        <div class="intro-fig-canvas" id="intro-mmd-${fig.id}"></div>
+        ${renderIntroTableHtml(fig.table)}
+        <figcaption><b>${fig.title}</b> — ${fig.caption}</figcaption>
+      </figure>`;
+  }
 
   function renderIntroModule() {
     const box = document.getElementById("module-intro");
     if (!box) return;
     const k = isKo();
+    if (!["sys", "graph", "agent"].includes(INTRO_TAB)) {
+      INTRO_TAB = "sys";
+    }
+    const spec = getIntroArchSpec(k);
+    const sec = spec.tabs[INTRO_TAB] || spec.tabs.sys;
 
-    const tableRowsHtml = BQ_TABLES.map(
-      (tb) => `
-      <tr>
-        <td><b>${escapeHtml(tb.label.split(" ")[0])}</b><div class="intro-cell-sub">${escapeHtml(k ? tb.title_ko : tb.title_en)}</div></td>
-        <td>BigQuery (${escapeHtml(tb.role)})</td>
-        <td><code>hp-dragonfly.prj_ontology_hp_dragonfly.${escapeHtml(tb.table_name)}</code> → <code>hp_dragonfly_ontology_graph</code></td>
-        <td class="intro-num">${tb.row_count} rows · p.${tb.pdf_page}</td>
-      </tr>`
-    ).join("");
+    const pieces = [];
+    if (sec.hero) pieces.push(renderIntroHeroHtml(sec.hero));
+    if (sec.lead) pieces.push(`<p class="intro-lead">${sec.lead}</p>`);
+    if (sec.legend) pieces.push(`<p class="intro-legend">${sec.legend}</p>`);
 
-    const tab1Html = `
-      <section class="intro-hero">
-        <p class="intro-hero-eyebrow">${
-          k
-            ? "GOOGLE CLOUD ENTERPRISE ONTOLOGY REFERENCE · HP DRAGONFLY G3 / FOLIO G3"
-            : "GOOGLE CLOUD ENTERPRISE ONTOLOGY REFERENCE · HP DRAGONFLY G3 / FOLIO G3"
-        }</p>
-        <h1 class="intro-hero-title">${
-          k
-            ? "비정형 PDF 서비스 매뉴얼(109p)과 BigQuery 정형 테이블(8종)을 결합한 엔터프라이즈 온톨로지 레이어"
-            : "Enterprise Ontology Layer Unifying Unstructured Service Manuals (109p) & BigQuery Property Graphs"
-        }</h1>
-        <p class="intro-hero-sub">${
-          k
-            ? "단순 텍스트 청크 벡터 검색(Vector RAG)은 하드웨어 분해 선행 작업 순서(DAG)나 온보드 LPDDR5 용량별 시스템 보드 파트 번호를 혼동합니다. 본 워크스페이스는 Enrichment Agent로 생성한 28개 OKF v0.2 번들, Git Metadata-as-Code, Dataplex kcmd 카탈로그, 그리고 BigQuery Property Graph(GQL)를 결합하여 할루시네이션 없는 정밀 엔지니어링 진단을 구현합니다."
-            : "Standard chunk-based Vector RAG frequently hallucinates multi-hop hardware disassembly precedence (DAG) and soldered LPDDR5 system board spare part numbers. This workspace combines an Enrichment Agent (28 OKF v0.2 files), Git Metadata-as-Code, Dataplex kcmd synchronization, and BigQuery Property Graph (GQL) for deterministic hardware triage."
-        }</p>
-
-        <div class="intro-hero-q">
-          <span class="material-symbols-outlined">chat</span>
-          <span>"${
-            k
-              ? "HP Dragonfly Folio G3(i7-1265U, 32GB 온보드 LPDDR5)에서 Caps Lock LED 3.2 점멸 오류가 발생했을 때 교체해야 할 정확한 시스템 보드 파트 번호와 필수 선행 분해 부품 순서는?"
-              : "On an HP Dragonfly Folio G3 (i7-1265U, 32GB soldered LPDDR5) showing Caps Lock 3.2 blink code, what is the exact replacement system board spare part number and mandatory prerequisite removal sequence?"
-          }"</span>
-        </div>
-
-        <div class="intro-hero-ba">
-          <div class="intro-hero-arm bad">
-            <div class="intro-hero-arm-k">
-              <span>${k ? "일반 PDF 청크 Vector RAG" : "Naive PDF Chunk Vector RAG"}</span>
-              <span class="intro-hero-verdict">${k ? "오답 · 순서 누락" : "Incorrect / Incomplete"}</span>
-            </div>
-            <div class="intro-hero-ans">${
-              k
-                ? "메모리 모듈을 재장착하거나 시스템 보드(N09241-601 등)를 교체하세요."
-                : "Reseat the memory module or replace the system board (e.g., N09241-601)."
-            }</div>
-            <ol>
-              <li>${
-                k
-                  ? "LPDDR5 메모리가 온보드 납땜(Soldered) 구조임을 놓치고 '메모리 슬롯 재장착'을 잘못 안내함"
-                  : "Fails to recognize LPDDR5 is soldered onboard and suggests reseating SO-DIMM"
-              }</li>
-              <li>${
-                k
-                  ? "16종 시스템 보드 스페어 파트 중 i7-1265U 32GB용(M90788-601 / N17344-001)을 특정하지 못함"
-                  : "Confuses 16 system board SKUs across G3 Clamshell vs. Folio G3"
-              }</li>
-              <li>${
-                k
-                  ? "배터리(M90788-005) 분리 전 700V ESD 방전 및 열전도 그리스 재도포 선행 단계를 누락함"
-                  : "Misses mandatory battery isolation (M90788-005) & heatsink prerequisite DAG steps"
-              }</li>
-            </ol>
-          </div>
-
-          <div class="intro-hero-arm">
-            <div class="intro-hero-arm-k">
-              <span>${
-                k
-                  ? "HP Dragonfly 온톨로지 (BigQuery GQL + OKF v0.2 + Dataplex)"
-                  : "HP Dragonfly Ontology (BigQuery GQL + OKF v0.2 + Dataplex)"
-              }</span>
-              <span class="intro-hero-verdict">${k ? "정답 · 100% 근거 검증" : "Verified & Deterministic"}</span>
-            </div>
-            <div class="intro-hero-ans">${
-              k
-                ? "LED-CAPS-3-2 = 온보드 LPDDR5 메모리 초기화 실패 → HP Sure Start 복구 시도 후 실패 시 시스템 보드 FRU 교체 (선행 분해 DAG 4단계 준수)"
-                : "LED-CAPS-3-2 = Soldered LPDDR5 Failure → Run HP Sure Start BIOS Recovery first; if persistent, replace System Board FRU following 4-step Disassembly DAG"
-            }</div>
-            <ol>
-              <li>${
-                k
-                  ? "OKF Playbook(no-boot-bios-sure-start-recovery.md)을 통해 무분해 Win+B HP Sure Start 복구를 1차 안내"
-                  : "Follows OKF Playbook (no-boot-bios-sure-start-recovery.md) for non-invasive Win+B Sure Start recovery first"
-              }</li>
-              <li>${
-                k
-                  ? "BigQuery GQL USES_SYSTEM_BOARD 엣지로 SKU별 정확한 시스템 보드 파트 번호를 1:1 매핑"
-                  : "Traverses USES_SYSTEM_BOARD edge in BigQuery GQL to resolve exact SKU system board part number"
-              }</li>
-              <li>${
-                k
-                  ? "REQUIRES_REMOVAL_OF 엣지로 하판 커버(N22918-001) → 배터리(M90788-005) → 방열판 순서 및 나사 규격 도출"
-                  : "Traverses REQUIRES_REMOVAL_OF DAG edges for Bottom Cover → Battery → Thermal Module order"
-              }</li>
-            </ol>
-          </div>
-        </div>
-
-        <h2 class="intro-hero-h2">${
-          k
-            ? "지금까지 구축 완료된 3-Plane 온톨로지 아키텍처 핵심 구성"
-            : "Core Pillars of Our Completed 3-Plane Ontology Architecture"
-        }</h2>
-        <div class="intro-hero-reasons">
-          <div>
-            <b>${k ? "1. Source Data Plane (정형 BigQuery + 비정형 PDF)" : "1. Source Data Plane (Structured BQ + Unstructured PDF)"}</b>
-            ${
-              k
-                ? "hp-dragonfly.prj_ontology_hp_dragonfly 내 8개 영문 정형 테이블(109행), hp_dragonfly_ontology_graph Property Graph, 그리고 109페이지 공식 서비스 매뉴얼(N17344-001)을 단일 워크스페이스로 통합했습니다."
-                : "Unites 8 English structured tables (109 rows) and Property Graph hp_dragonfly_ontology_graph with the 109-page HP Service Guide PDF (Doc Part N17344-001)."
-            }
-          </div>
-          <div>
-            <b>${k ? "2. Semantic Enrichment & Metadata as Code (Git)" : "2. Semantic Enrichment & Metadata as Code (Git)"}</b>
-            ${
-              k
-                ? "Enrichment Agent(scripts/enrichment_agent.py)가 28개 OKF v0.2 마크다운 번들(21개 컨셉 · 110개 시맨틱 엣지)과 Dataplex Overview Aspect를 생성하고 Git(main 브랜치)으로 버전 관리합니다."
-                : "Enrichment Agent (scripts/enrichment_agent.py) synthesizes 28 OKF v0.2 markdown files (21 concepts, 110 edges) and catalog YAML snapshots tracked in Git."
-            }
-          </div>
-          <div>
-            <b>${k ? "3. Governance & Consumption Plane (kcmd + Dataplex)" : "3. Governance & Consumption Plane (kcmd + Dataplex)"}</b>
-            ${
-              k
-                ? "단독 컴파일된 ./bin/kcmd(v1.0.0)가 bq-dataset 스코프(9개 엔트리)와 커스텀 okf_hp_dragonfly EntryGroup(28개 엔트리)을 Dataplex Knowledge Catalog에 양방향 Push/Pull 동기화합니다."
-                : "Standalone ./bin/kcmd (v1.0.0) synchronizes both bq-dataset (9 entries) and custom EntryGroup okf_hp_dragonfly (28 entries) with Dataplex Knowledge Catalog."
-            }
-          </div>
-        </div>
-      </section>
-
-      <figure class="intro-fig">
-        <div class="intro-fig-canvas" id="intro-mermaid-arch" style="padding:18px; text-align:center;"></div>
-        <div class="intro-table-wrap">
-          <table class="intro-table">
-            <thead>
-              <tr>
-                <th>${k ? "온톨로지 클래스 / 역할" : "Ontology Class / Role"}</th>
-                <th>${k ? "저장소 유형" : "Storage Engine"}</th>
-                <th>${k ? "물리 테이블 → Property Graph 매핑" : "Physical Table → Property Graph Mapping"}</th>
-                <th>${k ? "행 수 · 매뉴얼 페이지" : "Rows · Manual Page"}</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tableRowsHtml}
-            </tbody>
-          </table>
-        </div>
-        <figcaption>
-          <b>${k ? "그림 1 · HP Dragonfly 3-Plane 하이브리드 온톨로지 아키텍처 및 8개 정형 테이블 매핑" : "Figure 1 · HP Dragonfly 3-Plane Hybrid Ontology Architecture & 8 Structured Table Mappings"}</b> —
-          ${
-            k
-              ? "비정형 서비스 매뉴얼 PDF(N17344-001)와 BigQuery 8개 영문 테이블(109행)이 Enrichment Agent, Git, kcmd를 거쳐 Dataplex Knowledge Catalog 및 Property Graph로 통합됩니다."
-              : "Unstructured PDF manual (N17344-001) and 8 English BigQuery tables (109 rows) flow through the Enrichment Agent, Git, and kcmd into Dataplex Knowledge Catalog and BigQuery Property Graph."
-          }
-        </figcaption>
-      </figure>
-    `;
-
-    const tab2Html = `
-      <p class="intro-lead">${
-        k
-          ? "Enrichment Agent(<b>scripts/enrichment_agent.py</b>)가 비정형 PDF와 BigQuery 스키마에서 시맨틱 지식을 추출하여 <b>bundles/hp_dragonfly/</b>(28개 OKF v0.2 파일)와 <b>catalog/</b>를 생성하고, Git 커밋 이후 <b>./bin/kcmd</b>로 Dataplex Knowledge Catalog에 반영하는 단계별 실행 흐름입니다."
-          : "Step-by-step execution pipeline showing how the Enrichment Agent (<b>scripts/enrichment_agent.py</b>) extracts semantic knowledge from the PDF and BigQuery into <b>bundles/hp_dragonfly/</b> (28 OKF v0.2 files), commits to Git, and pushes to Dataplex via <b>./bin/kcmd</b>."
-      }</p>
-      <figure class="intro-fig">
-        <div class="intro-fig-canvas" id="intro-mermaid-seq" style="padding:18px; text-align:center;"></div>
-        <figcaption>
-          <b>${k ? "그림 2 · Enrichment Agent → Metadata as Code (Git) → kcmd Push/Pull 시퀀스 다이어그램" : "Figure 2 · Enrichment Agent → Metadata as Code (Git) → kcmd Push/Pull Sequence"}</b>
-        </figcaption>
-      </figure>
-    `;
+    let seqToggleInserted = false;
+    for (const fig of sec.figures || []) {
+      if (fig.seq && !seqToggleInserted) {
+        seqToggleInserted = true;
+        pieces.push(`
+          <div class="intro-seg" role="tablist" aria-label="Sequence Diagram Mode">
+            <span>${k ? "시퀀스 다이어그램:" : "Sequence Diagram:"}</span>
+            <button type="button" data-intro-seq="graph" class="${INTRO_SEQ_MODE === "graph" ? "on" : ""}" onclick="switchIntroSeq('graph')">
+              Graph (Ontology Agent)
+            </button>
+            <button type="button" data-intro-seq="rag" class="${INTRO_SEQ_MODE === "rag" ? "on" : ""}" onclick="switchIntroSeq('rag')">
+              Vector RAG (${k ? "비교군" : "Baseline"})
+            </button>
+          </div>`);
+      }
+      pieces.push(renderIntroFigureHtml(fig));
+    }
 
     box.style.padding = "0";
     box.innerHTML = `
@@ -498,18 +1125,24 @@
         </div>
         <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
           <div class="mgmt-subtab-group">
-            <button type="button" class="mgmt-subtab-btn ${INTRO_TAB === "arch" ? "active" : ""}" onclick="setIntroTab('arch')">
-              ${k ? "1. 3-Plane 아키텍처 & 테이블 매핑" : "1. 3-Plane Architecture & Tables"}
+            <button type="button" class="mgmt-subtab-btn ${INTRO_TAB === "sys" ? "active" : ""}" onclick="setIntroTab('sys')">
+              <span class="material-symbols-outlined" style="font-size:15px;">account_tree</span>
+              <span>${k ? "1. 시스템 아키텍처" : "1. System Architecture"}</span>
             </button>
-            <button type="button" class="mgmt-subtab-btn ${INTRO_TAB === "pipeline" ? "active" : ""}" onclick="setIntroTab('pipeline')">
-              ${k ? "2. Enrichment Agent → Git → kcmd 시퀀스" : "2. Enrichment → Git → kcmd Sequence"}
+            <button type="button" class="mgmt-subtab-btn ${INTRO_TAB === "graph" ? "active" : ""}" onclick="setIntroTab('graph')">
+              <span class="material-symbols-outlined" style="font-size:15px;">hub</span>
+              <span>${k ? "2. 그래프 아키텍처" : "2. Graph Architecture"}</span>
+            </button>
+            <button type="button" class="mgmt-subtab-btn ${INTRO_TAB === "agent" ? "active" : ""}" onclick="setIntroTab('agent')">
+              <span class="material-symbols-outlined" style="font-size:15px;">smart_toy</span>
+              <span>${k ? "3. 에이전트 아키텍처" : "3. Agent Architecture"}</span>
             </button>
           </div>
         </div>
       </div>
       <div class="intro-body-scroll">
         <div class="intro-doc">
-          ${INTRO_TAB === "arch" ? tab1Html : tab2Html}
+          ${pieces.join("\n")}
         </div>
       </div>
     `;
@@ -517,72 +1150,98 @@
     renderIntroMermaidDiagrams();
   }
 
-  async function renderIntroMermaidDiagrams() {
-    if (!window.mermaid) return;
-    const isDark = document.body.classList.contains("dark-mode");
+  function initIntroMermaidTheme() {
+    if (!window.mermaid) return false;
+    const d = document.body.classList.contains("dark-mode");
     window.mermaid.initialize({
       startOnLoad: false,
-      theme: isDark ? "dark" : "default",
-      securityLevel: "loose"
-    });
-
-    const archEl = document.getElementById("intro-mermaid-arch");
-    if (archEl) {
-      const code = `flowchart LR
-  subgraph P1["Plane 1: Source Data (hp-dragonfly)"]
-    PDF["Unstructured Service Guide PDF\\npdf_6290467_en-US-1.pdf\\n(Doc Part N17344-001 · 109 Pages)"]
-    BQ["BigQuery Dataset\\nprj_ontology_hp_dragonfly\\n(8 English Tables · 109 Rows)"]
-    PG["BigQuery Property Graph\\nhp_dragonfly_ontology_graph\\n(5 Node · 5 Edge Classes)"]
-    BQ --> PG
-  end
-  subgraph P2["Plane 2: Enrichment & Metadata as Code"]
-    EA["Enrichment Agent\\nscripts/enrichment_agent.py"]
-    OKF["OKF v0.2 Bundle (28 Files)\\nbundles/hp_dragonfly/\\n(21 Concepts · 110 Edges)"]
-    GIT["Git Repository (main)\\ncatalog/ & catalog_okf/"]
-    EA --> OKF
-    OKF --> GIT
-  end
-  subgraph P3["Plane 3: Governance & Studio"]
-    KCMD["kcmd v1.0.0 CLI\\n./bin/kcmd push & pull"]
-    DPX["Dataplex Knowledge Catalog\\nEntryGroup: okf_hp_dragonfly\\nAspectType: okf + overview"]
-    APP["HP Dragonfly Ontology Studio\\n(KO / EN Web App & Live GQL)"]
-    KCMD --> DPX
-    DPX --> APP
-    PG --> APP
-  end
-  PDF --> EA
-  BQ --> EA
-  GIT --> KCMD`;
-      try {
-        const res = await window.mermaid.render("mm-svg-arch-" + Date.now(), code);
-        archEl.innerHTML = res.svg;
-      } catch (e) {
-        archEl.innerHTML = `<pre>${escapeHtml(code)}</pre>`;
+      securityLevel: "loose",
+      theme: "base",
+      fontFamily: '"Google Sans", "Noto Sans KR", Roboto, sans-serif',
+      flowchart: { htmlLabels: true, curve: "basis", padding: 12, nodeSpacing: 26, rankSpacing: 34 },
+      sequence: { actorMargin: 32, boxMargin: 8, messageMargin: 28, mirrorActors: false, wrap: false },
+      themeVariables: {
+        fontFamily: '"Google Sans", "Noto Sans KR", Roboto, sans-serif',
+        fontSize: "12.5px",
+        primaryColor: d ? "#282a2d" : "#ffffff",
+        primaryTextColor: d ? "#e8eaed" : "#202124",
+        primaryBorderColor: d ? "#5f6368" : "#80868b",
+        secondaryColor: d ? "#1f2022" : "#f8f9fa",
+        tertiaryColor: d ? "#1f2022" : "#f8f9fa",
+        lineColor: d ? "#9aa0a6" : "#5f6368",
+        textColor: d ? "#e8eaed" : "#202124",
+        mainBkg: d ? "#282a2d" : "#ffffff",
+        nodeBorder: d ? "#5f6368" : "#80868b",
+        clusterBkg: d ? "#1a1b1e" : "#f8f9fa",
+        clusterBorder: d ? "#3c4043" : "#dadce0",
+        titleColor: d ? "#e8eaed" : "#202124",
+        edgeLabelBackground: d ? "#1f2022" : "#ffffff",
+        actorBkg: d ? "#282a2d" : "#ffffff",
+        actorBorder: d ? "#5f6368" : "#80868b",
+        actorTextColor: d ? "#e8eaed" : "#202124",
+        actorLineColor: d ? "#5f6368" : "#80868b",
+        signalColor: d ? "#9aa0a6" : "#5f6368",
+        signalTextColor: d ? "#e8eaed" : "#202124",
+        labelBoxBkgColor: d ? "#282a2d" : "#f8f9fa",
+        labelBoxBorderColor: d ? "#3c4043" : "#dadce0",
+        labelTextColor: d ? "#e8eaed" : "#202124",
+        loopTextColor: d ? "#e8eaed" : "#202124",
+        noteBkgColor: d ? "#282a2d" : "#f8f9fa",
+        noteBorderColor: d ? "#5f6368" : "#dadce0",
+        noteTextColor: d ? "#e8eaed" : "#202124",
+        activationBkgColor: d ? "#303338" : "#e8eaed",
+        activationBorderColor: d ? "#5f6368" : "#80868b"
       }
-    }
+    });
+    return d;
+  }
 
-    const seqEl = document.getElementById("intro-mermaid-seq");
-    if (seqEl) {
-      const seqCode = `sequenceDiagram
-  autonumber
-  participant S as Source Plane (109p PDF + 8 BQ Tables)
-  participant A as Enrichment Agent (enrichment_agent.py)
-  participant G as Git Repo (Metadata as Code)
-  participant K as kcmd CLI (./bin/kcmd v1.0.0)
-  participant D as Dataplex Knowledge Catalog (hp-dragonfly)
-  S->>A: Extract PDF chapters/pages & BigQuery schemas/FKs
-  A->>G: Generate 28 OKF v0.2 .md files + viz.html + catalog/*.yaml
-  G->>G: git commit (Track YAML frontmatter: generated, verified, sources)
-  G->>K: ./bin/kcmd push ./catalog (Scope: bq-dataset, 9 Entries)
-  K->>D: Upsert dataplex-types.global.overview aspects on Dataset & 8 Tables
-  G->>K: ./bin/kcmd push ./catalog_okf (Scope: kb...okf_hp_dragonfly, 28 Entries)
-  K->>D: Upsert okf-bundle Entries with custom okf + overview Aspects
-  D->>K: ./bin/kcmd pull ./catalog_okf_pulled (Round-trip verification 100%)`;
-      try {
-        const res = await window.mermaid.render("mm-svg-seq-" + Date.now(), seqCode);
-        seqEl.innerHTML = res.svg;
-      } catch (e) {
-        seqEl.innerHTML = `<pre>${escapeHtml(seqCode)}</pre>`;
+  function getIntroMermaidClassDefs(d) {
+    const store = d
+      ? "fill:#2d3034,stroke:#9aa0a6,stroke-width:1.4px,color:#e8eaed"
+      : "fill:#f1f3f4,stroke:#5f6368,stroke-width:1.4px,color:#202124";
+    const llm = d
+      ? "fill:#1e3a5f,stroke:#8ab4f8,stroke-width:1.4px,color:#e8eaed"
+      : "fill:#e8f0fe,stroke:#1a73e8,stroke-width:1.4px,color:#174ea6";
+    const stop = d
+      ? "fill:#442726,stroke:#f28b82,stroke-width:1.4px,color:#fce8e6"
+      : "fill:#fce8e6,stroke:#d93025,stroke-width:1.4px,color:#a50e0e";
+    const term = d
+      ? "fill:#303338,stroke:#9aa0a6,stroke-width:1.2px,color:#e8eaed"
+      : "fill:#f8f9fa,stroke:#80868b,stroke-width:1.2px,color:#202124";
+    return `\nclassDef store ${store};\nclassDef llm ${llm};\nclassDef stop ${stop};\nclassDef term ${term};\n`;
+  }
+
+  let INTRO_MMD_SEQ = 0;
+
+  async function renderSingleIntroMermaid(hostId, code, d) {
+    const host = document.getElementById(hostId);
+    if (!host || !code) return;
+    const isFlow = /^\s*flowchart\b/.test(code);
+    const full = isFlow ? code + getIntroMermaidClassDefs(d) : code;
+    const id = "intro-svg-" + ++INTRO_MMD_SEQ;
+    try {
+      const out = await window.mermaid.render(id, full);
+      host.innerHTML = out.svg;
+    } catch (err) {
+      const orphan = document.getElementById("d" + id) || document.getElementById(id);
+      if (orphan) orphan.remove();
+      host.innerHTML = `<pre class="intro-err">${escapeHtml(String((err && err.message) || err))}</pre>`;
+    }
+  }
+
+  async function renderIntroMermaidDiagrams() {
+    if (!window.mermaid) return;
+    const d = initIntroMermaidTheme();
+    const spec = getIntroArchSpec(isKo());
+    const sec = spec.tabs[INTRO_TAB] || spec.tabs.sys;
+    for (const fig of sec.figures || []) {
+      if (fig.panels) {
+        for (const p of fig.panels) {
+          await renderSingleIntroMermaid(`intro-mmd-${p.id}`, p.mermaid, d);
+        }
+      } else if (!fig.seq || fig.seq === INTRO_SEQ_MODE) {
+        await renderSingleIntroMermaid(`intro-mmd-${fig.id}`, fig.mermaid, d);
       }
     }
   }
@@ -8393,10 +9052,20 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
   // Initialization
   // =========================================================================
   document.addEventListener("DOMContentLoaded", function () {
+    const qs = new URLSearchParams(window.location.search);
     try {
       const savedDark = localStorage.getItem("hp_studio_dark");
-      if (savedDark === "1") document.body.classList.add("dark-mode");
-    } catch (_) {}
+      if (savedDark === "1" || qs.get("dark") === "1") document.body.classList.add("dark-mode");
+    } catch (_) {
+      if (qs.get("dark") === "1") document.body.classList.add("dark-mode");
+    }
+    if (qs.get("view") === "report") BENCH_VIEW_MODE = "report";
+    if (qs.get("intro_tab") && ["sys", "graph", "agent"].includes(qs.get("intro_tab"))) {
+      INTRO_TAB = qs.get("intro_tab");
+    }
+    if (qs.get("intro_seq") && ["graph", "rag"].includes(qs.get("intro_seq"))) {
+      INTRO_SEQ_MODE = qs.get("intro_seq");
+    }
     document.documentElement.setAttribute("lang", LANG);
     syncStaticLabels();
     renderManagementModule();
@@ -8409,5 +9078,12 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     }
     const validMods = ["intro", "okf-validation", "okf-management", "bq-graph", "agent", "rag-vs-graphrag"];
     switchModule(validMods.includes(hashMod) ? hashMod : "intro");
+    if (qs.get("intro_scroll")) {
+      const scY = parseInt(qs.get("intro_scroll"), 10) || 0;
+      setTimeout(() => {
+        const scBox = document.querySelector(".intro-body-scroll");
+        if (scBox) scBox.scrollTop = scY;
+      }, 650);
+    }
   });
 })();
