@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>window.INITIAL_STUDIO_LANG = "en";</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Google Cloud | HP Dragonfly Ontology &amp; OKF v0.2 Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Noto+Sans+KR:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+  <!-- External Visualization Engines -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+  <script>
+    if (window.mermaid) {
+      window.mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "loose" });
+    }
+  </script>
+
+  <!-- Google Cloud Console Enterprise Stylesheet -->
+  <link rel="stylesheet" href="css/gcp-console.css?v=20261025_07" />
+</head>
+<body>
+
+  <!-- 1. Topbar Header (48px Google Cloud Console Standard) -->
+  <header class="gcp-header">
+    <div class="header-left">
+      <a href="#" class="gcp-brand" title="01 · Intro" onclick="event.preventDefault(); switchModule('intro');">
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"/>
+        </svg>
+        <span id="studio-app-title">Google Cloud | HP Dragonfly Ontology Studio</span>
+      </a>
+      <div class="gcp-custom-select project-selector" style="width: 245px;">
+        <button type="button" class="project-chip project-select-btn" title="GCP Project: hp-dragonfly / Dataset: prj_ontology_hp_dragonfly">
+          <span class="material-symbols-outlined project-chip-icon">deployed_code</span>
+          <span class="gcp-custom-select-val">hp-dragonfly · prj-ontology</span>
+          <span class="material-symbols-outlined project-chip-caret">verified</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <!-- Bilingual UI Switcher (KO / EN) -->
+      <div class="lang-toggle-pill" role="group" aria-label="Language Switcher">
+        <button type="button" id="btn-lang-ko" class="lang-toggle-btn active" onclick="setStudioLang('ko')" title="한국어 UI (Korean UI)">
+          🇰🇷 한국어
+        </button>
+        <button type="button" id="btn-lang-en" class="lang-toggle-btn" onclick="setStudioLang('en')" title="English UI (영어 UI)">
+          🇺🇸 English
+        </button>
+      </div>
+
+      <button class="view-switch-btn" id="btn-view-switch" onclick="toggleGraphView()" style="display:none;">
+        <span class="material-symbols-outlined" id="view-switch-icon">hub</span>
+        <span class="btn-label" id="view-switch-text">Graph View</span>
+      </button>
+
+      <button class="view-switch-btn" id="btn-theme-toggle" onclick="toggleTheme()">
+        <span class="material-symbols-outlined" id="theme-icon">dark_mode</span>
+        <span class="btn-label" id="theme-text">Dark Mode</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 2. App Shell (Left 52px Icon Rail + Right Module Workspaces) -->
+  <div class="app-shell">
+    <nav class="gcp-icon-rail" aria-label="Workspace Navigation">
+      <button class="rail-btn active" id="rail-intro" onclick="switchModule('intro')">
+        <span class="material-symbols-outlined">space_dashboard</span>
+        <span class="rail-tooltip">
+          <span class="rail-tooltip-id">01 · Intro</span>
+          <span class="rail-tooltip-desc" id="tip-desc-01">3-Plane 아키텍처 · OKF 파이프라인</span>
+        </span>
+      </button>
+
+      <button class="rail-btn" id="rail-okf-validation" onclick="switchModule('okf-validation')">
+        <span class="material-symbols-outlined">fact_check</span>
+        <span class="rail-tooltip">
+          <span class="rail-tooltip-id">02 · OKF Validation</span>
+          <span class="rail-tooltip-desc" id="tip-desc-02">원본 PDF ↔ OKF 1:1 대조 및 지식그래프</span>
+        </span>
+      </button>
+
+      <button class="rail-btn" id="rail-okf-management" onclick="switchModule('okf-management')">
+        <span class="material-symbols-outlined">edit_document</span>
+        <span class="rail-tooltip">
+          <span class="rail-tooltip-id">03 · OKF Management</span>
+          <span class="rail-tooltip-desc" id="tip-desc-03">OKF Editor · Knowledge Catalog (Git &amp; kcmd)</span>
+        </span>
+      </button>
+
+      <button class="rail-btn" id="rail-bq-graph" onclick="switchModule('bq-graph')">
+        <span class="material-symbols-outlined">hub</span>
+        <span class="rail-tooltip">
+          <span class="rail-tooltip-id">04 · BigQueryGraph</span>
+          <span class="rail-tooltip-desc" id="tip-desc-04">BigQuery 8개 정형 테이블 · 3D 스키마 · GQL 그래프</span>
+        </span>
+      </button>
+
+      <div class="rail-divider"></div>
+
+      <button class="rail-btn" id="rail-agent" onclick="switchModule('agent')">
+        <span class="material-symbols-outlined">smart_toy</span>
+        <span class="rail-tooltip">
+          <span class="rail-tooltip-id">05 · Ontology Agent</span>
+          <span class="rail-tooltip-desc" id="tip-desc-05">하이브리드 온톨로지 에이전트 &amp; Playbook 추론</span>
+        </span>
+      </button>
+
+      <button class="rail-btn" id="rail-rag-vs-graphrag" onclick="switchModule('rag-vs-graphrag')">
+        <span class="material-symbols-outlined">compare_arrows</span>
+        <span class="rail-tooltip">
+          <span class="rail-tooltip-id">06 · RAG vs Graph Studio</span>
+          <span class="rail-tooltip-desc" id="tip-desc-06">Vector RAG vs. Ontology Graph RAG 벤치마크</span>
+        </span>
+      </button>
+    </nav>
+
+    <!-- MODULE 01: intro -->
+    <section id="module-intro" class="module-workspace" style="display:flex;"></section>
+
+    <!-- MODULE 02-A: okf-validation Split Compare View -->
+    <main id="compare-workspace" style="display:none;">
+      <aside class="nav-sidebar" id="okf-nav-sidebar">
+        <div class="search-wrap" style="display:flex; align-items:center; gap:6px;">
+          <input type="text" id="nav-search" class="search-input" placeholder="OKF 컨셉 검색 (disassembly, BIOS, blink, SKU)..." oninput="renderSidebar()" />
+          <button type="button" class="sidebar-collapse-btn" onclick="toggleOkfCompareSidebar()" title="좌측 패널 접기 (Collapse)">
+            <span class="material-symbols-outlined" style="font-size:15px;">left_panel_close</span>
+          </button>
+        </div>
+        <div class="nav-list" id="nav-list"></div>
+      </aside>
+
+      <section class="pdf-pane">
+        <div class="pane-subbar">
+          <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+            <button type="button" class="sidebar-collapse-btn" onclick="toggleOkfCompareSidebar()" title="좌측 OKF 파일 목록 토글 (Toggle Sidebar)">
+              <span class="material-symbols-outlined" style="font-size:15px;">dock_to_right</span>
+            </button>
+            <span><span id="lbl-source-pdf">원본 PDF</span>: <code id="pdf-name-label">pdf_6290467_en-US-1.pdf</code></span>
+          </div>
+          <span id="pdf-page-label" style="color:var(--gcp-blue); font-weight:500;"></span>
+        </div>
+        <iframe id="pdf-frame" class="pdf-frame" src=""></iframe>
+      </section>
+
+      <section class="okf-pane">
+        <div class="pane-subbar">
+          <span><span id="lbl-okf-file">OKF 파일</span>: <code id="okf-file-label"></code></span>
+          <a href="/viz.html" target="_blank" rel="noopener" class="gcp-action-btn" style="padding:3px 9px; font-size:11px; text-decoration:none;">
+            <span class="material-symbols-outlined" style="font-size:14px;">open_in_new</span> Cytoscape (viz.html)
+          </a>
+        </div>
+        <div class="okf-reader" id="okf-reader"></div>
+      </section>
+    </main>
+
+    <!-- MODULE 02-B: okf-validation Knowledge Graph View -->
+    <main id="graph-workspace" style="display:none;">
+      <aside class="graph-sidebar" id="okf-graph-sidebar">
+        <div class="sidebar-header-row">
+          <div>
+            <div class="graph-sidebar-title" id="g-sidebar-title">OKF Knowledge Graph</div>
+            <div class="graph-sidebar-sub" id="g-sidebar-sub">노드를 클릭하면 우측 패널에 해당 OKF 문서의 YAML Frontmatter와 영문 마크다운 원문이 표시됩니다.</div>
+          </div>
+          <button type="button" class="sidebar-collapse-btn" onclick="toggleOkfGraphSidebar()" title="좌측 패널 접기 (Collapse)">
+            <span class="material-symbols-outlined" style="font-size:15px;">left_panel_close</span>
+          </button>
+        </div>
+
+        <div class="ctrl-group">
+          <label id="g-scope-label">Concept Category Filter</label>
+          <select id="graph-scope-select" class="gcp-select" onchange="buildOkfGraph(this.value)">
+            <option value="ALL">ALL · 21 Concepts &amp; 110 Edges</option>
+            <option value="tables">tables/ · 8 BigQuery Tables</option>
+            <option value="references">references/ · 5 PDF Manual Refs</option>
+            <option value="playbooks">playbooks/ &amp; computations/ &amp; metrics/</option>
+          </select>
+        </div>
+
+        <div class="ctrl-group">
+          <label id="g-search-label">Node Search</label>
+          <input type="text" id="graph-search-input" class="gcp-input" placeholder="Search node (disassembly, sku, sure-start)..." oninput="searchGraphNode(this.value)" />
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="num" id="g-stat-docs">28</div>
+            <div class="lbl">OKF Files</div>
+          </div>
+          <div class="stat-box">
+            <div class="num" id="g-stat-provs">21</div>
+            <div class="lbl">Concepts</div>
+          </div>
+          <div class="stat-box">
+            <div class="num" id="g-stat-edges">110</div>
+            <div class="lbl">Semantic Edges</div>
+          </div>
+        </div>
+
+        <div class="legend-box">
+          <div class="legend-row"><span class="dot-indicator" style="background:#8b5cf6;"></span> BigQuery Dataset (<code>datasets/</code>)</div>
+          <div class="legend-row"><span class="dot-indicator" style="background:#3b82f6;"></span> Structured Table (<code>tables/</code> · 8)</div>
+          <div class="legend-row"><span class="dot-indicator" style="background:#10b981;"></span> PDF Service Manual Ref (<code>references/</code> · 5)</div>
+          <div class="legend-row"><span class="dot-indicator" style="background:#f59e0b;"></span> Service Playbook (<code>playbooks/</code> · 2)</div>
+          <div class="legend-row"><span class="dot-indicator" style="background:#64748b;"></span> Metric &amp; Computation (4)</div>
+        </div>
+
+        <div class="btn-row">
+          <button class="gcp-action-btn" onclick="fitGraph()">
+            <span class="material-symbols-outlined">fit_screen</span> <span id="lbl-fit-graph">화면 맞춤</span>
+          </button>
+          <button class="gcp-action-btn" onclick="togglePhysics()">
+            <span class="material-symbols-outlined">motion_photos_on</span> <span id="lbl-phys-graph">물리엔진</span>
+          </button>
+        </div>
+      </aside>
+
+      <section class="graph-main-area">
+        <div class="bq-cam-toolbar" style="top:12px; left:14px;">
+          <button class="bq-cam-btn primary-toggle" onclick="toggleOkfGraphSidebar()">
+            <span class="material-symbols-outlined" style="font-size:16px;">dock_to_right</span> <span id="lbl-okf-g-sidebar">좌측 패널 토글</span>
+          </button>
+        </div>
+        <div id="network-canvas"></div>
+
+        <aside id="graph-detail-panel" class="open">
+          <div class="detail-panel-header">
+            <div class="detail-panel-title-wrap">
+              <span class="material-symbols-outlined" style="color:var(--gcp-blue);">description</span>
+              <code id="graph-detail-path"></code>
+            </div>
+            <div class="detail-panel-actions">
+              <button class="gcp-action-btn" style="padding:4px 9px; font-size:11.5px;" onclick="openCurrentInPdfCompare()">
+                <span class="material-symbols-outlined" style="font-size:14px;">picture_as_pdf</span> <span id="lbl-open-pdf-compare">PDF 대조뷰로 열기</span>
+              </button>
+              <button class="icon-close-btn" onclick="closeGraphDetail()" title="Close">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+          </div>
+          <div class="detail-panel-body" id="graph-detail-body"></div>
+        </aside>
+      </section>
+    </main>
+
+    <!-- MODULE 03: okf-management (Git Metadata-as-Code & Dataplex kcmd) -->
+    <section id="module-enrollment" class="module-workspace" style="display:none;"></section>
+
+    <!-- MODULE 04: bq-graph (BigQuery Property Graph: 3D Class Schema <-> 2D GQL Instance Graph <-> 15 Tables) -->
+    <main id="module-bq-graph" style="display:none;">
+      <aside class="bq-sidebar" id="bq-left-sidebar">
+        <div class="sidebar-header-row">
+          <div>
+            <div class="graph-sidebar-title" id="bq-sidebar-title">BigQuery Property Graph</div>
+            <div class="graph-sidebar-sub" id="bq-sidebar-sub">
+              <code>hp-dragonfly.prj_ontology_hp_dragonfly</code> (15개 테이블 · 10 Node · 13 Edge) 2-Layer 그래프를 탐색합니다.
+            </div>
+          </div>
+          <button type="button" class="sidebar-collapse-btn" onclick="toggleBqLeftSidebar()" title="좌측 패널 접기 (Collapse Left Panel)">
+            <span class="material-symbols-outlined" style="font-size:15px;">left_panel_close</span>
+            <span id="lbl-bq-collapse-left">접기</span>
+          </button>
+        </div>
+
+        <div class="bq-mode-toggle">
+          <button class="bq-mode-btn active" id="bq-btn-class-mode" onclick="setBqGraphMode('CLASS')">
+            <span class="material-symbols-outlined" style="font-size:15px;">layers</span> 3D Class View
+          </button>
+          <button class="bq-mode-btn" id="bq-btn-inst-mode" onclick="setBqGraphMode('INSTANCE')">
+            <span class="material-symbols-outlined" style="font-size:15px;">hub</span> GQL View
+          </button>
+        </div>
+
+        <div class="ctrl-group">
+          <label id="bq-lbl-templates">1. Saved GQL Query Templates (Query Library)</label>
+          <select id="bq-gql-select" class="gcp-select" onchange="selectBqGqlOption(Number(this.value))"></select>
+        </div>
+
+        <div class="ctrl-group">
+          <label id="bq-lbl-statement">2. BigQuery GQL Query Statement (ISO/IEC 39075)</label>
+          <textarea id="bq-gql-code" class="bq-gql-editor" spellcheck="false" style="width:100%; resize:vertical; min-height:145px; outline:none;"></textarea>
+        </div>
+
+        <div style="display:flex; align-items:stretch; gap:8px;">
+          <button class="bq-run-btn" id="bq-run-query-btn" style="flex:1; height:34px; padding:0 12px; font-size:12px; box-sizing:border-box;" onclick="runBqGqlQuery()">
+            <span class="material-symbols-outlined" style="font-size:16px;">play_arrow</span> <span id="bq-run-btn-txt">Run GQL Query</span>
+          </button>
+          <button class="gcp-action-btn" style="flex:0 0 34px; width:34px; height:34px; padding:0; box-sizing:border-box;" onclick="setBqGraphMode('CLASS')" title="Return to 3D Class View">
+            <span class="material-symbols-outlined" style="font-size:18px;">restart_alt</span>
+          </button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="num" id="bq-stat-n">10</div>
+            <div class="lbl" id="bq-stat-n-lbl">Node Classes</div>
+          </div>
+          <div class="stat-box">
+            <div class="num" id="bq-stat-e">13</div>
+            <div class="lbl" id="bq-stat-e-lbl">Class Relations</div>
+          </div>
+          <div class="stat-box">
+            <div class="num" id="bq-stat-b">4</div>
+            <div class="lbl" id="bq-stat-b-lbl">ONT↔LEX Bridges</div>
+          </div>
+        </div>
+
+        <details class="fm-accordion" style="margin-bottom:0;" open>
+          <summary style="padding:7px 11px; font-size:11.5px;">
+            <span>2-Layer Legend (ONT 7 · LEX 3 · Edges 13)</span>
+            <span class="material-symbols-outlined fm-chevron" style="font-size:16px;">expand_more</span>
+          </summary>
+          <div class="legend-box bq-legend-grid" style="border:0; border-top:1px solid var(--border-subtle); border-radius:0;">
+            <div class="legend-row">
+              <span class="dot-indicator" style="background:#3b6ea5;"></span>
+              <strong class="legend-col-title">Upper ONT (8 Tables)</strong>
+              <span class="legend-col-desc">· ProductModel, ProductSKU, HardwareComponent, DiagnosticCode, TroubleshootingCase, FirmwareBiosNvm, PortSensorDock</span>
+            </div>
+            <div class="legend-row">
+              <span class="dot-indicator" style="background:#3b735b;"></span>
+              <strong class="legend-col-title">Lower LEX (Dataplex KC)</strong>
+              <span class="legend-col-desc">· ServiceManualDocument, ServiceManualChapter, ServicePlaybook (kc_entry_id)</span>
+            </div>
+            <div class="legend-row">
+              <span class="dot-indicator" style="background:#b88a44;"></span>
+              <strong class="legend-col-title">Graph Edges (13)</strong>
+              <span class="legend-col-desc">· 7 ONT Edges + 4 ONT↔LEX Bridges + 2 LEX Edges</span>
+            </div>
+          </div>
+        </details>
+      </aside>
+
+      <section class="bq-canvas-stage">
+        <div class="bq-cam-toolbar" id="bq-cam-toolbar">
+          <button class="bq-cam-btn primary-toggle" onclick="toggleBqLeftSidebar()" title="좌측 쿼리/컨트롤 사이드패널 접기·펼치기 (Toggle Left Sidebar)">
+            <span class="material-symbols-outlined" style="font-size:16px;" id="bq-left-toggle-icon">left_panel_close</span>
+            <span id="lbl-bq-left-toggle">좌측 패널 접기</span>
+          </button>
+          <button class="bq-cam-btn" onclick="bqCamReset()">
+            <span class="material-symbols-outlined" style="font-size:16px;">videocam</span> <span id="lbl-cam-reset">기본 시야</span>
+          </button>
+          <button class="bq-cam-btn" onclick="bqCamTop()">
+            <span class="material-symbols-outlined" style="font-size:16px;">visibility</span> <span id="lbl-cam-top">탑뷰 (Top)</span>
+          </button>
+          <button class="bq-cam-btn" onclick="bqCamSplit()">
+            <span class="material-symbols-outlined" style="font-size:16px;">layers</span> <span id="lbl-cam-split">2-Layer 분할뷰</span>
+          </button>
+          <button class="bq-cam-btn" onclick="openBqNodeEdgeCatalog()">
+            <span class="material-symbols-outlined" style="font-size:16px;">schema</span> <span id="lbl-open-catalog">노드·엣지 명세</span>
+          </button>
+          <button class="bq-cam-btn" onclick="toggleBqTableDrawer()">
+            <span class="material-symbols-outlined" style="font-size:16px;">table_chart</span> <span id="lbl-open-tables">15개 테이블 브라우저</span>
+          </button>
+        </div>
+
+        <div class="bq-cam-toolbar" id="bq-inst-toolbar" style="display:none;">
+          <button class="bq-cam-btn primary-toggle" onclick="toggleBqLeftSidebar()" title="좌측 쿼리/컨트롤 사이드패널 접기·펼치기 (Toggle Left Sidebar)">
+            <span class="material-symbols-outlined" style="font-size:16px;" id="bq-inst-left-toggle-icon">left_panel_close</span>
+            <span id="lbl-bq-inst-left-toggle">좌측 패널 접기</span>
+          </button>
+          <button class="bq-cam-btn" onclick="if(window.bqVisNet) window.bqVisNet.fit({animation:true})">
+            <span class="material-symbols-outlined" style="font-size:16px;">fit_screen</span> <span id="lbl-inst-fit">화면 맞춤</span>
+          </button>
+          <button class="bq-cam-btn" onclick="toggleBqCqBanner()">
+            <span class="material-symbols-outlined" style="font-size:16px;">table_rows</span> <span id="lbl-inst-results">GQL 결과 테이블 토글</span>
+          </button>
+          <button class="bq-cam-btn" onclick="openBqNodeEdgeCatalog()">
+            <span class="material-symbols-outlined" style="font-size:16px;">schema</span> <span id="lbl-inst-catalog">노드·엣지 명세</span>
+          </button>
+          <button class="bq-cam-btn" onclick="toggleBqTableDrawer()">
+            <span class="material-symbols-outlined" style="font-size:16px;">table_chart</span> <span id="lbl-inst-tables">15개 테이블 브라우저</span>
+          </button>
+        </div>
+
+        <div id="bq-cq-banner" style="display:none; position:absolute; bottom:14px; left:14px; right:14px; max-height:46%; overflow-y:auto; z-index:20; background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,0.14); padding:14px 16px; font-size:12px; line-height:1.55;"></div>
+
+        <div id="bq-hover-tooltip" style="display:none; position:absolute; pointer-events:none; z-index:25; max-width:360px; background:var(--surface); border:1px solid var(--gcp-blue); border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.18); padding:9px 12px; font-size:11.5px; line-height:1.5;"></div>
+
+        <div id="bq-three-container"></div>
+        <div id="bq-vis-container" style="display:none;"></div>
+      </section>
+
+      <aside id="bq-detail-drawer">
+        <div class="detail-panel-header">
+          <div class="detail-panel-title-wrap">
+            <span class="material-symbols-outlined" style="color:var(--gcp-blue);">schema</span>
+            <code id="bq-drawer-title">Class · HardwareComponent (ONT)</code>
+          </div>
+          <div class="detail-panel-actions">
+            <button type="button" class="sidebar-collapse-btn" onclick="toggleBqDrawerWidth()" title="우측 인스펙터 패널 폭 넓히기/기본 폭 (Toggle Wide Drawer)">
+              <span class="material-symbols-outlined" style="font-size:15px;" id="bq-drawer-wide-icon">open_in_full</span>
+              <span id="lbl-bq-drawer-wide">넓게</span>
+            </button>
+            <button class="icon-close-btn" onclick="closeBqDrawer()" title="우측 패널 접기 (Close Drawer)">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </div>
+        <div class="detail-panel-body" id="bq-drawer-body"></div>
+      </aside>
+    </main>
+
+    <!-- MODULE 05: agent -->
+    <section id="module-agent" class="module-workspace" style="display:none;"></section>
+
+    <!-- MODULE 06: rag-vs-graphrag -->
+    <section id="module-benchmark" class="module-workspace" style="display:none;"></section>
+  </div>
+
+  <!-- Pre-bundled Data & Application Scripts -->
+  <script src="data/studio_bundle.js?v=20261025_07"></script>
+  <script src="js/agent-qa-bank.js?v=20261025_07"></script>
+  <script src="js/i18n.js?v=20261025_07"></script>
+  <script src="js/app.js?v=20261025_07"></script>
+</body>
+</html>

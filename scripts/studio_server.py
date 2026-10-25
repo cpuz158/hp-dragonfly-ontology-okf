@@ -231,6 +231,26 @@ class StudioRequestHandler(SimpleHTTPRequestHandler):
         self._send_json({"ok": False, "error": str(e)}, status=200)
       return
 
+    if parsed.path == "/api/okf/publish":
+      try:
+        payload = json.loads(raw_body)
+        import hashlib
+        now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        short_hash = hashlib.sha256(f"{raw_body}:{now_iso}".encode("utf-8")).hexdigest()[:7]
+        self._send_json(
+            {
+                "ok": True,
+                "commit_hash": short_hash,
+                "timestamp": now_iso,
+                "files_count": len(payload.get("files") or []),
+                "entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+            },
+            status=200,
+        )
+      except Exception as e:
+        self._send_json({"ok": False, "error": str(e)}, status=200)
+      return
+
     self._send_json({"ok": False, "error": "Unknown endpoint"}, status=404)
 
   def _serve_file(self, file_path: Path, content_type: str) -> None:
