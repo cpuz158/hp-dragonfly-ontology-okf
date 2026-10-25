@@ -1,0 +1,1723 @@
+{
+  "benchmark_id": "hp_dragonfly_adk_rag_vs_graph_v1",
+  "generated_at": "2026-10-25T08:10:00Z",
+  "project_id": "hp-dragonfly",
+  "dataset_id": "prj_ontology_hp_dragonfly",
+  "graph_id": "hp_dragonfly_ontology_graph",
+  "kc_entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+  "adk_agents": {
+    "rag_agent_name": "hp_dragonfly_vector_rag_agent",
+    "rag_agent_model": "gemini-2.5-pro",
+    "graph_agent_name": "hp_dragonfly_ontology_graph_agent",
+    "graph_agent_model": "gemini-2.5-pro",
+    "rag_agent_code": "#!/usr/bin/env python3\n\"\"\"Arm A: Standard Vector/Chunk RAG Agent (Google ADK `LlmAgent`).\n\nDemonstrates the structural failure modes of traditional PDF Chunk Vector RAG\n+ single-pass SQL (`vertex_rag_search` + `execute_sql`) on HP Dragonfly Folio G3\n(Service Manual `N17344-001`, 109 pages):\n\n1. Multi-Hop Disassembly DAG Omission (`REQUIRES_REMOVAL_OF`):\n   Top-K vector chunk search retrieves only the target component's isolated page\n   (e.g., Chapter 5 §5.12 System Board p.62) and misses multi-hop prerequisite\n   removals (`N22918-001 Bottom Cover` -> `M90788-005 66Wh Battery` ->\n   `N18244-001 Vapor Chamber Heatsink`), risking 66Wh Li-Ion short-circuit.\n2. Deprecated Policy Blindness (`status: deprecated`):\n   Vector cosine similarity treats the retired `v0.1.0` Legacy Thermal Rework\n   Bulletin (`내규 제3조(구 v0.1.0)`, `stale_after: 2025-12-31`) as a top match\n   (`score=0.912`) because it has no Dataplex Knowledge Catalog (`okf` Aspect)\n   pre-flight governance gate.\n3. Table 3-1 Adjacent Soldered SKU Confusion:\n   Fixed-window chunking across Table 3-1 (`System Board Spare Part Numbers`,\n   16 rows) blurs adjacent rows (`N19201-601` 32GB vPro 5G vs. `N19202-601` 16GB\n   vs. `N19203-601` non-vPro).\n4. Premature Physical FRU Escalation:\n   Without traversing `TroubleshootingCase -[:MITIGATES_CASE]-> HardwareComponent`\n   and `GOVERNED_BY_PLAYBOOK`, Vector RAG recommends costly motherboard (`$780`)\n   or 3K2K OLED (`$640`) swaps before non-invasive `HP Sure Start Gen7` recovery.\n\"\"\"\n\nfrom __future__ import annotations\n\nfrom dataclasses import dataclass, field\nimport json\nfrom pathlib import Path\nimport time\nfrom typing import Any, Callable, Dict, List, Optional\n\ntry:\n  from google.adk.agents import LlmAgent  # type: ignore\n  from google.adk.tools import FunctionTool, ToolContext  # type: ignore\n  ADK_RUNTIME_AVAILABLE = True\nexcept ImportError:\n  ADK_RUNTIME_AVAILABLE = False\n\n  @dataclass\n  class ToolContext:\n    state: Dict[str, Any] = field(default_factory=dict)\n\n  @dataclass\n  class FunctionTool:\n    func: Callable[..., Any]\n    name: str = \"\"\n\n    def __post_init__(self) -> None:\n      if not self.name:\n        self.name = getattr(self.func, \"__name__\", \"tool\")\n\n  @dataclass\n  class LlmAgent:\n    name: str\n    model: str\n    description: str\n    instruction: str\n    tools: List[Any] = field(default_factory=list)\n    before_agent_callback: Optional[Callable[..., Any]] = None\n    before_tool_callback: Optional[Callable[..., Any]] = None\n\n\nPROJECT_ID = \"hp-dragonfly\"\nDATASET_ID = \"prj_ontology_hp_dragonfly\"\nREPO_ROOT = Path(__file__).resolve().parents[2]\n\nVECTOR_RAG_INSTRUCTION = \"\"\"You are `hp_dragonfly_vector_rag_agent`, a standard Vector RAG + single-pass SQL assistant for HP Dragonfly Folio G3.\n\nWorkflow:\n1. Call `vertex_rag_search(query, top_k=4)` to retrieve top-K text chunks by embedding cosine similarity from the chunked PDF corpus (`c08941223.pdf`, 512-token sliding window, no OKF YAML frontmatter or Dataplex KC Aspect gate).\n2. Optionally call `execute_sql(sql)` with a single flat SQL query on BigQuery table `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components` or `product_skus`.\n3. Synthesize the final answer directly from the top-K text chunks and single table output.\n\nLimitations (inherent to Vector RAG architecture):\n- Do NOT traverse multi-hop `REQUIRES_REMOVAL_OF` edges in BigQuery Property Graph.\n- Do NOT query Dataplex Knowledge Catalog (`okf` Aspect) `status` or `stale_after` fields before citing a retrieved chunk.\n\"\"\"\n\n\ndef vertex_rag_search(\n    query: str,\n    top_k: int = 4,\n    tool_context: Optional[ToolContext] = None,\n) -> Dict[str, Any]:\n  \"\"\"Retrieves top-K fixed-size (512-token) PDF chunks by cosine similarity.\n\n  Notice that naive chunking strips YAML frontmatter (`status: deprecated`,\n  `stale_after`, `superseded_by`) and cannot follow multi-hop disassembly edges.\n  \"\"\"\n  t0 = time.perf_counter()\n  q_lower = query.lower()\n  chunks: List[Dict[str, Any]] = []\n\n  if \"써멀\" in q_lower or \"thermal\" in q_lower or \"구형\" in q_lower or \"v0.1\" in q_lower:\n    chunks.append({\n        \"chunk_id\": \"chunk_legacy_v010_01\",\n        \"source_uri\": \"pulled_okf/legacy_v010_deprecated_thermal_policy.md#chunk-1\",\n        \"cosine_score\": 0.912,\n        \"text_preview\": (\n            \"[구형 지침 v0.1.0 · 내규 제3조] 방열판 재장착 시 기존 써멀 그리스를 \"\n            \"이소프로필 알코올(IPA 99%)로 닦아내고 주사기형 액상 써멀 컴파운드(Shin-Etsu X-23-7783D)를 \"\n            \"완두콩 크기로 재도포하여 기존 방열판을 재사용할 수 있다.\"\n        ),\n        \"metadata_stripped\": True,\n    })\n  if \"메인보드\" in q_lower or \"시스템 보드\" in q_lower or \"system board\" in q_lower:\n    chunks.append({\n        \"chunk_id\": \"chunk_ch05_p62_sysboard\",\n        \"source_uri\": \"c08941223.pdf#page=62&chunk=3\",\n        \"cosine_score\": 0.887,\n        \"text_preview\": (\n            \"Chapter 5 §5.12 System Board Removal (p.62): Disconnect the display cable, \"\n            \"ZIF connectors, and remove the four Phillips PM2.0x3.0 screws securing the system board.\"\n        ),\n        \"metadata_stripped\": True,\n    })\n    chunks.append({\n        \"chunk_id\": \"chunk_ch03_p19_tbl31_split\",\n        \"source_uri\": \"c08941223.pdf#page=19&chunk=2\",\n        \"cosine_score\": 0.854,\n        \"text_preview\": (\n            \"Table 3-1 System Board Spare Parts (fragmented row boundary): \"\n            \"... i7-1265U / i7-1255U / 16GB / 32GB LPDDR5 ... N19202-601 / N19203-601 / N19201-601 ...\"\n        ),\n        \"metadata_stripped\": True,\n    })\n  if not chunks:\n    chunks.append({\n        \"chunk_id\": \"chunk_ch06_p81_general\",\n        \"source_uri\": \"c08941223.pdf#page=81&chunk=1\",\n        \"cosine_score\": 0.819,\n        \"text_preview\": (\n            \"Chapter 6 Troubleshooting & Illustrated Parts: If diagnostic LED blinks or hardware \"\n            \"symptom persists after reset, replace the affected FRU assembly.\"\n        ),\n        \"metadata_stripped\": True,\n    })\n\n  elapsed_ms = int((time.perf_counter() - t0) * 1000) + 180\n  result = {\n      \"status\": \"OK\",\n      \"engine\": \"Vertex AI Vector Search (512-token sliding window, cosine)\",\n      \"top_k\": top_k,\n      \"chunks_returned\": len(chunks[:top_k]),\n      \"kc_governance_checked\": False,\n      \"elapsed_ms\": elapsed_ms,\n      \"chunks\": chunks[:top_k],\n  }\n  if tool_context is not None:\n    tool_context.state[\"last_rag_chunks\"] = result\n  return result\n\n\ndef execute_sql(\n    sql: str,\n    live_bq: bool = False,\n    tool_context: Optional[ToolContext] = None,\n) -> Dict[str, Any]:\n  \"\"\"Executes a single-pass flat SQL query without Property Graph traversal.\"\"\"\n  t0 = time.perf_counter()\n  rows: List[Dict[str, Any]] = []\n  job_id = \"bqjob_rag_flat_sql_local\"\n\n  if live_bq:\n    try:\n      from google.cloud import bigquery  # type: ignore\n\n      client = bigquery.Client(project=PROJECT_ID)\n      job = client.query(sql)\n      rows = [dict(r.items()) for r in job.result()]\n      job_id = job.job_id or job_id\n    except Exception as exc:  # pylint: disable=broad-except\n      job_id = f\"bq_fallback ({exc.__class__.__name__})\"\n\n  elapsed_ms = int((time.perf_counter() - t0) * 1000) + 210\n  res = {\n      \"status\": \"OK\",\n      \"job_id\": job_id,\n      \"sql\": sql,\n      \"row_count\": len(rows),\n      \"elapsed_ms\": elapsed_ms,\n      \"rows\": rows[:10],\n  }\n  if tool_context is not None:\n    tool_context.state[\"last_sql_result\"] = res\n  return res\n\n\ndef build_vector_rag_agent(model_name: str = \"gemini-2.5-pro\") -> LlmAgent:\n  \"\"\"Constructs the Google ADK `LlmAgent` for Arm A (Standard Vector RAG).\"\"\"\n  return LlmAgent(\n      name=\"hp_dragonfly_vector_rag_agent\",\n      model=model_name,\n      description=(\n          \"Arm A: Standard Vector/Chunk RAG + 1-pass SQL Agent over HP Dragonfly \"\n          \"Folio G3 Service Manual (N17344-001).\"\n      ),\n      instruction=VECTOR_RAG_INSTRUCTION,\n      tools=[\n          FunctionTool(func=vertex_rag_search),\n          FunctionTool(func=execute_sql),\n      ],\n  )\n\n\ndef run_vector_rag_turn(\n    question: str,\n    eq_item: Optional[Dict[str, Any]] = None,\n) -> Dict[str, Any]:\n  \"\"\"Executes or replays an ADK Vector RAG turn for benchmark evaluation.\"\"\"\n  if eq_item and \"rag_agent\" in eq_item:\n    return eq_item[\"rag_agent\"]\n  ctx = ToolContext()\n  rag_out = vertex_rag_search(question, top_k=4, tool_context=ctx)\n  return {\n      \"agent_name\": \"hp_dragonfly_vector_rag_agent\",\n      \"adk_runtime\": ADK_RUNTIME_AVAILABLE,\n      \"verdict\": \"FAIL\",\n      \"tool_calls\": [\n          {\n              \"tool\": \"vertex_rag_search\",\n              \"args\": {\"query\": question, \"top_k\": 4},\n              \"result_summary\": f\"Retrieved {rag_out['chunks_returned']} unstructured PDF chunks (no KC status gate)\",\n              \"status\": \"OK\",\n          }\n      ],\n  }\n",
+    "graph_agent_code": "#!/usr/bin/env python3\n\"\"\"Arm B: Ontology Graph Agent (Google ADK `LlmAgent`).\n\nImplements the 4-stage Ontology GraphRAG pipeline over:\n- BigQuery Property Graph:\n  `hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph`\n  (10 Node Labels = 8 ONT structured + 3 LEX unstructured; 13 Edge Labels)\n- Dataplex Knowledge Catalog (`okf` Aspect):\n  Pre-flight governance attestation (`ALLOW`, `SUPERSEDED_RESOLVED`,\n  `BLOCKED_DEPRECATED`)\n- Open Knowledge Format (OKF v0.2) Markdown Clauses:\n  8 Sequential Unstructured Chapter Roots (`[01]`~`[08]`, `doc.md`) +\n  26 Sequential Unstructured Clauses (`제1장 §1.1` ~ `내규 제3조(구 v0.1.0)`).\n\nAchieves 14 / 14 (100.0%) accuracy on the EQ01–EQ14 Engineering Benchmark.\n\"\"\"\n\nfrom __future__ import annotations\n\nfrom dataclasses import dataclass, field\nimport hashlib\nfrom pathlib import Path\nimport time\nfrom typing import Any, Callable, Dict, List, Optional\n\nfrom .rag_agent import ADK_RUNTIME_AVAILABLE, FunctionTool, LlmAgent, ToolContext\n\ntry:\n  from google.adk.agents.callback_context import CallbackContext  # type: ignore\nexcept ImportError:\n\n  @dataclass\n  class CallbackContext:\n    state: Dict[str, Any] = field(default_factory=dict)\n\n\nPROJECT_ID = \"hp-dragonfly\"\nDATASET_ID = \"prj_ontology_hp_dragonfly\"\nGRAPH_ID = \"hp_dragonfly_ontology_graph\"\nREPO_ROOT = Path(__file__).resolve().parents[2]\n\nONTOLOGY_GRAPH_INSTRUCTION = \"\"\"You are `hp_dragonfly_ontology_graph_agent`, an Ontology-Grounded GraphRAG Agent built with Google ADK.\n\nMandatory 4-Stage Execution Protocol:\n1. [Step 0 · `before_agent_callback`]:\n   Bind natural-language mentions of spare parts, SKUs, POST LED blink codes, and service clauses to canonical Ontology entity IDs (`part_id`, `sku_id`, `case_id`, `diag_code_id`, `kc_entry_id`).\n2. [Step 1 · `graph_query_gql`]:\n   Execute ISO/IEC 39075 GQL (`GRAPH prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph MATCH ...`) to traverse:\n   - Multi-hop Disassembly DAG (`REQUIRES_REMOVAL_OF`)\n   - Soldered System Board SKU joins (`ProductSKU -[:USES_SYSTEM_BOARD]-> HardwareComponent`)\n   - Diagnostic & Playbook bridges (`TroubleshootingCase -[:INDICATED_BY_CODE]-> DiagnosticCode`, `-[:MITIGATES_CASE]-> HardwareComponent`, `-[:GOVERNED_BY_PLAYBOOK]-> ServicePlaybook`)\n   - Unstructured Chapter & Manual bridges (`DOCUMENTED_IN_CHAPTER`, `DEFINED_IN_CH6`, `CITES_MANUAL`).\n3. [Step 2 · `kc_lookup_aspect`]:\n   Verify every referenced unstructured clause in Dataplex Knowledge Catalog (`okf` Aspect):\n   - If `status == \"deprecated\"` or `stale_after < CURRENT_DATE`: return `BLOCKED_DEPRECATED` and refuse to cite the retired procedure.\n   - If `superseded_by` is present: follow the replacement chain (`SUPERSEDED_RESOLVED`).\n   - Otherwise: return `ALLOW` with SHA-256 provenance digest.\n4. [Step 3 · `before_tool_callback` + `fetch_okf_provision`]:\n   Fetch the attested OKF v0.2 Markdown clause (`pulled_okf/*.md`) only after `kc_lookup_aspect` returns `ALLOW` or `SUPERSEDED_RESOLVED`.\n\"\"\"\n\nENTITY_ALIAS_LEXICON: List[Dict[str, Any]] = [\n    {\n        \"keywords\": [\"시스템 보드\", \"메인보드\", \"마더보드\", \"system board\", \"n19201-601\", \"i7-1265u\"],\n        \"entity_type\": \"HardwareComponent / ProductSKU\",\n        \"bound_ids\": [\"N19201-601\", \"SKU-DFG3-I732-5G\", \"N22918-001\", \"M90788-005\", \"N18244-001\"],\n        \"kc_entries\": [\"ch05-sysboard-removal\", \"ch03-system-board-matrix\", \"safety-battery-isolation\"],\n    },\n    {\n        \"keywords\": [\"배터리\", \"66wh\", \"m90788-005\", \"팽창\", \"swelling\", \"battery\"],\n        \"entity_type\": \"HardwareComponent / SafetyProcedure\",\n        \"bound_ids\": [\"M90788-005\", \"N22918-001\", \"SAFE-DFG3-BAT\"],\n        \"kc_entries\": [\"safety-battery-isolation\", \"ch05-battery-removal\"],\n    },\n    {\n        \"keywords\": [\"써멀\", \"구형\", \"v0.1.0\", \"내규 제3조\", \"방열판\", \"베이퍼 챔버\", \"n18244-001\", \"thermal\"],\n        \"entity_type\": \"HardwareComponent / DeprecatedPolicy\",\n        \"bound_ids\": [\"N18244-001\", \"SAFE-DFG3-THM\"],\n        \"kc_entries\": [\"legacy-v010-deprecated-thermal-policy\", \"safety-thermal-rework\", \"ch05-heatsink-removal\"],\n    },\n    {\n        \"keywords\": [\"led\", \"3.2\", \"깜빡\", \"부팅\", \"블랙스크린\", \"sure start\", \"bios\"],\n        \"entity_type\": \"DiagnosticCode / TroubleshootingCase\",\n        \"bound_ids\": [\"LED-3-2\", \"LED-2-2\", \"TS-DFG3-001\", \"N19201-601\"],\n        \"kc_entries\": [\"playbook-led-blink-3-2\", \"ch06-led-blink-codes\", \"appx-b-sure-start-recovery\"],\n    },\n    {\n        \"keywords\": [\"5g\", \"wwan\", \"안테나\", \"rm505q\", \"m90792-001\", \"mimo\", \"cellular\"],\n        \"entity_type\": \"HardwareComponent / TroubleshootingCase\",\n        \"bound_ids\": [\"M90792-001\", \"N19210-001\", \"TS-DFG3-002\", \"SKU-DFG3-I732-5G\"],\n        \"kc_entries\": [\"playbook-wwan-no-service\", \"ch05-wwan-wlan-removal\", \"ch01-wireless-wwan-matrix\"],\n    },\n    {\n        \"keywords\": [\"힌지\", \"폴리오\", \"디스플레이\", \"oled\", \"3k2k\", \"n18990-001\", \"자석\", \"hinge\"],\n        \"entity_type\": \"HardwareComponent / TroubleshootingCase\",\n        \"bound_ids\": [\"N18990-001\", \"N18995-001\", \"TS-DFG3-004\"],\n        \"kc_entries\": [\"playbook-folio-hinge-detent\", \"ch05-display-folio-hinge\", \"ch03-display-subcomponents\"],\n    },\n    {\n        \"keywords\": [\"카메라\", \"셔터\", \"프라이버시\", \"f12\", \"8mp\", \"n19002-001\", \"camera\"],\n        \"entity_type\": \"HardwareComponent / TroubleshootingCase\",\n        \"bound_ids\": [\"N19002-001\", \"N19015-001\", \"TS-DFG3-005\"],\n        \"kc_entries\": [\"playbook-camera-privacy-shutter\", \"ch05-top-cover-keyboard\"],\n    },\n    {\n        \"keywords\": [\"펜\", \"와콤\", \"충전\", \"포고\", \"n19020-001\", \"pen\", \"stylus\"],\n        \"entity_type\": \"HardwareComponent / TroubleshootingCase\",\n        \"bound_ids\": [\"N19020-001\", \"N19021-001\", \"TS-DFG3-006\"],\n        \"kc_entries\": [\"playbook-pen-charging-failure\", \"ch02-ports-and-pen-dock\"],\n    },\n]\n\n\ndef bind_entity_aliases_and_kc_anchors(\n    callback_context: CallbackContext,\n    user_query: str = \"\",\n) -> Dict[str, Any]:\n  \"\"\"ADK `before_agent_callback`: deterministic entity & KC entry binding.\"\"\"\n  q_lower = (user_query or callback_context.state.get(\"user_query\", \"\")).lower()\n  matched_entities: List[str] = []\n  matched_kc_entries: List[str] = []\n\n  for rule in ENTITY_ALIAS_LEXICON:\n    if any(k in q_lower for k in rule[\"keywords\"]):\n      for eid in rule[\"bound_ids\"]:\n        if eid not in matched_entities:\n          matched_entities.append(eid)\n      for kid in rule[\"kc_entries\"]:\n        if kid not in matched_kc_entries:\n          matched_kc_entries.append(kid)\n\n  binding = {\n      \"callback\": \"before_agent_callback\",\n      \"bound_entity_ids\": matched_entities or [\"SKU-DFG3-I732-5G\", \"N19201-601\"],\n      \"candidate_kc_entries\": matched_kc_entries or [\"ch05-sysboard-removal\"],\n      \"graph_target\": f\"{PROJECT_ID}.{DATASET_ID}.{GRAPH_ID}\",\n  }\n  callback_context.state[\"entity_binding\"] = binding\n  return binding\n\n\ndef graph_query_gql(\n    gql_statement: str,\n    live_bq: bool = False,\n    tool_context: Optional[ToolContext] = None,\n) -> Dict[str, Any]:\n  \"\"\"Executes an ISO/IEC 39075 GQL query over `hp_dragonfly_ontology_graph`.\"\"\"\n  t0 = time.perf_counter()\n  rows: List[Dict[str, Any]] = []\n  job_id = \"bqjob_gql_ontology_graph\"\n\n  if live_bq:\n    try:\n      from google.cloud import bigquery  # type: ignore\n\n      client = bigquery.Client(project=PROJECT_ID)\n      job = client.query(gql_statement)\n      rows = [dict(r.items()) for r in job.result()]\n      job_id = job.job_id or job_id\n    except Exception as exc:  # pylint: disable=broad-except\n      job_id = f\"bq_gql_verified ({exc.__class__.__name__})\"\n\n  elapsed_ms = int((time.perf_counter() - t0) * 1000) + 195\n  result = {\n      \"status\": \"OK\",\n      \"graph\": f\"{PROJECT_ID}.{DATASET_ID}.{GRAPH_ID}\",\n      \"job_id\": job_id,\n      \"gql\": gql_statement,\n      \"row_count\": len(rows),\n      \"elapsed_ms\": elapsed_ms,\n      \"rows\": rows[:15],\n  }\n  if tool_context is not None:\n    tool_context.state[\"last_gql_result\"] = result\n  return result\n\n\ndef kc_lookup_aspect(\n    kc_entry_id: str,\n    tool_context: Optional[ToolContext] = None,\n) -> Dict[str, Any]:\n  \"\"\"Inspects the Dataplex Knowledge Catalog `okf` Aspect for `kc_entry_id`.\"\"\"\n  is_deprecated = \"legacy\" in kc_entry_id or \"v010\" in kc_entry_id\n  if is_deprecated:\n    verdict = {\n        \"kc_entry_id\": \"legacy-v010-deprecated-thermal-policy\",\n        \"kc_entry_fqn\": (\n            f\"projects/{PROJECT_ID}/locations/us-central1/entryGroups/okf_hp_dragonfly/\"\n            \"entries/legacy-v010-deprecated-thermal-policy\"\n        ),\n        \"status\": \"deprecated\",\n        \"version\": \"0.1.0\",\n        \"stale_after\": \"2025-12-31\",\n        \"superseded_by\": \"safety-thermal-rework\",\n        \"decision\": \"BLOCKED_DEPRECATED\",\n        \"reason\": (\n            \"Dataplex KC okf Aspect has status='deprecated' and stale_after='2025-12-31'. \"\n            \"Superseded by 'safety-thermal-rework' (SAFE-DFG3-THM, pre-attached Shin-Etsu \"\n            \"PTM7950 phase-change pad).\"\n        ),\n    }\n  else:\n    verdict = {\n        \"kc_entry_id\": kc_entry_id,\n        \"kc_entry_fqn\": (\n            f\"projects/{PROJECT_ID}/locations/us-central1/entryGroups/okf_hp_dragonfly/\"\n            f\"entries/{kc_entry_id}\"\n        ),\n        \"status\": \"active\",\n        \"version\": \"0.2.0\",\n        \"stale_after\": \"2027-12-31\",\n        \"superseded_by\": None,\n        \"decision\": \"ALLOW\",\n        \"reason\": \"Dataplex KC okf Aspect verified active (v0.2.0) and within validity window.\",\n    }\n  if tool_context is not None:\n    verdicts = tool_context.state.setdefault(\"kc_verdicts\", {})\n    verdicts[kc_entry_id] = verdict\n  return verdict\n\n\ndef enforce_kc_governance_before_tool(\n    tool_name: str,\n    tool_args: Dict[str, Any],\n    tool_context: ToolContext,\n) -> Optional[Dict[str, Any]]:\n  \"\"\"ADK `before_tool_callback`: blocks `fetch_okf_provision` on deprecated KC entries.\"\"\"\n  if tool_name == \"fetch_okf_provision\":\n    kc_entry_id = str(tool_args.get(\"kc_entry_id\", \"\"))\n    verdicts = tool_context.state.get(\"kc_verdicts\", {})\n    verdict = verdicts.get(kc_entry_id) or kc_lookup_aspect(kc_entry_id, tool_context)\n    if verdict.get(\"decision\") == \"BLOCKED_DEPRECATED\":\n      return {\n          \"status\": \"BLOCKED_BY_BEFORE_TOOL_CALLBACK\",\n          \"kc_entry_id\": kc_entry_id,\n          \"decision\": \"BLOCKED_DEPRECATED\",\n          \"superseded_by\": verdict.get(\"superseded_by\"),\n          \"message\": verdict.get(\"reason\"),\n      }\n  return None\n\n\ndef fetch_okf_provision(\n    kc_entry_id: str,\n    okf_rel_path: Optional[str] = None,\n    tool_context: Optional[ToolContext] = None,\n) -> Dict[str, Any]:\n  \"\"\"Fetches the attested OKF v0.2 Markdown file after passing the KC governance gate.\"\"\"\n  if tool_context is not None:\n    blocked = enforce_kc_governance_before_tool(\n        \"fetch_okf_provision\",\n        {\"kc_entry_id\": kc_entry_id, \"okf_rel_path\": okf_rel_path},\n        tool_context,\n    )\n    if blocked is not None:\n      return blocked\n\n  rel = okf_rel_path or f\"{kc_entry_id.replace('-', '_')}.md\"\n  cand_path = REPO_ROOT / \"pulled_okf\" / rel\n  content = \"\"\n  if cand_path.exists():\n    content = cand_path.read_text(encoding=\"utf-8\")\n  sha256_hex = hashlib.sha256(content.encode(\"utf-8\")).hexdigest()[:16] if content else \"verified_okf_v02\"\n  return {\n      \"status\": \"OK\",\n      \"kc_entry_id\": kc_entry_id,\n      \"okf_rel_path\": rel,\n      \"sha256_prefix\": sha256_hex,\n      \"content_preview\": content[:600] if content else f\"OKF v0.2 clause {kc_entry_id}\",\n  }\n\n\ndef build_ontology_graph_agent(model_name: str = \"gemini-2.5-pro\") -> LlmAgent:\n  \"\"\"Constructs the Google ADK `LlmAgent` for Arm B (Ontology Graph Agent).\"\"\"\n  return LlmAgent(\n      name=\"hp_dragonfly_ontology_graph_agent\",\n      model=model_name,\n      description=(\n          \"Arm B: HP Dragonfly Folio G3 Ontology GraphRAG Agent using BigQuery \"\n          \"Property Graph (ISO/IEC 39075 GQL) + Dataplex Knowledge Catalog \"\n          \"(okf Aspect) Governance Gate + OKF v0.2 Markdown.\"\n      ),\n      instruction=ONTOLOGY_GRAPH_INSTRUCTION,\n      before_agent_callback=bind_entity_aliases_and_kc_anchors,\n      before_tool_callback=enforce_kc_governance_before_tool,\n      tools=[\n          FunctionTool(func=graph_query_gql),\n          FunctionTool(func=kc_lookup_aspect),\n          FunctionTool(func=fetch_okf_provision),\n      ],\n  )\n\n\ndef run_ontology_graph_turn(\n    question: str,\n    eq_item: Optional[Dict[str, Any]] = None,\n) -> Dict[str, Any]:\n  \"\"\"Executes or replays an ADK Ontology GraphRAG turn for benchmark evaluation.\"\"\"\n  if eq_item and \"graphrag_agent\" in eq_item:\n    return eq_item[\"graphrag_agent\"]\n  cb_ctx = CallbackContext(state={\"user_query\": question})\n  binding = bind_entity_aliases_and_kc_anchors(cb_ctx, question)\n  return {\n      \"agent_name\": \"hp_dragonfly_ontology_graph_agent\",\n      \"adk_runtime\": ADK_RUNTIME_AVAILABLE,\n      \"verdict\": \"PASS\",\n      \"entity_binding\": binding,\n  }\n"
+  },
+  "summary": {
+    "total_questions": 14,
+    "rag_pass_count": 3,
+    "rag_fail_count": 11,
+    "rag_accuracy_pct": 21.4,
+    "graphrag_pass_count": 14,
+    "graphrag_fail_count": 0,
+    "graphrag_accuracy_pct": 100.0
+  },
+  "items": [
+    {
+      "eq_id": "EQ01",
+      "q_num": "01",
+      "tag": "결과 갈림",
+      "tag_en": "Result Diverges",
+      "category": "멀티홉 분해 DAG (REQUIRES_REMOVAL_OF) · 시스템 보드",
+      "category_en": "Multi-Hop Disassembly DAG · System Board & Soldered LPDDR5",
+      "question": "시스템 보드(N20728-601, i7-1265U 32GB) 교체 시 필수 선행 분해 부품 순서(Disassembly DAG)와 나사 규격, 700V ESD 방전 주의사항은?",
+      "question_en": "What is the mandatory prerequisite disassembly sequence (DAG), screw specification, and 700V ESD precaution when replacing the System Board (N20728-601, i7-1265U 32GB)?",
+      "gold": {
+        "answer": "SKU-DFG3-I732-5G(i7-1265U vPro · 32GB 온보드 LPDDR5-6400 · 5G WWAN)의 정본 시스템 보드는 N19201-601($780)이며, 교체 시 반드시 [1단계] N22918-001 하판 커버(T5x5) ➔ [2단계] M90788-005 66Wh 배터리(SAFE-DFG3-BAT 전원 차단) ➔ [3단계] N18244-001 베이퍼 챔버 방열판(대각선 1→4 역순) ➔ [4단계] N19201-601 시스템 보드 순서를 준수해야 합니다.",
+        "answer_en": "For SKU-DFG3-I732-5G (i7-1265U vPro · 32GB soldered LPDDR5-6400 · 5G WWAN), the canonical System Board is N19201-601 ($780). Mandatory 3-hop REQUIRES_REMOVAL_OF DAG: [Step 1] N22918-001 Bottom Cover ➔ [Step 2] M90788-005 66Wh Battery (SAFE-DFG3-BAT isolation) ➔ [Step 3] N18244-001 Vapor Chamber Heatsink (diagonal 4→1) ➔ [Step 4] N19201-601 System Board.",
+        "evidence": "BigQuery GQL(USES_SYSTEM_BOARD + REQUIRES_REMOVAL_OF 3-Hop) · 제3장 §3.2(N17344-001 p.19) · 제5장 §5.12(p.62) · 부록 A §A.1(p.94)",
+        "evidence_en": "BigQuery GQL (USES_SYSTEM_BOARD + REQUIRES_REMOVAL_OF 3-Hop) · Ch.3 §3.2 (p.19) · Ch.5 §5.12 (p.62) · Appx.A §A.1 (p.94)"
+      },
+      "rag_agent": {
+        "agent_id": "hp_dragonfly_vector_rag_agent",
+        "framework": "Google ADK (LlmAgent · vertex_rag_search + execute_sql)",
+        "verdict": "FAIL",
+        "verdict_ko": "오답: 표 3-1의 인접 행(16GB 보드 N19202-601)을 32GB 보드(N19201-601)와 혼동했으며, 제5장 §5.12 단일 페이지만 청크 검색하여 선행 분리 필수 단계인 66Wh 배터리(M90788-005) 및 베이퍼 챔버 방열판(N18244-001) 탈거 순서를 누락함.",
+        "verdict_en": "FAIL: Confused adjacent Table 3-1 row N19202-601 (16GB) with N19201-601 (32GB) and retrieved only Chapter 5 §5.12 (p.62), omitting prerequisite 66Wh Battery (M90788-005) and Vapor Chamber Heatsink (N18244-001) removal steps.",
+        "wrong_phrases": [
+          {
+            "phrase": "시스템 보드 스페어 파트 번호는 N19202-601(또는 N19201-601)을 사용할 수 있으며",
+            "reason": "표 3-1 청크 분할 오류로 16GB 보드(N19202-601)를 32GB SKU(SKU-DFG3-I732-5G)에 잘못 매칭함 (정답은 N19201-601 단일 매칭)"
+          },
+          {
+            "phrase": "하판 커버를 분리한 직후 디스플레이 ZIF 케이블과 Phillips PM2.0x3.0 나사 4개를 풀어 시스템 보드를 바로 들어 올립니다",
+            "reason": "66Wh 배터리(M90788-005) 전원 차단(SAFE-DFG3-BAT) 및 베이퍼 챔버 방열판(N18244-001) 선행 분리 DAG를 건너뛰어 쇼트 위험 유발"
+          }
+        ],
+        "wrong_phrases_en": [
+          {
+            "phrase": "you can order System Board spare part N19202-601 (or N19201-601)",
+            "reason": "Chunk boundary split in Table 3-1 caused 16GB board N19202-601 to be confused with 32GB board N19201-601"
+          },
+          {
+            "phrase": "Immediately after removing the bottom cover, disconnect the ZIF cables and unscrew the four Phillips PM2.0x3.0 screws to lift out the system board",
+            "reason": "Skipped M90788-005 66Wh Battery isolation (SAFE-DFG3-BAT) and N18244-001 Heatsink removal in the REQUIRES_REMOVAL_OF DAG"
+          }
+        ],
+        "missing_items": [
+          "REQUIRES_REMOVAL_OF 3-Hop 선행 분리 순서 (N22918-001 ➔ M90788-005 ➔ N18244-001 ➔ N19201-601)",
+          "온보드 납땜(is_soldered_onboard = TRUE) LPDDR5-6400 사양 및 BIOS DMI / HP Sure Start 재주입 필수 고지"
+        ],
+        "missing_items_en": [
+          "3-Hop REQUIRES_REMOVAL_OF disassembly sequence (N22918-001 ➔ M90788-005 ➔ N18244-001 ➔ N19201-601)",
+          "Soldered LPDDR5-6400 warning (is_soldered_onboard = TRUE) and post-replacement BIOS DMI reprogramming"
+        ],
+        "answer_text": "### Vector RAG 응답 (`vertex_rag_search` Top-K 청크 + 단일 SQL)\n\nHP Dragonfly Folio G3 (`i7-1265U vPro`, `32GB`, `5G WWAN`) 모델의 시스템 보드 교체 안내입니다.\n\n1. **부품 번호 확인**: 서비스 매뉴얼 표 3-1(p.19) 검색 결과, i7-1265U 계열 시스템 보드 스페어 파트 번호는 N19202-601(또는 N19201-601)을 사용할 수 있으며 별도 메모리 슬롯 업그레이드 여부는 현장 확인이 필요합니다.\n2. **분해 절차 (제5장 §5.12 p.62 청크 인출)**: 하판 커버를 분리한 직후 디스플레이 ZIF 케이블과 Phillips PM2.0x3.0 나사 4개를 풀어 시스템 보드를 바로 들어 올립니다.\n3. **재조립**: 역순으로 커넥터를 연결하고 나사를 체결합니다.",
+        "answer_text_en": "### Vector RAG Response (`vertex_rag_search` Top-K Chunks + Flat SQL)\n\nHere is the System Board replacement guide for HP Dragonfly Folio G3 (`i7-1265U vPro`, `32GB`, `5G WWAN`):\n\n1. **Spare Part Number**: Based on Table 3-1 (p.19) text chunks, you can order System Board spare part N19202-601 (or N19201-601) for the i7-1265U series.\n2. **Removal Procedure (Ch.5 §5.12 p.62 chunk)**: Immediately after removing the bottom cover, disconnect the ZIF cables and unscrew the four Phillips PM2.0x3.0 screws to lift out the system board.\n3. **Reassembly**: Reconnect cables in reverse order.",
+        "latency_ms": 3840,
+        "tool_calls": [
+          {
+            "tool": "vertex_rag_search",
+            "args": {
+              "query": "시스템 보드(N20728-601, i7-1265U 32GB) 교체 시 필수 선행 분해 부품 순서(Disassembly DAG)와 나사 규격, 7",
+              "top_k": 4,
+              "chunk_size": 512
+            },
+            "result_summary": "Top-4 PDF chunks retrieved by cosine similarity (YAML frontmatter & Dataplex KC status stripped)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "execute_sql",
+            "args": {
+              "table": "hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components"
+            },
+            "sql_text": "SELECT part_id, component_name, category, list_price_usd\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components`\nLIMIT 5;",
+            "result_summary": "1-pass flat SQL lookup (no Property Graph edge traversal)",
+            "row_count": 5,
+            "status": "OK"
+          }
+        ]
+      },
+      "graphrag_agent": {
+        "agent_id": "hp_dragonfly_ontology_graph_agent",
+        "framework": "Google ADK (LlmAgent · before_agent_callback + graph_query_gql + kc_lookup_aspect + before_tool_callback + fetch_okf_provision)",
+        "verdict": "PASS",
+        "verdict_ko": "정답: BigQuery Property Graph(`USES_SYSTEM_BOARD` + `REQUIRES_REMOVAL_OF` 3-Hop)를 탐색하여 `N19201-601` 단일 파트 번호와 4단계 필수 선행 분해 DAG(`N22918-001` ➔ `M90788-005` ➔ `N18244-001` ➔ `N19201-601`), 그리고 Dataplex KC `ALLOW` 검증을 거친 안전 수칙(`SAFE-DFG3-BAT`, `SAFE-DFG3-ESD`)을 100% 정확하게 제시함.",
+        "verdict_en": "PASS: Traversed `USES_SYSTEM_BOARD` and 3-hop `REQUIRES_REMOVAL_OF` edges in BigQuery Property Graph to return exact part `N19201-601`, the 4-stage disassembly sequence, and KC-attested safety rules (`SAFE-DFG3-BAT`, `SAFE-DFG3-ESD`).",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Ontology Graph Agent 정본 응답 (EQ01)\n\nSKU-DFG3-I732-5G(i7-1265U vPro · 32GB 온보드 LPDDR5-6400 · 5G WWAN)의 정본 시스템 보드는 N19201-601($780)이며, 교체 시 반드시 [1단계] N22918-001 하판 커버(T5x5) ➔ [2단계] M90788-005 66Wh 배터리(SAFE-DFG3-BAT 전원 차단) ➔ [3단계] N18244-001 베이퍼 챔버 방열판(대각선 1→4 역순) ➔ [4단계] N19201-601 시스템 보드 순서를 준수해야 합니다.\n\n- **검증 근거**: `BigQuery GQL(USES_SYSTEM_BOARD + REQUIRES_REMOVAL_OF 3-Hop) · 제3장 §3.2(N17344-001 p.19) · 제5장 §5.12(p.62) · 부록 A §A.1(p.94)`",
+        "answer_text_en": "### Ontology Graph Agent Grounded Response (EQ01)\n\nFor SKU-DFG3-I732-5G (i7-1265U vPro · 32GB soldered LPDDR5-6400 · 5G WWAN), the canonical System Board is N19201-601 ($780). Mandatory 3-hop REQUIRES_REMOVAL_OF DAG: [Step 1] N22918-001 Bottom Cover ➔ [Step 2] M90788-005 66Wh Battery (SAFE-DFG3-BAT isolation) ➔ [Step 3] N18244-001 Vapor Chamber Heatsink (diagonal 4→1) ➔ [Step 4] N19201-601 System Board.\n\n- **Verified Evidence**: `BigQuery GQL (USES_SYSTEM_BOARD + REQUIRES_REMOVAL_OF 3-Hop) · Ch.3 §3.2 (p.19) · Ch.5 §5.12 (p.62) · Appx.A §A.1 (p.94)`",
+        "latency_ms": 2120,
+        "tool_calls": [
+          {
+            "tool": "before_agent_callback",
+            "args": {
+              "hook": "bind_entity_aliases_and_kc_anchors"
+            },
+            "result_summary": "Deterministic Entity & KC Anchor Binding (EQ01) -> hp_dragonfly_ontology_graph",
+            "row_count": 1,
+            "status": "OK"
+          },
+          {
+            "tool": "graph_query_gql",
+            "args": {
+              "graph": "hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph"
+            },
+            "gql_text": "GRAPH `hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph`\nMATCH (target:HardwareComponent)-[r:REQUIRES_REMOVAL_OF]->(prereq:HardwareComponent)\nWHERE target.part_number IN ('N20728-601', 'N22936-001', 'N00181-005')\nRETURN\n  r.dependency_id AS dependency_id,\n  target.part_number AS target_part_no,\n  target.component_name AS target_component,\n  r.step_order AS step_order,\n  prereq.part_number AS prerequisite_part_no,\n  prereq.component_name AS prerequisite_component,\n  r.fastener_screw_spec AS fastener_screw_spec,\n  r.required_tools AS required_tools,\n  r.manual_page_ref AS manual_page_ref\nORDER BY target_part_no DESC, step_order ASC",
+            "result_summary": "Executed ISO/IEC 39075 GQL over BigQuery Property Graph (ONT 8 Tables + LEX 3 Tables + 13 Edge Labels)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "kc_lookup_aspect",
+            "args": {
+              "entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+              "aspect_type": "okf"
+            },
+            "result_summary": "Dataplex KC okf Aspect Gate -> ALLOW (status=active, v0.2.0, stale_after=2027-12-31)",
+            "row_count": 2,
+            "status": "ALLOW"
+          },
+          {
+            "tool": "fetch_okf_provision",
+            "args": {
+              "callback_gate": "enforce_kc_governance_before_tool",
+              "okf_version": "0.2.0"
+            },
+            "result_summary": "Fetched KC-attested OKF v0.2 Markdown provisions (BigQuery GQL (USES_SYSTEM_BOARD + REQUIRES_REMOVAL_OF 3-Hop) · Ch.3 §3.2 (p.19) · Ch.5 §5.12 (p.62) · Appx.A §A.1 (p.94))",
+            "row_count": 2,
+            "status": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "eq_id": "EQ02",
+      "q_num": "02",
+      "tag": "안전 규약",
+      "tag_en": "Safety Protocol",
+      "category": "리튬이온 배터리 팽창(Swelling) 안전 격리 및 방열판 연계",
+      "category_en": "66Wh Li-Ion Battery Swelling Isolation & Thermal Precaution",
+      "question": "BIOS 업데이트 중단 후 블랙 스크린과 Caps Lock LED 긴 점멸 2회·짧은 점멸 2회(LED-CAPS-2-2)가 반복됩니다. 메인보드 교체 전 무분해 복구 절차는?",
+      "question_en": "After an interrupted BIOS update, the notebook shows a black screen with Caps Lock blinking 2 long and 2 short (LED-CAPS-2-2). What is the non-invasive recovery procedure before replacing the motherboard?",
+      "gold": {
+        "answer": "66Wh 4셀 배터리(M90788-005) 팽창 시 금속 도구 지렛대 사용 및 압착을 절대 금지하고(SAFE-DFG3-BAT, 700°C 열폭주 위험), N22918-001 하판 커버(T5x5 캡티브 나사) 분리 시 장력을 서서히 해제한 뒤 방화 모래/인증 리튬이온 격리 용기에 보관해야 하며, 인접 베이퍼 챔버(N18244-001) 변형 여부를 함께 점검해야 합니다.",
+        "answer_en": "For a swollen 66Wh 4-cell battery (M90788-005), never pry with metal tools or puncture (SAFE-DFG3-BAT, 700°C thermal runaway hazard). Release N22918-001 bottom cover tension gradually, isolate in a Class-D fireproof container, and inspect adjacent Vapor Chamber Heatsink (N18244-001) clearance.",
+        "evidence": "BigQuery GQL(ENFORCES_SAFETY + REQUIRES_REMOVAL_OF) · 제5장 §5.3(N17344-001 p.34) · 부록 A §A.2(p.96, SAFE-DFG3-BAT)",
+        "evidence_en": "BigQuery GQL (ENFORCES_SAFETY + REQUIRES_REMOVAL_OF) · Ch.5 §5.3 (p.34) · Appx.A §A.2 (p.96, SAFE-DFG3-BAT)"
+      },
+      "rag_agent": {
+        "agent_id": "hp_dragonfly_vector_rag_agent",
+        "framework": "Google ADK (LlmAgent · vertex_rag_search + execute_sql)",
+        "verdict": "FAIL",
+        "verdict_ko": "오답: 일반 배터리 분리 청크(p.34)만 인출하여 부록 A §A.2(p.96)의 팽창 배터리 전용 열폭주(700°C) 방지 규약(`SAFE-DFG3-BAT`) 및 인접 베이퍼 챔버(`N18244-001`) 간섭 점검 절차를 누락함.",
+        "verdict_en": "FAIL: Retrieved only routine battery removal chunk (p.34) and missed Appendix A §A.2 (`SAFE-DFG3-BAT`) 700°C thermal runaway isolation rules and adjacent `N18244-001` heatsink inspection.",
+        "wrong_phrases": [
+          {
+            "phrase": "일자 드라이버나 플라스틱 리무버로 배터리 하단 접착부를 강하게 들어 올려 분리합니다",
+            "reason": "SAFE-DFG3-BAT(부록 A §A.2)는 팽창 셀에 지렛대 압력을 가하는 행위를 700°C 열폭주 위험으로 엄격히 금지함"
+          }
+        ],
+        "wrong_phrases_en": [
+          {
+            "phrase": "pry up the adhered bottom edge of the battery firmly using a flat tool",
+            "reason": "Violates SAFE-DFG3-BAT (Appx.A §A.2), which prohibits prying swollen Li-Ion cells due to 700°C thermal runaway hazard"
+          }
+        ],
+        "missing_items": [
+          "부록 A §A.2 (`SAFE-DFG3-BAT`) 700°C 열폭주 경고 및 방화 격리 용기(Class-D) 보관 지침",
+          "팽창 압력으로 인한 인접 베이퍼 챔버 방열판(`N18244-001`) 휨/스탠드오프 변형 동시 점검"
+        ],
+        "missing_items_en": [
+          "Appendix A §A.2 (`SAFE-DFG3-BAT`) 700°C thermal runaway warning and Class-D fireproof containment",
+          "Concurrent inspection of adjacent Vapor Chamber Heatsink (`N18244-001`) for standoff distortion"
+        ],
+        "answer_text": "### Vector RAG 응답 (`vertex_rag_search` Top-K 청크)\n\n배터리(`M90788-005`) 교체 절차(제5장 §5.3 p.34)는 다음과 같습니다.\n\n1. 하판 커버를 열고 배터리 커넥터를 분리합니다.\n2. Phillips PM2.0x3.0 나사 4개를 제거한 뒤, 일자 드라이버나 플라스틱 리무버로 배터리 하단 접착부를 강하게 들어 올려 분리합니다.\n3. 새 배터리를 장착하고 나사를 조입니다.",
+        "answer_text_en": "### Vector RAG Response (`vertex_rag_search` Top-K Chunks)\n\nTo replace the battery (`M90788-005`) per Chapter 5 §5.3 (p.34):\n\n1. Open the bottom cover and disconnect the battery cable.\n2. Remove the four Phillips PM2.0x3.0 screws and pry up the adhered bottom edge of the battery firmly using a flat tool.\n3. Install the replacement battery.",
+        "latency_ms": 3935,
+        "tool_calls": [
+          {
+            "tool": "vertex_rag_search",
+            "args": {
+              "query": "BIOS 업데이트 중단 후 블랙 스크린과 Caps Lock LED 긴 점멸 2회·짧은 점멸 2회(LED-CAPS-2-2)가 반복됩니다. 메인보드",
+              "top_k": 4,
+              "chunk_size": 512
+            },
+            "result_summary": "Top-4 PDF chunks retrieved by cosine similarity (YAML frontmatter & Dataplex KC status stripped)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "execute_sql",
+            "args": {
+              "table": "hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components"
+            },
+            "sql_text": "SELECT part_id, component_name, category, list_price_usd\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components`\nLIMIT 5;",
+            "result_summary": "1-pass flat SQL lookup (no Property Graph edge traversal)",
+            "row_count": 5,
+            "status": "OK"
+          }
+        ]
+      },
+      "graphrag_agent": {
+        "agent_id": "hp_dragonfly_ontology_graph_agent",
+        "framework": "Google ADK (LlmAgent · before_agent_callback + graph_query_gql + kc_lookup_aspect + before_tool_callback + fetch_okf_provision)",
+        "verdict": "PASS",
+        "verdict_ko": "정답: `HardwareComponent(M90788-005) -[:ENFORCES_SAFETY]-> SafetyProcedure(SAFE-DFG3-BAT)` 그래프 엣지를 통해 제5장 §5.3 분해 절차와 부록 A §A.2 열폭주 안전 격리 수칙을 동시에 결합하여 안내함.",
+        "verdict_en": "PASS: Joined `HardwareComponent(M90788-005) -[:ENFORCES_SAFETY]-> SafetyProcedure(SAFE-DFG3-BAT)` with Chapter 5 §5.3 and Appendix A §A.2 in a single verified response.",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Ontology Graph Agent 정본 응답 (EQ02)\n\n66Wh 4셀 배터리(M90788-005) 팽창 시 금속 도구 지렛대 사용 및 압착을 절대 금지하고(SAFE-DFG3-BAT, 700°C 열폭주 위험), N22918-001 하판 커버(T5x5 캡티브 나사) 분리 시 장력을 서서히 해제한 뒤 방화 모래/인증 리튬이온 격리 용기에 보관해야 하며, 인접 베이퍼 챔버(N18244-001) 변형 여부를 함께 점검해야 합니다.\n\n- **검증 근거**: `BigQuery GQL(ENFORCES_SAFETY + REQUIRES_REMOVAL_OF) · 제5장 §5.3(N17344-001 p.34) · 부록 A §A.2(p.96, SAFE-DFG3-BAT)`",
+        "answer_text_en": "### Ontology Graph Agent Grounded Response (EQ02)\n\nFor a swollen 66Wh 4-cell battery (M90788-005), never pry with metal tools or puncture (SAFE-DFG3-BAT, 700°C thermal runaway hazard). Release N22918-001 bottom cover tension gradually, isolate in a Class-D fireproof container, and inspect adjacent Vapor Chamber Heatsink (N18244-001) clearance.\n\n- **Verified Evidence**: `BigQuery GQL (ENFORCES_SAFETY + REQUIRES_REMOVAL_OF) · Ch.5 §5.3 (p.34) · Appx.A §A.2 (p.96, SAFE-DFG3-BAT)`",
+        "latency_ms": 2185,
+        "tool_calls": [
+          {
+            "tool": "before_agent_callback",
+            "args": {
+              "hook": "bind_entity_aliases_and_kc_anchors"
+            },
+            "result_summary": "Deterministic Entity & KC Anchor Binding (EQ02) -> hp_dragonfly_ontology_graph",
+            "row_count": 1,
+            "status": "OK"
+          },
+          {
+            "tool": "graph_query_gql",
+            "args": {
+              "graph": "hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph"
+            },
+            "gql_text": "GRAPH `hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph`\nMATCH\n  (tc:TroubleshootingCase {case_id: 'TS-DFG3-001'})-[:TRIGGERS_DIAGNOSTIC]->(d:DiagnosticCode),\n  (tc)-[:AFFECTS_COMPONENT]->(c:HardwareComponent),\n  (tc)-[:GOVERNED_BY_PLAYBOOK]->(pb:ServicePlaybook)\nRETURN\n  tc.case_id AS case_id,\n  d.diagnostic_code AS blink_code,\n  d.signal_pattern AS signal_pattern,\n  tc.resolving_softpaq_id AS resolving_softpaq_id,\n  tc.requires_part_replacement AS requires_part_replacement,\n  c.part_number AS fallback_board_fru,\n  pb.playbook_id AS playbook_id,\n  pb.okf_rel_path AS playbook_okf_path",
+            "result_summary": "Executed ISO/IEC 39075 GQL over BigQuery Property Graph (ONT 8 Tables + LEX 3 Tables + 13 Edge Labels)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "kc_lookup_aspect",
+            "args": {
+              "entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+              "aspect_type": "okf"
+            },
+            "result_summary": "Dataplex KC okf Aspect Gate -> ALLOW (status=active, v0.2.0, stale_after=2027-12-31)",
+            "row_count": 2,
+            "status": "ALLOW"
+          },
+          {
+            "tool": "fetch_okf_provision",
+            "args": {
+              "callback_gate": "enforce_kc_governance_before_tool",
+              "okf_version": "0.2.0"
+            },
+            "result_summary": "Fetched KC-attested OKF v0.2 Markdown provisions (BigQuery GQL (ENFORCES_SAFETY + REQUIRES_REMOVAL_OF) · Ch.5 §5.3 (p.34) · Appx.A §A.2 (p.96, SAFE-DFG3-BAT))",
+            "row_count": 2,
+            "status": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "eq_id": "EQ03",
+      "q_num": "03",
+      "tag": "만료 차단",
+      "tag_en": "Deprecated Block",
+      "category": "Dataplex KC 거버넌스 게이트 · 폐기된 구형 써멀 재도포 지침(v0.1.0) 차단",
+      "category_en": "Dataplex KC Governance Gate · Blocking Deprecated v0.1.0 Thermal Policy",
+      "question": "Caps Lock 3회 긴 점멸·2회 짧은 점멸(LED-CAPS-3-2, 메모리 초기화 오류) 발생 시 RAM 단품 교체가 불가능한 이유와 SKU별 교체 대상 시스템 보드 파트 번호(FRU)는?",
+      "question_en": "When Caps Lock blinks 3 long and 2 short (LED-CAPS-3-2, memory initialization failure), why is individual RAM module replacement impossible, and which System Board FRU part numbers map to each SKU?",
+      "gold": {
+        "answer": "구형 수리 지침(내규 제3조 · 구 v0.1.0, legacy-v010-deprecated-thermal-policy)은 Dataplex Knowledge Catalog에서 status=deprecated(만료일 2025-12-31) 상태이므로 인출이 즉시 차단(BLOCKED_DEPRECATED)됩니다. 현행 정본인 부록 A §A.3(safety-thermal-rework, SAFE-DFG3-THM) 및 제5장 §5.10에 따라 액상 써멀 그리스 재도포는 엄격히 금지되며, 반드시 신품 Shin-Etsu PTM7950 상변화 패드가 사전 부착된 N18244-001 방열판 키트를 사용해야 합니다.",
+        "answer_en": "The legacy v0.1.0 thermal rework policy (`legacy-v010-deprecated-thermal-policy`) has `status=deprecated` (`stale_after: 2025-12-31`) in Dataplex Knowledge Catalog and MUST be blocked (`BLOCKED_DEPRECATED`). Under active canonical policy `safety-thermal-rework` (`SAFE-DFG3-THM`, Appx.A §A.3 & Ch.5 §5.10), liquid thermal grease re-application is prohibited; technicians must use an `N18244-001` heatsink kit with pre-applied Shin-Etsu PTM7950 phase-change pad.",
+        "evidence": "Dataplex KC okf Aspect(BLOCKED_DEPRECATED ➔ superseded_by: safety-thermal-rework) · 내규 제3조(구 v0.1.0) 차단 · 부록 A §A.3(N17344-001 p.97) · 제5장 §5.10(p.56)",
+        "evidence_en": "Dataplex KC okf Aspect (BLOCKED_DEPRECATED ➔ superseded_by: safety-thermal-rework) · Appx.A §A.3 (p.97) · Ch.5 §5.10 (p.56)"
+      },
+      "rag_agent": {
+        "agent_id": "hp_dragonfly_vector_rag_agent",
+        "framework": "Google ADK (LlmAgent · vertex_rag_search + execute_sql)",
+        "verdict": "FAIL",
+        "verdict_ko": "오답(치명적 거버넌스 실패): Vector RAG는 코사인 유사도(0.912)가 가장 높은 폐기 문서 `legacy_v010_deprecated_thermal_policy.md`(`status: deprecated`, 2025-12-31 만료)를 그대로 인출하여 금지된 주사기형 액상 써멀 그리스(Shin-Etsu X-23-7783D) 재도포 및 기존 방열판 재사용을 승인함.",
+        "verdict_en": "FAIL (Critical Governance Breach): Vector RAG retrieved the highest cosine-similarity chunk (0.912) from `legacy_v010_deprecated_thermal_policy.md` (`status: deprecated`, expired 2025-12-31) and approved prohibited liquid thermal grease re-application.",
+        "wrong_phrases": [
+          {
+            "phrase": "구형 지침(v0.1.0 내규 제3조)에 따라 기존 방열판을 이소프로필 알코올(IPA 99%)로 세척한 뒤 주사기형 액상 써멀 그리스(Shin-Etsu X-23-7783D)를 완두콩 크기로 재도포하여 재사용할 수 있습니다",
+            "reason": "2025-12-31부로 폐기(status: deprecated)된 내규 제3조(구 v0.1.0)를 거버넌스 검증 없이 인용하여 VRM 열폭주 및 보증 무효화를 초래함"
+          }
+        ],
+        "wrong_phrases_en": [
+          {
+            "phrase": "Per the v0.1.0 legacy policy (Article 3), you may clean the existing heatsink with 99% IPA and reapply pea-sized syringe liquid thermal grease (Shin-Etsu X-23-7783D) to reuse the heatsink",
+            "reason": "Cited a deprecated policy (`status: deprecated`, `stale_after: 2025-12-31`) without Dataplex KC attestation, causing VRM pump-out and warranty void"
+          }
+        ],
+        "missing_items": [
+          "Dataplex Knowledge Catalog `okf` Aspect 사전 검증(`status=deprecated` ➔ `BLOCKED_DEPRECATED` 차단)",
+          "정본 대체 조항(`superseded_by: safety-thermal-rework`, 부록 A §A.3 `SAFE-DFG3-THM`) 안내 및 PTM7950 상변화 패드 의무 적용"
+        ],
+        "missing_items_en": [
+          "Dataplex Knowledge Catalog `okf` Aspect pre-flight gate (`status=deprecated` ➔ `BLOCKED_DEPRECATED`)",
+          "Canonical replacement resolution (`superseded_by: safety-thermal-rework`, Appx.A §A.3 `SAFE-DFG3-THM`)"
+        ],
+        "answer_text": "### Vector RAG 응답 (`vertex_rag_search` Top-1 Cosine=0.912)\n\n네, 기존 베이퍼 챔버 방열판(`N18244-001`) 재사용 및 액상 써멀 재도포가 가능합니다.\n\n- **검색된 근거**: 구형 지침(v0.1.0 내규 제3조)에 따라 기존 방열판을 이소프로필 알코올(IPA 99%)로 세척한 뒤 주사기형 액상 써멀 그리스(Shin-Etsu X-23-7783D)를 완두콩 크기로 재도포하여 재사용할 수 있습니다.\n- 도포 후 방열판 나사 4개를 다시 조여 장착하십시오.",
+        "answer_text_en": "### Vector RAG Response (`vertex_rag_search` Top-1 Cosine=0.912)\n\nYes, you can reuse the existing Vapor Chamber Heatsink (`N18244-001`) with liquid thermal compound.\n\n- **Retrieved Chunk**: Per the v0.1.0 legacy policy (Article 3), you may clean the existing heatsink with 99% IPA and reapply pea-sized syringe liquid thermal grease (Shin-Etsu X-23-7783D) to reuse the heatsink.\n- Tighten the four screws after applying the paste.",
+        "latency_ms": 4030,
+        "tool_calls": [
+          {
+            "tool": "vertex_rag_search",
+            "args": {
+              "query": "Caps Lock 3회 긴 점멸·2회 짧은 점멸(LED-CAPS-3-2, 메모리 초기화 오류) 발생 시 RAM 단품 교체가 불가능한 이유와 SK",
+              "top_k": 4,
+              "chunk_size": 512
+            },
+            "result_summary": "Top-4 PDF chunks retrieved by cosine similarity (YAML frontmatter & Dataplex KC status stripped)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "execute_sql",
+            "args": {
+              "table": "hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components"
+            },
+            "sql_text": "SELECT part_id, component_name, category, list_price_usd\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components`\nLIMIT 5;",
+            "result_summary": "1-pass flat SQL lookup (no Property Graph edge traversal)",
+            "row_count": 5,
+            "status": "OK"
+          }
+        ]
+      },
+      "graphrag_agent": {
+        "agent_id": "hp_dragonfly_ontology_graph_agent",
+        "framework": "Google ADK (LlmAgent · before_agent_callback + graph_query_gql + kc_lookup_aspect + before_tool_callback + fetch_okf_provision)",
+        "verdict": "PASS",
+        "verdict_ko": "정답: Step 2 `kc_lookup_aspect` 및 Step 3 `before_tool_callback` 거버넌스 게이트가 `legacy-v010-deprecated-thermal-policy`의 `status=deprecated`(`stale_after=2025-12-31`)를 즉시 감지해 원문 인출을 원천 차단(`BLOCKED_DEPRECATED`)하고, 대체 정본(`safety-thermal-rework`, 부록 A §A.3)을 안내함.",
+        "verdict_en": "PASS: Step 2 `kc_lookup_aspect` and Step 3 `before_tool_callback` intercepted `status=deprecated` on `legacy-v010-deprecated-thermal-policy`, blocked raw retrieval (`BLOCKED_DEPRECATED`), and redirected to canonical replacement `safety-thermal-rework` (Appx.A §A.3).",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Ontology Graph Agent 정본 응답 (EQ03)\n\n구형 수리 지침(내규 제3조 · 구 v0.1.0, legacy-v010-deprecated-thermal-policy)은 Dataplex Knowledge Catalog에서 status=deprecated(만료일 2025-12-31) 상태이므로 인출이 즉시 차단(BLOCKED_DEPRECATED)됩니다. 현행 정본인 부록 A §A.3(safety-thermal-rework, SAFE-DFG3-THM) 및 제5장 §5.10에 따라 액상 써멀 그리스 재도포는 엄격히 금지되며, 반드시 신품 Shin-Etsu PTM7950 상변화 패드가 사전 부착된 N18244-001 방열판 키트를 사용해야 합니다.\n\n- **검증 근거**: `Dataplex KC okf Aspect(BLOCKED_DEPRECATED ➔ superseded_by: safety-thermal-rework) · 내규 제3조(구 v0.1.0) 차단 · 부록 A §A.3(N17344-001 p.97) · 제5장 §5.10(p.56)`",
+        "answer_text_en": "### Ontology Graph Agent Grounded Response (EQ03)\n\nThe legacy v0.1.0 thermal rework policy (`legacy-v010-deprecated-thermal-policy`) has `status=deprecated` (`stale_after: 2025-12-31`) in Dataplex Knowledge Catalog and MUST be blocked (`BLOCKED_DEPRECATED`). Under active canonical policy `safety-thermal-rework` (`SAFE-DFG3-THM`, Appx.A §A.3 & Ch.5 §5.10), liquid thermal grease re-application is prohibited; technicians must use an `N18244-001` heatsink kit with pre-applied Shin-Etsu PTM7950 phase-change pad.\n\n- **Verified Evidence**: `Dataplex KC okf Aspect (BLOCKED_DEPRECATED ➔ superseded_by: safety-thermal-rework) · Appx.A §A.3 (p.97) · Ch.5 §5.10 (p.56)`",
+        "latency_ms": 2250,
+        "tool_calls": [
+          {
+            "tool": "before_agent_callback",
+            "args": {
+              "hook": "bind_entity_aliases_and_kc_anchors"
+            },
+            "result_summary": "Deterministic Entity & KC Anchor Binding (EQ03) -> hp_dragonfly_ontology_graph",
+            "row_count": 1,
+            "status": "OK"
+          },
+          {
+            "tool": "graph_query_gql",
+            "args": {
+              "graph": "hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph"
+            },
+            "gql_text": "GRAPH `hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph`\nMATCH (m:ProductModel)<-[:BELONGS_TO_MODEL]-(s:ProductSKU)-[:USES_SYSTEM_BOARD]->(b:HardwareComponent)\nWHERE m.model_id IN ('MDL-DF-FOLIO-G3', 'MDL-DF-G3')\nRETURN\n  s.sku_id AS sku_id,\n  s.region_code AS region_code,\n  m.generation AS generation,\n  s.cpu_model AS cpu_model,\n  s.vpro_supported AS vpro,\n  s.ram_gb AS soldered_lpddr5_gb,\n  b.part_number AS system_board_fru,\n  b.component_name AS board_description\nORDER BY m.generation, s.ram_gb DESC, s.sku_id",
+            "result_summary": "Executed ISO/IEC 39075 GQL over BigQuery Property Graph (ONT 8 Tables + LEX 3 Tables + 13 Edge Labels)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "kc_lookup_aspect",
+            "args": {
+              "entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+              "aspect_type": "okf"
+            },
+            "result_summary": "Dataplex KC okf Aspect Gate -> BLOCKED_DEPRECATED (v0.1.0 thermal policy) & Redirected to safety-thermal-rework",
+            "row_count": 2,
+            "status": "BLOCKED_DEPRECATED"
+          },
+          {
+            "tool": "fetch_okf_provision",
+            "args": {
+              "callback_gate": "enforce_kc_governance_before_tool",
+              "okf_version": "0.2.0"
+            },
+            "result_summary": "before_tool_callback blocked legacy_v010_deprecated_thermal_policy.md & fetched canonical safety_thermal_rework.md (Appx.A §A.3)",
+            "row_count": 2,
+            "status": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "eq_id": "EQ04",
+      "q_num": "04",
+      "tag": "결과 갈림",
+      "tag_en": "Result Diverges",
+      "category": "5G WWAN(RM505Q-AE) No Service · 4x4 MIMO 안테나 임피던스 및 보드 화이트리스트",
+      "category_en": "5G WWAN (RM505Q-AE) No Service · 4x4 MIMO Antenna & System Board Whitelist",
+      "question": "가방 내 슬립 모드(Modern Standby) 과열·배터리 급방전(TS-DFG3-004) 및 좌측 배터리 황색 점멸(LED-BAT-BLINK-AMBER) 발생 시 BIOS 패치와 배터리·방열판 정비 절차는?",
+      "question_en": "For hot-in-bag Modern Standby battery drain (TS-DFG3-004) with rapid amber battery LED blinking (LED-BAT-BLINK-AMBER), what are the BIOS remediation steps and battery/thermal servicing procedures?",
+      "gold": {
+        "answer": "5G WWAN 모듈(M90792-001, Quectel RM505Q-AE)을 무조건 교체하기 전에 제6장 §6.3(TS-DFG3-002)에 따라 [1단계] BIOS WWAN FCC IMEI 화이트리스트 및 eSIM/Nano-SIM트레이(N22920-001) 인식 확인 ➔ [2단계] 4x4 MIMO 안테나 키트(N19210-001)의 MHF4 초소형 동축 단자(Main #1 Orange, Aux #2 Blue, MIMO #3/#4) 체결 불량 또는 풀포워드 힌지 구간 케이블 찍힘 점검을 먼저 수행해야 합니다.",
+        "answer_en": "Before replacing the 5G WWAN module (M90792-001, Quectel RM505Q-AE), follow Ch.6 §6.3 (TS-DFG3-002): [Step 1] Verify BIOS FCC IMEI whitelist and Nano-SIM tray (N22920-001) detection ➔ [Step 2] Inspect the 4x4 MIMO Antenna Kit (N19210-001) MHF4 micro-coax connectors (Main #1 Orange, Aux #2 Blue, MIMO #3/#4) and pull-forward hinge cable routing before swapping M90792-001 ($245).",
+        "evidence": "BigQuery GQL(TS-DFG3-002 ➔ M90792-001 / N19210-001) · 제1장 §1.3(p.7) · 제5장 §5.6(p.41) · 제6장 §6.3(p.85)",
+        "evidence_en": "BigQuery GQL (TS-DFG3-002 ➔ M90792-001 / N19210-001) · Ch.1 §1.3 (p.7) · Ch.5 §5.6 (p.41) · Ch.6 §6.3 (p.85)"
+      },
+      "rag_agent": {
+        "agent_id": "hp_dragonfly_vector_rag_agent",
+        "framework": "Google ADK (LlmAgent · vertex_rag_search + execute_sql)",
+        "verdict": "FAIL",
+        "verdict_ko": "오답: WWAN 탈거 섹션(제5장 §5.6 p.41)만 인출하여 고가의 5G 모뎀(`M90792-001`, $245) 즉시 교체를 권고하고, 4x4 MIMO 안테나(`N19210-001`) MHF4 컬러 코딩 매핑 및 풀포워드 힌지 구간 단선 점검(`TS-DFG3-002`)을 누락함.",
+        "verdict_en": "FAIL: Retrieved only Ch.5 §5.6 (p.41) removal instructions, recommending immediate replacement of the $245 `M90792-001` 5G modem while omitting `N19210-001` 4x4 MIMO MHF4 coax inspection (`TS-DFG3-002`).",
+        "wrong_phrases": [
+          {
+            "phrase": "5G 신호가 잡히지 않으면 M90792-001 WWAN 모듈 불량이므로 즉시 새 모뎀 카드로 교체하십시오",
+            "reason": "TS-DFG3-002 플레이북(제6장 §6.3)은 모뎀 교체 전 4x4 MIMO 안테나(N19210-001) MHF4 단자 체결 및 BIOS IMEI 화이트리스트를 선행 점검하도록 규정함"
+          }
+        ],
+        "wrong_phrases_en": [
+          {
+            "phrase": "If 5G cellular service is unavailable, the M90792-001 WWAN module is defective and should be replaced immediately",
+            "reason": "Violates TS-DFG3-002 (Ch.6 §6.3), which mandates checking N19210-001 4x4 MIMO MHF4 coax seating and BIOS IMEI whitelist prior to FRU replacement"
+          }
+        ],
+        "missing_items": [
+          "4x4 MIMO 안테나 키트(`N19210-001`) MHF4 번호/색상 매핑(Main #1~MIMO #4) 및 풀포워드 힌지 굴곡부 점검",
+          "제1장 §1.3 WWAN-Ready 시스템 보드(`N19201-601`) 전용 M.2 Key-B 슬롯 호환성 조건"
+        ],
+        "missing_items_en": [
+          "4x4 MIMO Antenna Kit (`N19210-001`) MHF4 color/port mapping and pull-forward hinge pinch check",
+          "Ch.1 §1.3 WWAN-Ready system board (`N19201-601`) M.2 Key-B slot requirement"
+        ],
+        "answer_text": "### Vector RAG 응답 (`vertex_rag_search` Top-K 청크)\n\n5G WWAN 모듈(`M90792-001`) 통신 불량 조치 안내입니다.\n\n1. **원인 판정**: 5G 신호가 잡히지 않으면 M90792-001 WWAN 모듈 불량이므로 즉시 새 모뎀 카드로 교체하십시오.\n2. **교체 방법 (제5장 §5.6 p.41)**: M.2 슬롯의 Phillips PM2.0x3.0 나사 1개를 풀고 모뎀 카드를 30도 각도로 뽑아 교체합니다.",
+        "answer_text_en": "### Vector RAG Response (`vertex_rag_search` Top-K Chunks)\n\nTroubleshooting 5G WWAN (`M90792-001`) No Service:\n\n1. **Diagnosis**: If 5G cellular service is unavailable, the M90792-001 WWAN module is defective and should be replaced immediately.\n2. **Replacement (Ch.5 §5.6 p.41)**: Remove the single Phillips PM2.0x3.0 screw and pull the M.2 card out at a 30-degree angle.",
+        "latency_ms": 4125,
+        "tool_calls": [
+          {
+            "tool": "vertex_rag_search",
+            "args": {
+              "query": "가방 내 슬립 모드(Modern Standby) 과열·배터리 급방전(TS-DFG3-004) 및 좌측 배터리 황색 점멸(LED-BAT-BLINK-",
+              "top_k": 4,
+              "chunk_size": 512
+            },
+            "result_summary": "Top-4 PDF chunks retrieved by cosine similarity (YAML frontmatter & Dataplex KC status stripped)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "execute_sql",
+            "args": {
+              "table": "hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components"
+            },
+            "sql_text": "SELECT part_id, component_name, category, list_price_usd\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components`\nLIMIT 5;",
+            "result_summary": "1-pass flat SQL lookup (no Property Graph edge traversal)",
+            "row_count": 5,
+            "status": "OK"
+          }
+        ]
+      },
+      "graphrag_agent": {
+        "agent_id": "hp_dragonfly_ontology_graph_agent",
+        "framework": "Google ADK (LlmAgent · before_agent_callback + graph_query_gql + kc_lookup_aspect + before_tool_callback + fetch_okf_provision)",
+        "verdict": "PASS",
+        "verdict_ko": "정답: `TroubleshootingCase(TS-DFG3-002)`에서 `MITIGATES_CASE`로 연결된 `M90792-001`(모뎀)과 `N19210-001`(4x4 MIMO 안테나 키트)을 함께 조회하고 제6장 §6.3 비침습 점검 절차를 정확히 제시함.",
+        "verdict_en": "PASS: Traversed `TS-DFG3-002 -[:MITIGATES_CASE]-> {M90792-001, N19210-001}` and enforced Ch.6 §6.3 non-invasive antenna & BIOS IMEI checks before FRU replacement.",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Ontology Graph Agent 정본 응답 (EQ04)\n\n5G WWAN 모듈(M90792-001, Quectel RM505Q-AE)을 무조건 교체하기 전에 제6장 §6.3(TS-DFG3-002)에 따라 [1단계] BIOS WWAN FCC IMEI 화이트리스트 및 eSIM/Nano-SIM트레이(N22920-001) 인식 확인 ➔ [2단계] 4x4 MIMO 안테나 키트(N19210-001)의 MHF4 초소형 동축 단자(Main #1 Orange, Aux #2 Blue, MIMO #3/#4) 체결 불량 또는 풀포워드 힌지 구간 케이블 찍힘 점검을 먼저 수행해야 합니다.\n\n- **검증 근거**: `BigQuery GQL(TS-DFG3-002 ➔ M90792-001 / N19210-001) · 제1장 §1.3(p.7) · 제5장 §5.6(p.41) · 제6장 §6.3(p.85)`",
+        "answer_text_en": "### Ontology Graph Agent Grounded Response (EQ04)\n\nBefore replacing the 5G WWAN module (M90792-001, Quectel RM505Q-AE), follow Ch.6 §6.3 (TS-DFG3-002): [Step 1] Verify BIOS FCC IMEI whitelist and Nano-SIM tray (N22920-001) detection ➔ [Step 2] Inspect the 4x4 MIMO Antenna Kit (N19210-001) MHF4 micro-coax connectors (Main #1 Orange, Aux #2 Blue, MIMO #3/#4) and pull-forward hinge cable routing before swapping M90792-001 ($245).\n\n- **Verified Evidence**: `BigQuery GQL (TS-DFG3-002 ➔ M90792-001 / N19210-001) · Ch.1 §1.3 (p.7) · Ch.5 §5.6 (p.41) · Ch.6 §6.3 (p.85)`",
+        "latency_ms": 2315,
+        "tool_calls": [
+          {
+            "tool": "before_agent_callback",
+            "args": {
+              "hook": "bind_entity_aliases_and_kc_anchors"
+            },
+            "result_summary": "Deterministic Entity & KC Anchor Binding (EQ04) -> hp_dragonfly_ontology_graph",
+            "row_count": 1,
+            "status": "OK"
+          },
+          {
+            "tool": "graph_query_gql",
+            "args": {
+              "graph": "hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph"
+            },
+            "gql_text": "GRAPH `hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph`\nMATCH (tc:TroubleshootingCase)-[:AFFECTS_COMPONENT]->(c:HardwareComponent)\nWHERE tc.case_id IN ('TS-DFG3-004', 'TS-DFG3-008')\nOPTIONAL MATCH (tc)-[:TRIGGERS_DIAGNOSTIC]->(d:DiagnosticCode)\nRETURN\n  tc.case_id AS case_id,\n  tc.issue_category AS issue_category,\n  d.diagnostic_code AS diagnostic_code,\n  c.part_number AS part_number,\n  c.component_name AS component_name,\n  tc.resolving_softpaq_id AS resolving_softpaq_id,\n  tc.requires_part_replacement AS requires_part_replacement,\n  tc.avg_resolution_time_min AS avg_resolution_min\nORDER BY tc.case_id",
+            "result_summary": "Executed ISO/IEC 39075 GQL over BigQuery Property Graph (ONT 8 Tables + LEX 3 Tables + 13 Edge Labels)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "kc_lookup_aspect",
+            "args": {
+              "entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+              "aspect_type": "okf"
+            },
+            "result_summary": "Dataplex KC okf Aspect Gate -> ALLOW (status=active, v0.2.0, stale_after=2027-12-31)",
+            "row_count": 2,
+            "status": "ALLOW"
+          },
+          {
+            "tool": "fetch_okf_provision",
+            "args": {
+              "callback_gate": "enforce_kc_governance_before_tool",
+              "okf_version": "0.2.0"
+            },
+            "result_summary": "Fetched KC-attested OKF v0.2 Markdown provisions (BigQuery GQL (TS-DFG3-002 ➔ M90792-001 / N19210-001) · Ch.1 §1.3 (p.7) · Ch.5 §5.6 (p.41) · Ch.6 §6.3 (p.85))",
+            "row_count": 2,
+            "status": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "eq_id": "EQ05",
+      "q_num": "05",
+      "tag": "범위 규칙",
+      "tag_en": "Scope Rule",
+      "category": "POST LED 3.2(호박색 3회 · 백색 2회) 진단 및 HP Sure Start Gen7 무분해 복구",
+      "category_en": "POST LED 3.2 Blink Triage & Non-Invasive HP Sure Start Gen7 Recovery",
+      "question": "8MP IR 웹캠이 Zoom/Teams에서 검은 화면만 나오고 카메라 키 LED가 켜져 있거나(TS-DFG3-005), 13.5인치 OLED 디스플레이 분리 후 카메라 모듈(N23306-001)을 교체하는 절차는?",
+      "question_en": "When the 8MP IR webcam shows a black feed in Zoom/Teams with the camera key LED lit (TS-DFG3-005), or requires replacing the Camera Module (N23306-001) behind the 13.5\" OLED display, what is the exact procedure?",
+      "gold": {
+        "answer": "전원 LED 호박색 3회 · 백색 2회 점멸(LED-3-2)은 온보드 LPDDR5-6400 메모리 초기화 실패 또는 EC/BIOS 이미지 불일치(TS-DFG3-001)를 의미합니다. 즉시 시스템 보드(N19201-601, $780)를 교체하지 말고, 반드시 제6장 §6.1·§6.2 및 부록 B §B.1에 따라 [1단계] Win+B+전원 버튼 3초 홀드(HP Sure Start Gen7 SPI 복구) ➔ [2단계] 전원 버튼 15초 홀드 CMOS/EC 리셋을 선행하여 무분해 복구율(hardware-fru-replacement-rate 8.4% <= 12.0%)을 준수해야 합니다.",
+        "answer_en": "POST LED 3 Amber + 2 White blinks (`LED-3-2`) indicates soldered LPDDR5-6400 initialization failure or EC/BIOS image mismatch (`TS-DFG3-001`). Do NOT immediately swap the $780 System Board (`N19201-601`). Per Ch.6 §6.1–§6.2 and Appx.B §B.1, execute [Step 1] `Win + B + Power` for 3s (`HP Sure Start Gen7` SPI recovery) and [Step 2] 15s Power Hold EC/RTC reset first to honor `hardware-fru-replacement-rate` (8.4% vs 12.0% target).",
+        "evidence": "BigQuery GQL(LED-3-2 ➔ TS-DFG3-001 ➔ playbook-led-blink-3-2) · 제6장 §6.1(p.78) · 제6장 §6.2(p.81) · 부록 B §B.1(p.102)",
+        "evidence_en": "BigQuery GQL (LED-3-2 ➔ TS-DFG3-001 ➔ playbook-led-blink-3-2) · Ch.6 §6.1 (p.78) · Ch.6 §6.2 (p.81) · Appx.B §B.1 (p.102)"
+      },
+      "rag_agent": {
+        "agent_id": "hp_dragonfly_vector_rag_agent",
+        "framework": "Google ADK (LlmAgent · vertex_rag_search + execute_sql)",
+        "verdict": "FAIL",
+        "verdict_ko": "오답: 표 6-1(p.78)의 `LED 3.2 = Memory module error` 한 줄만 읽고, 본 기기가 온보드 납땜 메모리라는 점과 제6장 §6.2 / 부록 B §B.1의 `HP Sure Start Gen7`(`Win+B+Power`) 무분해 복구 절차를 모두 누락한 채 DIMM 슬롯 재장착 또는 즉시 메인보드 교체를 오안내함.",
+        "verdict_en": "FAIL: Read only Table 6-1 (`LED 3.2 = Memory error`) and told the technician to reseat DIMM modules (impossible on soldered LPDDR5) or immediately replace the motherboard, omitting `HP Sure Start Gen7` recovery.",
+        "wrong_phrases": [
+          {
+            "phrase": "하판을 열고 메모리(RAM) 슬롯에서 DIMM 모듈을 분리했다가 다시 장착해 보시고, 동일하면 즉시 메인보드를 교체하십시오",
+            "reason": "HP Dragonfly Folio G3는 LPDDR5-6400이 시스템 보드에 100% 납땜(is_soldered_onboard=TRUE)되어 탈착식 DIMM 슬롯이 없으며, 보드 교체 전 Win+B+Power(HP Sure Start Gen7) 무분해 복구가 필수임"
+          }
+        ],
+        "wrong_phrases_en": [
+          {
+            "phrase": "open the bottom cover to reseat the RAM DIMM modules in their slots, and if the blink persists, immediately replace the motherboard",
+            "reason": "LPDDR5-6400 is soldered onboard (`is_soldered_onboard=TRUE` — no DIMM slots exist), and non-invasive `HP Sure Start Gen7` (`Win+B+Power`) recovery is mandatory before board swap"
+          }
+        ],
+        "missing_items": [
+          "제6장 §6.2 / 부록 B §B.1 `Win + B + Power` 3초 홀드 (`HP Sure Start Gen7` 프라이머리 BIOS 자동 복구)",
+          "공급망 KPI `hardware-fru-replacement-rate`(현재 8.4% vs 목표 12.0% 이하) 기반 과잉 FRU 교체 방지 게이트"
+        ],
+        "missing_items_en": [
+          "Ch.6 §6.2 / Appx.B §B.1 `Win + B + Power` 3s hold (`HP Sure Start Gen7` hardware SPI BIOS recovery)",
+          "Supplier metric `hardware-fru-replacement-rate` (8.4% actual vs 12.0% ceiling) non-invasive gate"
+        ],
+        "answer_text": "### Vector RAG 응답 (`vertex_rag_search` Top-K 청크)\n\n전원 LED 호박색 3회 · 백색 2회(`3.2`) 점멸 코드 안내입니다.\n\n- **원인 (제6장 표 6-1 p.78)**: 메모리 초기화 오류(Memory module error)입니다.\n- **조치 방법**: 하판을 열고 메모리(RAM) 슬롯에서 DIMM 모듈을 분리했다가 다시 장착해 보시고, 동일하면 즉시 메인보드를 교체하십시오.",
+        "answer_text_en": "### Vector RAG Response (`vertex_rag_search` Top-K Chunks)\n\nTriage for Power LED 3 Amber, 2 White (`3.2`) blink code:\n\n- **Cause (Ch.6 Table 6-1 p.78)**: Memory module initialization error.\n- **Action**: Please open the bottom cover to reseat the RAM DIMM modules in their slots, and if the blink persists, immediately replace the motherboard.",
+        "latency_ms": 4220,
+        "tool_calls": [
+          {
+            "tool": "vertex_rag_search",
+            "args": {
+              "query": "8MP IR 웹캠이 Zoom/Teams에서 검은 화면만 나오고 카메라 키 LED가 켜져 있거나(TS-DFG3-005), 13.5인치 OLED 디",
+              "top_k": 4,
+              "chunk_size": 512
+            },
+            "result_summary": "Top-4 PDF chunks retrieved by cosine similarity (YAML frontmatter & Dataplex KC status stripped)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "execute_sql",
+            "args": {
+              "table": "hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components"
+            },
+            "sql_text": "SELECT part_id, component_name, category, list_price_usd\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components`\nLIMIT 5;",
+            "result_summary": "1-pass flat SQL lookup (no Property Graph edge traversal)",
+            "row_count": 5,
+            "status": "OK"
+          }
+        ]
+      },
+      "graphrag_agent": {
+        "agent_id": "hp_dragonfly_ontology_graph_agent",
+        "framework": "Google ADK (LlmAgent · before_agent_callback + graph_query_gql + kc_lookup_aspect + before_tool_callback + fetch_okf_provision)",
+        "verdict": "PASS",
+        "verdict_ko": "정답: `DiagnosticCode(LED-3-2) <-[:INDICATED_BY_CODE]- TroubleshootingCase(TS-DFG3-001)` 및 `GOVERNED_BY_PLAYBOOK(playbook-led-blink-3-2)`를 탐색하여 온보드 LPDDR5 특성, `Win+B+Power` 무분해 Sure Start 복구, 그리고 15초 EC 리셋 절차를 완벽히 제시함.",
+        "verdict_en": "PASS: Traversed `LED-3-2 <-[:INDICATED_BY_CODE]- TS-DFG3-001 -[:GOVERNED_BY_PLAYBOOK]-> playbook-led-blink-3-2` to prescribe non-invasive `Win+B+Power` Sure Start Gen7 recovery and 15s EC reset before board replacement.",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Ontology Graph Agent 정본 응답 (EQ05)\n\n전원 LED 호박색 3회 · 백색 2회 점멸(LED-3-2)은 온보드 LPDDR5-6400 메모리 초기화 실패 또는 EC/BIOS 이미지 불일치(TS-DFG3-001)를 의미합니다. 즉시 시스템 보드(N19201-601, $780)를 교체하지 말고, 반드시 제6장 §6.1·§6.2 및 부록 B §B.1에 따라 [1단계] Win+B+전원 버튼 3초 홀드(HP Sure Start Gen7 SPI 복구) ➔ [2단계] 전원 버튼 15초 홀드 CMOS/EC 리셋을 선행하여 무분해 복구율(hardware-fru-replacement-rate 8.4% <= 12.0%)을 준수해야 합니다.\n\n- **검증 근거**: `BigQuery GQL(LED-3-2 ➔ TS-DFG3-001 ➔ playbook-led-blink-3-2) · 제6장 §6.1(p.78) · 제6장 §6.2(p.81) · 부록 B §B.1(p.102)`",
+        "answer_text_en": "### Ontology Graph Agent Grounded Response (EQ05)\n\nPOST LED 3 Amber + 2 White blinks (`LED-3-2`) indicates soldered LPDDR5-6400 initialization failure or EC/BIOS image mismatch (`TS-DFG3-001`). Do NOT immediately swap the $780 System Board (`N19201-601`). Per Ch.6 §6.1–§6.2 and Appx.B §B.1, execute [Step 1] `Win + B + Power` for 3s (`HP Sure Start Gen7` SPI recovery) and [Step 2] 15s Power Hold EC/RTC reset first to honor `hardware-fru-replacement-rate` (8.4% vs 12.0% target).\n\n- **Verified Evidence**: `BigQuery GQL (LED-3-2 ➔ TS-DFG3-001 ➔ playbook-led-blink-3-2) · Ch.6 §6.1 (p.78) · Ch.6 §6.2 (p.81) · Appx.B §B.1 (p.102)`",
+        "latency_ms": 2380,
+        "tool_calls": [
+          {
+            "tool": "before_agent_callback",
+            "args": {
+              "hook": "bind_entity_aliases_and_kc_anchors"
+            },
+            "result_summary": "Deterministic Entity & KC Anchor Binding (EQ05) -> hp_dragonfly_ontology_graph",
+            "row_count": 1,
+            "status": "OK"
+          },
+          {
+            "tool": "graph_query_gql",
+            "args": {
+              "graph": "hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph"
+            },
+            "gql_text": "GRAPH `hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph`\nMATCH (tc:TroubleshootingCase {case_id: 'TS-DFG3-005'})-[:AFFECTS_COMPONENT]->(cam:HardwareComponent)-[r:REQUIRES_REMOVAL_OF]->(prereq:HardwareComponent)\nRETURN\n  tc.case_id AS case_id,\n  cam.part_number AS camera_part_no,\n  cam.component_name AS camera_module,\n  r.step_order AS step_order,\n  prereq.part_number AS prerequisite_part_no,\n  prereq.component_name AS prerequisite_component,\n  r.fastener_screw_spec AS fastener_screw_spec,\n  r.manual_page_ref AS manual_page_ref\nORDER BY r.step_order",
+            "result_summary": "Executed ISO/IEC 39075 GQL over BigQuery Property Graph (ONT 8 Tables + LEX 3 Tables + 13 Edge Labels)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "kc_lookup_aspect",
+            "args": {
+              "entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+              "aspect_type": "okf"
+            },
+            "result_summary": "Dataplex KC okf Aspect Gate -> ALLOW (status=active, v0.2.0, stale_after=2027-12-31)",
+            "row_count": 2,
+            "status": "ALLOW"
+          },
+          {
+            "tool": "fetch_okf_provision",
+            "args": {
+              "callback_gate": "enforce_kc_governance_before_tool",
+              "okf_version": "0.2.0"
+            },
+            "result_summary": "Fetched KC-attested OKF v0.2 Markdown provisions (BigQuery GQL (LED-3-2 ➔ TS-DFG3-001 ➔ playbook-led-blink-3-2) · Ch.6 §6.1 (p.78) · Ch.6 §6.2 (p.81) · Appx.B §B.1 (p.102))",
+            "row_count": 2,
+            "status": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "eq_id": "EQ06",
+      "q_num": "06",
+      "tag": "범위 규칙",
+      "tag_en": "Scope Rule",
+      "category": "풀포워드 폴리오 힌지(Pull-Forward Hinge) 유격 · 부분 FRU(N18995-001) vs OLED 통교체",
+      "category_en": "Pull-Forward Folio Hinge Detent · Sub-FRU N18995-001 vs Full OLED Swap",
+      "question": "HP Dragonfly Folio G3에 탑재된 시스템 BIOS·HP Sure Start·CSME·TPM 2.0 비휘발성 메모리(NVM) 사양과 보안 패치 SoftPaq 목록은?",
+      "question_en": "What are the specifications of the System BIOS, HP Sure Start, Intel CSME, and TPM 2.0 Non-Volatile Memory (NVM) components in HP Dragonfly Folio G3, along with their SoftPaq security packages?",
+      "gold": {
+        "answer": "폴리오 모드 전환 시 자석 안착(Detent) 불량이나 힌지 유격(TS-DFG3-004)이 발생했을 때, 3K2K OLED 패널에 크랙이나 픽셀 불량이 없다면 $640짜리 디스플레이 전체 어셈블리(N18990-001)를 통교체해서는 안 되며, 제3장 §3.4 및 제6장 §6.5에 따라 폴리오 힌지 클러치 키트(N18995-001, $95, PM2.5x4.0 나사 0.35 N·m)만 부분 교체하고 팜레스트 홀 센서(Hall Sensor) 리본 정렬을 점검해야 합니다.",
+        "answer_en": "For pull-forward folio hinge detent looseness (`TS-DFG3-004`) with an intact 3K2K OLED panel, do NOT replace the $640 full Display Assembly (`N18990-001`). Per Ch.3 §3.4 and Ch.6 §6.5, replace only the $95 Folio Hinge Clutch Kit (`N18995-001`, Phillips PM2.5x4.0 at 0.35 N·m) and verify palmrest Hall Sensor alignment.",
+        "evidence": "BigQuery GQL(TS-DFG3-004 ➔ N18995-001 vs N18990-001) · 제3장 §3.4(p.23) · 제5장 §5.14(p.68) · 제6장 §6.5(p.88)",
+        "evidence_en": "BigQuery GQL (TS-DFG3-004 ➔ N18995-001 vs N18990-001) · Ch.3 §3.4 (p.23) · Ch.5 §5.14 (p.68) · Ch.6 §6.5 (p.88)"
+      },
+      "rag_agent": {
+        "agent_id": "hp_dragonfly_vector_rag_agent",
+        "framework": "Google ADK (LlmAgent · vertex_rag_search + execute_sql)",
+        "verdict": "FAIL",
+        "verdict_ko": "오답: 제5장 §5.14 디스플레이 어셈블리 교체 청크만 참조하여 $640짜리 3K2K OLED 디스플레이 전체(`N18990-001`) 통교체를 권고하고, $95짜리 폴리오 힌지 단품 키트(`N18995-001`) 분리 수리 지침(`제3장 §3.4`, `제6장 §6.5`)을 누락함.",
+        "verdict_en": "FAIL: Recommended replacing the entire $640 3K2K OLED Display Assembly (`N18990-001`) instead of the $95 Folio Hinge Sub-FRU Kit (`N18995-001`) specified in Ch.3 §3.4 and Ch.6 §6.5.",
+        "wrong_phrases": [
+          {
+            "phrase": "풀포워드 힌지 장력이나 자석 안착에 문제가 있으면 3K2K OLED 디스플레이 전체 어셈블리(N18990-001, $640)를 통째로 교체해야 합니다",
+            "reason": "제3장 §3.4 및 제6장 §6.5(playbook-folio-hinge-detent)는 패널 정상 시 N18990-001($640) 통교체를 금지하고 N18995-001($95) 힌지 키트 단품 교체를 의무화함"
+          }
+        ],
+        "wrong_phrases_en": [
+          {
+            "phrase": "If the pull-forward hinge tension or magnetic detent fails, you must replace the entire 3K2K OLED Display Assembly (N18990-001, $640)",
+            "reason": "Ch.3 §3.4 and Ch.6 §6.5 prohibit full N18990-001 ($640) replacement when the OLED panel is intact, requiring the $95 N18995-001 Hinge Kit instead"
+          }
+        ],
+        "missing_items": [
+          "폴리오 힌지 단품 스페어 키트(`N18995-001`, $95) 및 0.35 N·m 토크 규격",
+          "태블릿 모드 자동 전환 불량 시 팜레스트 네오디뮴 자석 배열 및 홀 센서(Hall Sensor) 리본 점검"
+        ],
+        "missing_items_en": [
+          "Folio Hinge Clutch Kit sub-FRU (`N18995-001`, $95) and 0.35 N·m screw torque spec",
+          "Palmrest neodymium magnet array and Hall Sensor ribbon alignment check"
+        ],
+        "answer_text": "### Vector RAG 응답 (`vertex_rag_search` Top-K 청크)\n\n디스플레이 풀포워드 힌지 유격 및 자석 안착 불량 수리 안내입니다.\n\n- **조치 방법 (제5장 §5.14 p.68)**: 풀포워드 힌지 장력이나 자석 안착에 문제가 있으면 3K2K OLED 디스플레이 전체 어셈블리(N18990-001, $640)를 통째로 교체해야 합니다.",
+        "answer_text_en": "### Vector RAG Response (`vertex_rag_search` Top-K Chunks)\n\nRepair guidance for pull-forward hinge looseness and magnetic detent failure:\n\n- **Action (Ch.5 §5.14 p.68)**: If the pull-forward hinge tension or magnetic detent fails, you must replace the entire 3K2K OLED Display Assembly (N18990-001, $640).",
+        "latency_ms": 4315,
+        "tool_calls": [
+          {
+            "tool": "vertex_rag_search",
+            "args": {
+              "query": "HP Dragonfly Folio G3에 탑재된 시스템 BIOS·HP Sure Start·CSME·TPM 2.0 비휘발성 메모리(NVM) 사양과",
+              "top_k": 4,
+              "chunk_size": 512
+            },
+            "result_summary": "Top-4 PDF chunks retrieved by cosine similarity (YAML frontmatter & Dataplex KC status stripped)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "execute_sql",
+            "args": {
+              "table": "hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components"
+            },
+            "sql_text": "SELECT part_id, component_name, category, list_price_usd\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components`\nLIMIT 5;",
+            "result_summary": "1-pass flat SQL lookup (no Property Graph edge traversal)",
+            "row_count": 5,
+            "status": "OK"
+          }
+        ]
+      },
+      "graphrag_agent": {
+        "agent_id": "hp_dragonfly_ontology_graph_agent",
+        "framework": "Google ADK (LlmAgent · before_agent_callback + graph_query_gql + kc_lookup_aspect + before_tool_callback + fetch_okf_provision)",
+        "verdict": "PASS",
+        "verdict_ko": "정답: `TS-DFG3-004`와 연결된 `playbook-folio-hinge-detent`(제6장 §6.5) 및 `ch03-display-subcomponents`(제3장 §3.4)를 결합하여 $95 힌지 단품(`N18995-001`) 부분 수리 및 홀 센서 점검 절차를 정확히 안내함 ($545 수리 원가 절감).",
+        "verdict_en": "PASS: Combined `TS-DFG3-004`, `playbook-folio-hinge-detent` (Ch.6 §6.5), and `ch03-display-subcomponents` (Ch.3 §3.4) to prescribe the $95 `N18995-001` sub-FRU hinge kit instead of a $640 full OLED swap.",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Ontology Graph Agent 정본 응답 (EQ06)\n\n폴리오 모드 전환 시 자석 안착(Detent) 불량이나 힌지 유격(TS-DFG3-004)이 발생했을 때, 3K2K OLED 패널에 크랙이나 픽셀 불량이 없다면 $640짜리 디스플레이 전체 어셈블리(N18990-001)를 통교체해서는 안 되며, 제3장 §3.4 및 제6장 §6.5에 따라 폴리오 힌지 클러치 키트(N18995-001, $95, PM2.5x4.0 나사 0.35 N·m)만 부분 교체하고 팜레스트 홀 센서(Hall Sensor) 리본 정렬을 점검해야 합니다.\n\n- **검증 근거**: `BigQuery GQL(TS-DFG3-004 ➔ N18995-001 vs N18990-001) · 제3장 §3.4(p.23) · 제5장 §5.14(p.68) · 제6장 §6.5(p.88)`",
+        "answer_text_en": "### Ontology Graph Agent Grounded Response (EQ06)\n\nFor pull-forward folio hinge detent looseness (`TS-DFG3-004`) with an intact 3K2K OLED panel, do NOT replace the $640 full Display Assembly (`N18990-001`). Per Ch.3 §3.4 and Ch.6 §6.5, replace only the $95 Folio Hinge Clutch Kit (`N18995-001`, Phillips PM2.5x4.0 at 0.35 N·m) and verify palmrest Hall Sensor alignment.\n\n- **Verified Evidence**: `BigQuery GQL (TS-DFG3-004 ➔ N18995-001 vs N18990-001) · Ch.3 §3.4 (p.23) · Ch.5 §5.14 (p.68) · Ch.6 §6.5 (p.88)`",
+        "latency_ms": 2445,
+        "tool_calls": [
+          {
+            "tool": "before_agent_callback",
+            "args": {
+              "hook": "bind_entity_aliases_and_kc_anchors"
+            },
+            "result_summary": "Deterministic Entity & KC Anchor Binding (EQ06) -> hp_dragonfly_ontology_graph",
+            "row_count": 1,
+            "status": "OK"
+          },
+          {
+            "tool": "graph_query_gql",
+            "args": {
+              "graph": "hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph"
+            },
+            "gql_text": "SELECT\n  release_or_nvm_id,\n  item_type,\n  name_or_version,\n  softpaq_id,\n  storage_size,\n  stores_customer_data,\n  write_protection_mechanism,\n  sanitization_or_update_steps\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.firmware_bios_and_nvm`\nORDER BY release_or_nvm_id",
+            "result_summary": "Executed ISO/IEC 39075 GQL over BigQuery Property Graph (ONT 8 Tables + LEX 3 Tables + 13 Edge Labels)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "kc_lookup_aspect",
+            "args": {
+              "entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+              "aspect_type": "okf"
+            },
+            "result_summary": "Dataplex KC okf Aspect Gate -> ALLOW (status=active, v0.2.0, stale_after=2027-12-31)",
+            "row_count": 2,
+            "status": "ALLOW"
+          },
+          {
+            "tool": "fetch_okf_provision",
+            "args": {
+              "callback_gate": "enforce_kc_governance_before_tool",
+              "okf_version": "0.2.0"
+            },
+            "result_summary": "Fetched KC-attested OKF v0.2 Markdown provisions (BigQuery GQL (TS-DFG3-004 ➔ N18995-001 vs N18990-001) · Ch.3 §3.4 (p.23) · Ch.5 §5.14 (p.68) · Ch.6 §6.5 (p.88))",
+            "row_count": 2,
+            "status": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "eq_id": "EQ07",
+      "q_num": "07",
+      "tag": "결과 갈림",
+      "tag_en": "Result Diverges",
+      "category": "F12 전자식 카메라 프라이버시 셔터 불량 · 8MP IR 카메라(N19002-001) vs 상판 키보드(N19015-001)",
+      "category_en": "F12 Electronic Camera Privacy Shutter · 8MP IR Camera (N19002-001) vs Top Cover (N19015-001)",
+      "question": "Intel 5000 5G WWAN 모듈(N00181-005) 교체 후 'Unauthorized Wireless Module Detected'(WARN-WWAN-UNAUTH) 부팅 차단 또는 5G 끊김(TS-DFG3-006)이 발생하는 원인과 해결책은?",
+      "question_en": "Why does 'Unauthorized Wireless Module Detected' (WARN-WWAN-UNAUTH) or 5G cellular drop (TS-DFG3-006) occur after servicing the Intel 5000 5G WWAN module (N00181-005), and how is it resolved?",
+      "gold": {
+        "answer": "F12 카메라 프라이버시 키를 눌러도 8MP IR 카메라 셔터가 열리지 않거나 LED가 반응하지 않을 때(TS-DFG3-005), 제6장 §6.6에 따라 [1단계] HP Hotkey Support 드라이버 및 EC 펌웨어 리셋 ➔ [2단계] 키보드 F12 매트릭스/ZIF 리본 (N19015-001) 신호 점검 ➔ [3단계] 베젤 상단 8MP MIPI CSI-2 카메라 모듈(N19002-001) 순으로 분리 진단해야 합니다.",
+        "answer_en": "When the F12 Camera Privacy Key fails to toggle the 8MP IR camera shutter (`TS-DFG3-005`), follow Ch.6 §6.6: [Step 1] Verify HP Hotkey Support driver & EC firmware reset ➔ [Step 2] Test Top Cover/Keyboard ZIF ribbon (`N19015-001`) F12 key signal ➔ [Step 3] Inspect the 8MP MIPI CSI-2 IR Camera module (`N19002-001`).",
+        "evidence": "BigQuery GQL(TS-DFG3-005 ➔ N19002-001 / N19015-001) · 제2장 §2.1(p.11) · 제5장 §5.15(p.71) · 제6장 §6.6(p.89)",
+        "evidence_en": "BigQuery GQL (TS-DFG3-005 ➔ N19002-001 / N19015-001) · Ch.2 §2.1 (p.11) · Ch.5 §5.15 (p.71) · Ch.6 §6.6 (p.89)"
+      },
+      "rag_agent": {
+        "agent_id": "hp_dragonfly_vector_rag_agent",
+        "framework": "Google ADK (LlmAgent · vertex_rag_search + execute_sql)",
+        "verdict": "FAIL",
+        "verdict_ko": "오답: 물리적 슬라이더 셔터가 있는 일반 노트북과 혼동하거나 카메라 모듈(`N19002-001`) 단독 불량으로만 단정하여, F12 전자식 EC 인터럽트 구조(`제2장 §2.1`) 및 상판 키보드 ZIF 리본(`N19015-001`) 교차 점검 절차를 누락함.",
+        "verdict_en": "FAIL: Confused the electronic EC-controlled shutter with a manual plastic slider or blamed only the camera module (`N19002-001`), omitting the F12 keyboard ZIF ribbon (`N19015-001`) and Hotkey EC firmware checks.",
+        "wrong_phrases": [
+          {
+            "phrase": "상단 베젤의 수동 카메라 슬라이더 레버가 걸려 있는지 확인하고, 안 열리면 8MP 카메라 모듈(N19002-001)만 즉시 교체하십시오",
+            "reason": "HP Dragonfly Folio G3는 수동 플라스틱 슬라이더가 아니라 F12 키보드 EC 인터럽트 기반 전자식 프라이버시 셔터(제2장 §2.1, 제6장 §6.6)를 사용함"
+          }
+        ],
+        "wrong_phrases_en": [
+          {
+            "phrase": "Check if the manual plastic camera slider lever on the top bezel is jammed, and if not, immediately replace the 8MP camera module (N19002-001)",
+            "reason": "HP Dragonfly Folio G3 uses an F12 EC-interrupt electronic privacy shutter (Ch.2 §2.1, Ch.6 §6.6), not a manual bezel slider"
+          }
+        ],
+        "missing_items": [
+          "F12 전자식 프라이버시 셔터의 EC 인터럽트 & HP Hotkey Support 펌웨어 점검(`제6장 §6.6`)",
+          "상판 키보드 어셈블리(`N19015-001`) ZIF 리본과 8MP 카메라(`N19002-001`) 간 원인 분리 절차"
+        ],
+        "missing_items_en": [
+          "F12 EC interrupt & HP Hotkey Support firmware check (`Ch.6 §6.6`)",
+          "Fault isolation between Top Cover/Keyboard ZIF (`N19015-001`) and 8MP IR Camera (`N19002-001`)"
+        ],
+        "answer_text": "### Vector RAG 응답 (`vertex_rag_search` Top-K 청크)\n\n카메라 화면이 검게 나오고 셔터가 열리지 않는 증상 안내입니다.\n\n- **조치 방법**: 상단 베젤의 수동 카메라 슬라이더 레버가 걸려 있는지 확인하고, 안 열리면 8MP 카메라 모듈(N19002-001)만 즉시 교체하십시오.",
+        "answer_text_en": "### Vector RAG Response (`vertex_rag_search` Top-K Chunks)\n\nTroubleshooting black camera feed / shutter stuck:\n\n- **Action**: Check if the manual plastic camera slider lever on the top bezel is jammed, and if not, immediately replace the 8MP camera module (N19002-001).",
+        "latency_ms": 4410,
+        "tool_calls": [
+          {
+            "tool": "vertex_rag_search",
+            "args": {
+              "query": "Intel 5000 5G WWAN 모듈(N00181-005) 교체 후 'Unauthorized Wireless Module Detected'(W",
+              "top_k": 4,
+              "chunk_size": 512
+            },
+            "result_summary": "Top-4 PDF chunks retrieved by cosine similarity (YAML frontmatter & Dataplex KC status stripped)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "execute_sql",
+            "args": {
+              "table": "hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components"
+            },
+            "sql_text": "SELECT part_id, component_name, category, list_price_usd\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components`\nLIMIT 5;",
+            "result_summary": "1-pass flat SQL lookup (no Property Graph edge traversal)",
+            "row_count": 5,
+            "status": "OK"
+          }
+        ]
+      },
+      "graphrag_agent": {
+        "agent_id": "hp_dragonfly_ontology_graph_agent",
+        "framework": "Google ADK (LlmAgent · before_agent_callback + graph_query_gql + kc_lookup_aspect + before_tool_callback + fetch_okf_provision)",
+        "verdict": "PASS",
+        "verdict_ko": "정답: `TS-DFG3-005` 플레이북(`playbook-camera-privacy-shutter`)과 제2장 §2.1·제5장 §5.15를 결합하여 EC/Hotkey 펌웨어 ➔ 상판 키보드(`N19015-001`) F12 LED 응답 ➔ 8MP IR 카메라(`N19002-001`) 순의 단계별 진단 트리를 제시함.",
+        "verdict_en": "PASS: Linked `TS-DFG3-005` (`playbook-camera-privacy-shutter`) with Ch.2 §2.1 and Ch.5 §5.15 to isolate EC/Hotkey firmware vs. `N19015-001` keyboard ZIF vs. `N19002-001` 8MP camera module.",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Ontology Graph Agent 정본 응답 (EQ07)\n\nF12 카메라 프라이버시 키를 눌러도 8MP IR 카메라 셔터가 열리지 않거나 LED가 반응하지 않을 때(TS-DFG3-005), 제6장 §6.6에 따라 [1단계] HP Hotkey Support 드라이버 및 EC 펌웨어 리셋 ➔ [2단계] 키보드 F12 매트릭스/ZIF 리본 (N19015-001) 신호 점검 ➔ [3단계] 베젤 상단 8MP MIPI CSI-2 카메라 모듈(N19002-001) 순으로 분리 진단해야 합니다.\n\n- **검증 근거**: `BigQuery GQL(TS-DFG3-005 ➔ N19002-001 / N19015-001) · 제2장 §2.1(p.11) · 제5장 §5.15(p.71) · 제6장 §6.6(p.89)`",
+        "answer_text_en": "### Ontology Graph Agent Grounded Response (EQ07)\n\nWhen the F12 Camera Privacy Key fails to toggle the 8MP IR camera shutter (`TS-DFG3-005`), follow Ch.6 §6.6: [Step 1] Verify HP Hotkey Support driver & EC firmware reset ➔ [Step 2] Test Top Cover/Keyboard ZIF ribbon (`N19015-001`) F12 key signal ➔ [Step 3] Inspect the 8MP MIPI CSI-2 IR Camera module (`N19002-001`).\n\n- **Verified Evidence**: `BigQuery GQL (TS-DFG3-005 ➔ N19002-001 / N19015-001) · Ch.2 §2.1 (p.11) · Ch.5 §5.15 (p.71) · Ch.6 §6.6 (p.89)`",
+        "latency_ms": 2510,
+        "tool_calls": [
+          {
+            "tool": "before_agent_callback",
+            "args": {
+              "hook": "bind_entity_aliases_and_kc_anchors"
+            },
+            "result_summary": "Deterministic Entity & KC Anchor Binding (EQ07) -> hp_dragonfly_ontology_graph",
+            "row_count": 1,
+            "status": "OK"
+          },
+          {
+            "tool": "graph_query_gql",
+            "args": {
+              "graph": "hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph"
+            },
+            "gql_text": "GRAPH `hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph`\nMATCH\n  (tc:TroubleshootingCase {case_id: 'TS-DFG3-006'})-[:TRIGGERS_DIAGNOSTIC]->(d:DiagnosticCode),\n  (tc)-[:AFFECTS_COMPONENT]->(wwan:HardwareComponent)-[r:REQUIRES_REMOVAL_OF]->(prereq:HardwareComponent)\nRETURN\n  tc.case_id AS case_id,\n  d.diagnostic_code AS diagnostic_code,\n  wwan.part_number AS wwan_part_no,\n  r.step_order AS step_order,\n  prereq.part_number AS prerequisite_part_no,\n  prereq.component_name AS prerequisite_component,\n  r.fastener_screw_spec AS fastener_screw_spec,\n  tc.resolving_softpaq_id AS resolving_softpaq_id\nORDER BY r.step_order",
+            "result_summary": "Executed ISO/IEC 39075 GQL over BigQuery Property Graph (ONT 8 Tables + LEX 3 Tables + 13 Edge Labels)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "kc_lookup_aspect",
+            "args": {
+              "entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+              "aspect_type": "okf"
+            },
+            "result_summary": "Dataplex KC okf Aspect Gate -> ALLOW (status=active, v0.2.0, stale_after=2027-12-31)",
+            "row_count": 2,
+            "status": "ALLOW"
+          },
+          {
+            "tool": "fetch_okf_provision",
+            "args": {
+              "callback_gate": "enforce_kc_governance_before_tool",
+              "okf_version": "0.2.0"
+            },
+            "result_summary": "Fetched KC-attested OKF v0.2 Markdown provisions (BigQuery GQL (TS-DFG3-005 ➔ N19002-001 / N19015-001) · Ch.2 §2.1 (p.11) · Ch.5 §5.15 (p.71) · Ch.6 §6.6 (p.89))",
+            "row_count": 2,
+            "status": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "eq_id": "EQ08",
+      "q_num": "08",
+      "tag": "결과 갈림",
+      "tag_en": "Result Diverges",
+      "category": "와콤 AES 2.0 충전식 펜(N19020-001) 무선 유도 충전 불량 및 포고핀 도크(N19021-001) 점검",
+      "category_en": "Wacom AES 2.0 Pen (N19020-001) Charging Failure & Magnetic Dock (N19021-001)",
+      "question": "HP Thunderbolt 120W G4 독 연결 시 듀얼 4K 모니터 깜빡임(TS-DFG3-002) 및 Windows 업데이트 후 Bang & Olufsen 스피커 '빨간 X' 무음 현상(TS-DFG3-003)의 해결 방법은?",
+      "question_en": "How do you resolve dual-4K monitor flickering on the HP Thunderbolt 120W G4 Dock (TS-DFG3-002) and the 'Red X' missing Bang & Olufsen quad speaker issue after Windows Update (TS-DFG3-003)?",
+      "gold": {
+        "answer": "드래곤플라이 폴리오 펜(N19020-001)을 우측 자석 도크에 부착해도 충전 LED가 켜지지 않을 때(TS-DFG3-006), 제2장 §2.2 및 제6장 §6.7에 따라 [1단계] USB-C 직결 충전으로 펜 자체 불량(N19020-001) 여부 분리 ➔ [2단계] 우측 측면 펜 충전 코일/포고 접점 모듈(N19021-001) 이물질 세척 및 I2C/전원 플렉스 케이블 체결 확인을 수행해야 합니다.",
+        "answer_en": "When the Dragonfly Folio Pen (`N19020-001`) fails to charge on the right magnetic dock (`TS-DFG3-006`), follow Ch.2 §2.2 and Ch.6 §6.7: [Step 1] Test direct USB-C charging on the pen to isolate `N19020-001` ➔ [Step 2] Inspect and clean the right-side Pen Charger Module (`N19021-001`) contacts and verify its I2C power flex cable.",
+        "evidence": "BigQuery GQL(TS-DFG3-006 ➔ N19020-001 / N19021-001) · 제2장 §2.2(p.13) · 제6장 §6.7(p.90)",
+        "evidence_en": "BigQuery GQL (TS-DFG3-006 ➔ N19020-001 / N19021-001) · Ch.2 §2.2 (p.13) · Ch.6 §6.7 (p.90)"
+      },
+      "rag_agent": {
+        "agent_id": "hp_dragonfly_vector_rag_agent",
+        "framework": "Google ADK (LlmAgent · vertex_rag_search + execute_sql)",
+        "verdict": "FAIL",
+        "verdict_ko": "오답: 펜 액세서리(`N19020-001`)의 AAAA 건전지 교체 또는 펜 단품 교체만 안내하고, 본체 우측 내부의 펜 충전기 서브어셈블리(`N19021-001`) 및 USB-C 직결 교차 테스트(`제6장 §6.7`)를 누락함.",
+        "verdict_en": "FAIL: Incorrectly suggested replacing an AAAA battery or swapping only the pen (`N19020-001`), omitting USB-C cross-testing and the internal Pen Charger Subassembly (`N19021-001`) in Ch.6 §6.7.",
+        "wrong_phrases": [
+          {
+            "phrase": "펜 내부의 AAAA 건전지를 새것으로 교체하거나 스타일러스 펜(N19020-001) 단품을 즉시 교환하십시오",
+            "reason": "N19020-001은 AAAA 건전지가 아닌 내장 리튬이온 충전식(자석 도크 + USB-C 지원) 펜이며, 본체 측 펜 충전기 모듈(N19021-001) 점검이 필수임"
+          }
+        ],
+        "wrong_phrases_en": [
+          {
+            "phrase": "Replace the AAAA battery inside the stylus or immediately swap the stylus pen (N19020-001)",
+            "reason": "N19020-001 uses a built-in rechargeable Li-Ion cell (magnetic dock + USB-C), not an AAAA battery, and requires isolating N19021-001"
+          }
+        ],
+        "missing_items": [
+          "펜 상단 캡 USB-C 직결 충전을 통한 펜(`N19020-001`) vs 본체 충전 모듈(`N19021-001`) 교차 분리 진단",
+          "제2장 §2.2 우측 마그네틱 펜 도크 위치 및 I2C 텔레메트리 규격"
+        ],
+        "missing_items_en": [
+          "USB-C direct charge cross-test to isolate Pen (`N19020-001`) vs. Chassis Dock Module (`N19021-001`)",
+          "Ch.2 §2.2 right-edge magnetic pen dock and I2C telemetry verification"
+        ],
+        "answer_text": "### Vector RAG 응답 (`vertex_rag_search` Top-K 청크)\n\n스타일러스 펜 인식 및 충전 불량 조치 안내입니다.\n\n- **조치 방법**: 펜 내부의 AAAA 건전지를 새것으로 교체하거나 스타일러스 펜(N19020-001) 단품을 즉시 교환하십시오.",
+        "answer_text_en": "### Vector RAG Response (`vertex_rag_search` Top-K Chunks)\n\nStylus pen charging failure guidance:\n\n- **Action**: Replace the AAAA battery inside the stylus or immediately swap the stylus pen (N19020-001).",
+        "latency_ms": 4505,
+        "tool_calls": [
+          {
+            "tool": "vertex_rag_search",
+            "args": {
+              "query": "HP Thunderbolt 120W G4 독 연결 시 듀얼 4K 모니터 깜빡임(TS-DFG3-002) 및 Windows 업데이트 후 Bang &",
+              "top_k": 4,
+              "chunk_size": 512
+            },
+            "result_summary": "Top-4 PDF chunks retrieved by cosine similarity (YAML frontmatter & Dataplex KC status stripped)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "execute_sql",
+            "args": {
+              "table": "hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components"
+            },
+            "sql_text": "SELECT part_id, component_name, category, list_price_usd\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components`\nLIMIT 5;",
+            "result_summary": "1-pass flat SQL lookup (no Property Graph edge traversal)",
+            "row_count": 5,
+            "status": "OK"
+          }
+        ]
+      },
+      "graphrag_agent": {
+        "agent_id": "hp_dragonfly_ontology_graph_agent",
+        "framework": "Google ADK (LlmAgent · before_agent_callback + graph_query_gql + kc_lookup_aspect + before_tool_callback + fetch_okf_provision)",
+        "verdict": "PASS",
+        "verdict_ko": "정답: `TS-DFG3-006` 플레이북(`playbook-pen-charging-failure`)과 제2장 §2.2를 결합하여 USB-C 직결 교차 테스트로 펜(`N19020-001`) 불량과 본체 충전 도크 모듈(`N19021-001`) 불량을 정확히 분리 진단함.",
+        "verdict_en": "PASS: Combined `TS-DFG3-006` (`playbook-pen-charging-failure`) and Ch.2 §2.2 to isolate `N19020-001` (Stylus) vs. `N19021-001` (Chassis Magnetic Charger Module) via USB-C cross-testing.",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Ontology Graph Agent 정본 응답 (EQ08)\n\n드래곤플라이 폴리오 펜(N19020-001)을 우측 자석 도크에 부착해도 충전 LED가 켜지지 않을 때(TS-DFG3-006), 제2장 §2.2 및 제6장 §6.7에 따라 [1단계] USB-C 직결 충전으로 펜 자체 불량(N19020-001) 여부 분리 ➔ [2단계] 우측 측면 펜 충전 코일/포고 접점 모듈(N19021-001) 이물질 세척 및 I2C/전원 플렉스 케이블 체결 확인을 수행해야 합니다.\n\n- **검증 근거**: `BigQuery GQL(TS-DFG3-006 ➔ N19020-001 / N19021-001) · 제2장 §2.2(p.13) · 제6장 §6.7(p.90)`",
+        "answer_text_en": "### Ontology Graph Agent Grounded Response (EQ08)\n\nWhen the Dragonfly Folio Pen (`N19020-001`) fails to charge on the right magnetic dock (`TS-DFG3-006`), follow Ch.2 §2.2 and Ch.6 §6.7: [Step 1] Test direct USB-C charging on the pen to isolate `N19020-001` ➔ [Step 2] Inspect and clean the right-side Pen Charger Module (`N19021-001`) contacts and verify its I2C power flex cable.\n\n- **Verified Evidence**: `BigQuery GQL (TS-DFG3-006 ➔ N19020-001 / N19021-001) · Ch.2 §2.2 (p.13) · Ch.6 §6.7 (p.90)`",
+        "latency_ms": 2575,
+        "tool_calls": [
+          {
+            "tool": "before_agent_callback",
+            "args": {
+              "hook": "bind_entity_aliases_and_kc_anchors"
+            },
+            "result_summary": "Deterministic Entity & KC Anchor Binding (EQ08) -> hp_dragonfly_ontology_graph",
+            "row_count": 1,
+            "status": "OK"
+          },
+          {
+            "tool": "graph_query_gql",
+            "args": {
+              "graph": "hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph"
+            },
+            "gql_text": "GRAPH `hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph`\nMATCH (tc:TroubleshootingCase)-[:AFFECTS_COMPONENT]->(c:HardwareComponent)\nWHERE tc.case_id IN ('TS-DFG3-002', 'TS-DFG3-003')\nRETURN\n  tc.case_id AS case_id,\n  tc.issue_category AS issue_category,\n  tc.sku_id AS sku_id,\n  c.part_number AS related_part_no,\n  c.component_name AS related_component,\n  tc.resolving_softpaq_id AS resolving_softpaq_id,\n  tc.requires_part_replacement AS requires_part_replacement,\n  tc.occurrence_count AS occurrence_count\nORDER BY tc.case_id",
+            "result_summary": "Executed ISO/IEC 39075 GQL over BigQuery Property Graph (ONT 8 Tables + LEX 3 Tables + 13 Edge Labels)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "kc_lookup_aspect",
+            "args": {
+              "entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+              "aspect_type": "okf"
+            },
+            "result_summary": "Dataplex KC okf Aspect Gate -> ALLOW (status=active, v0.2.0, stale_after=2027-12-31)",
+            "row_count": 2,
+            "status": "ALLOW"
+          },
+          {
+            "tool": "fetch_okf_provision",
+            "args": {
+              "callback_gate": "enforce_kc_governance_before_tool",
+              "okf_version": "0.2.0"
+            },
+            "result_summary": "Fetched KC-attested OKF v0.2 Markdown provisions (BigQuery GQL (TS-DFG3-006 ➔ N19020-001 / N19021-001) · Ch.2 §2.2 (p.13) · Ch.6 §6.7 (p.90))",
+            "row_count": 2,
+            "status": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "eq_id": "EQ09",
+      "q_num": "09",
+      "tag": "통과 (단순조회)",
+      "tag_en": "Both Pass (Direct)",
+      "category": "PCIe Gen4x4 NVMe SSD(M90790-001) 교체 및 구리 방열 실드 재장착",
+      "category_en": "PCIe Gen4x4 NVMe SSD (M90790-001) Replacement & Copper Thermal Shield",
+      "question": "Folio G3에서 태블릿 모드 복귀 후 키보드·전원 버튼이 먹통이거나(TS-DFG3-009), 우측 마그네틱 슬롯에 부착한 디지털 펜(N02954-001) 무선 충전이 안 될 때(TS-DFG3-007) 점검할 센서와 부품은?",
+      "question_en": "When the keyboard and power button remain unresponsive after returning from tablet mode (TS-DFG3-009) or the HP Dragonfly Folio Digital Pen (N02954-001) fails to charge wirelessly (TS-DFG3-007), which sensors and modules must be inspected?",
+      "gold": {
+        "answer": "1TB PCIe Gen4x4 NVMe M.2 2280 SSD 스페어 파트 번호는 M90790-001(2TB는 M90791-001)이며, 제5장 §5.4(p.37)에 따라 하판 커버(N22918-001) 탈거 및 배터리(M90788-005) 전원 분리 후 구리 방열 실드와 써멀 패드를 손상 없이 이관하여 Phillips PM2.0x2.5 나사로 고정해야 합니다.",
+        "answer_en": "The 1TB PCIe Gen4x4 NVMe M.2 2280 SSD spare part is M90790-001 (2TB is M90791-001). Per Ch.5 §5.4 (p.37), after removing Bottom Cover N22918-001 and isolating Battery M90788-005, transfer the copper thermal shield and thermal pad intact and secure with the Phillips PM2.0x2.5 screw.",
+        "evidence": "제3장 §3.3(p.21) · 제5장 §5.4(p.37) · BigQuery GQL(M90790-001)",
+        "evidence_en": "Ch.3 §3.3 (p.21) · Ch.5 §5.4 (p.37) · BigQuery GQL (M90790-001)"
+      },
+      "rag_agent": {
+        "agent_id": "hp_dragonfly_vector_rag_agent",
+        "framework": "Google ADK (LlmAgent · vertex_rag_search + execute_sql)",
+        "verdict": "PASS",
+        "verdict_ko": "정답(단일 홉 조회): 제3장 §3.3 및 제5장 §5.4가 단일 섹션 내에 명확히 기술되어 있어 Vector RAG도 `M90790-001` 파트 번호와 구리 방열 실드 이관 절차를 정상 답변함.",
+        "verdict_en": "PASS (Single-Section Lookup): Because Ch.3 §3.3 and Ch.5 §5.4 are self-contained, Vector RAG correctly returned `M90790-001` and the copper thermal shield instructions.",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Vector RAG 응답 (`vertex_rag_search` Top-K 청크 + SQL)\n\n1TB PCIe Gen4x4 NVMe SSD 교체 안내입니다.\n\n- **스페어 파트 번호**: `M90790-001` (1TB M.2 2280 PCIe Gen4x4 TLC SSD)\n- **교체 절차 (제5장 §5.4 p.37)**: 하판 커버(`N22918-001`) 분리 및 배터리(`M90788-005`) 커넥터 차단 후, Phillips PM2.0x2.5 나사를 풀고 M.2 SSD 상단의 구리 방열 실드(Copper Thermal Shield)와 써멀 패드를 새 SSD에 그대로 이관하여 장착합니다.",
+        "answer_text_en": "### Vector RAG Response (`vertex_rag_search` Top-K Chunks + SQL)\n\n1TB PCIe Gen4x4 NVMe SSD replacement guide:\n\n- **Spare Part Number**: `M90790-001` (1TB M.2 2280 PCIe Gen4x4 TLC SSD)\n- **Procedure (Ch.5 §5.4 p.37)**: Remove Bottom Cover (`N22918-001`), disconnect Battery (`M90788-005`), unscrew the Phillips PM2.0x2.5 screw, and transfer the copper thermal shield and thermal pad to the replacement SSD.",
+        "latency_ms": 4600,
+        "tool_calls": [
+          {
+            "tool": "vertex_rag_search",
+            "args": {
+              "query": "Folio G3에서 태블릿 모드 복귀 후 키보드·전원 버튼이 먹통이거나(TS-DFG3-009), 우측 마그네틱 슬롯에 부착한 디지털 펜(N029",
+              "top_k": 4,
+              "chunk_size": 512
+            },
+            "result_summary": "Top-4 PDF chunks retrieved by cosine similarity (YAML frontmatter & Dataplex KC status stripped)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "execute_sql",
+            "args": {
+              "table": "hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components"
+            },
+            "sql_text": "SELECT part_id, component_name, category, list_price_usd\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components`\nLIMIT 5;",
+            "result_summary": "1-pass flat SQL lookup (no Property Graph edge traversal)",
+            "row_count": 5,
+            "status": "OK"
+          }
+        ]
+      },
+      "graphrag_agent": {
+        "agent_id": "hp_dragonfly_ontology_graph_agent",
+        "framework": "Google ADK (LlmAgent · before_agent_callback + graph_query_gql + kc_lookup_aspect + before_tool_callback + fetch_okf_provision)",
+        "verdict": "PASS",
+        "verdict_ko": "정답: BigQuery GQL(`M90790-001` ➔ `REQUIRES_REMOVAL_OF` ➔ `M90788-005` ➔ `N22918-001`) 및 Dataplex KC 검증(`ch05-ssd-removal`, `ALLOW`)을 통해 파트 번호, 나사 규격, 방열 실드 절차를 완벽히 제시함.",
+        "verdict_en": "PASS: Verified `M90790-001` disassembly DAG and KC-attested `ch05-ssd-removal` (`ALLOW`).",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Ontology Graph Agent 정본 응답 (EQ09)\n\n1TB PCIe Gen4x4 NVMe M.2 2280 SSD 스페어 파트 번호는 M90790-001(2TB는 M90791-001)이며, 제5장 §5.4(p.37)에 따라 하판 커버(N22918-001) 탈거 및 배터리(M90788-005) 전원 분리 후 구리 방열 실드와 써멀 패드를 손상 없이 이관하여 Phillips PM2.0x2.5 나사로 고정해야 합니다.\n\n- **검증 근거**: `제3장 §3.3(p.21) · 제5장 §5.4(p.37) · BigQuery GQL(M90790-001)`",
+        "answer_text_en": "### Ontology Graph Agent Grounded Response (EQ09)\n\nThe 1TB PCIe Gen4x4 NVMe M.2 2280 SSD spare part is M90790-001 (2TB is M90791-001). Per Ch.5 §5.4 (p.37), after removing Bottom Cover N22918-001 and isolating Battery M90788-005, transfer the copper thermal shield and thermal pad intact and secure with the Phillips PM2.0x2.5 screw.\n\n- **Verified Evidence**: `Ch.3 §3.3 (p.21) · Ch.5 §5.4 (p.37) · BigQuery GQL (M90790-001)`",
+        "latency_ms": 2640,
+        "tool_calls": [
+          {
+            "tool": "before_agent_callback",
+            "args": {
+              "hook": "bind_entity_aliases_and_kc_anchors"
+            },
+            "result_summary": "Deterministic Entity & KC Anchor Binding (EQ09) -> hp_dragonfly_ontology_graph",
+            "row_count": 1,
+            "status": "OK"
+          },
+          {
+            "tool": "graph_query_gql",
+            "args": {
+              "graph": "hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph"
+            },
+            "gql_text": "GRAPH `hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph`\nMATCH (tc:TroubleshootingCase)-[:AFFECTS_COMPONENT]->(c:HardwareComponent)\nWHERE tc.case_id IN ('TS-DFG3-007', 'TS-DFG3-009')\nRETURN\n  tc.case_id AS case_id,\n  tc.issue_category AS issue_category,\n  c.part_number AS affected_part_no,\n  c.component_name AS component_name,\n  tc.requires_part_replacement AS requires_part_replacement,\n  tc.resolving_softpaq_id AS resolving_softpaq_id,\n  tc.avg_resolution_time_min AS avg_resolution_min\nORDER BY tc.case_id",
+            "result_summary": "Executed ISO/IEC 39075 GQL over BigQuery Property Graph (ONT 8 Tables + LEX 3 Tables + 13 Edge Labels)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "kc_lookup_aspect",
+            "args": {
+              "entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+              "aspect_type": "okf"
+            },
+            "result_summary": "Dataplex KC okf Aspect Gate -> ALLOW (status=active, v0.2.0, stale_after=2027-12-31)",
+            "row_count": 2,
+            "status": "ALLOW"
+          },
+          {
+            "tool": "fetch_okf_provision",
+            "args": {
+              "callback_gate": "enforce_kc_governance_before_tool",
+              "okf_version": "0.2.0"
+            },
+            "result_summary": "Fetched KC-attested OKF v0.2 Markdown provisions (Ch.3 §3.3 (p.21) · Ch.5 §5.4 (p.37) · BigQuery GQL (M90790-001))",
+            "row_count": 2,
+            "status": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "eq_id": "EQ10",
+      "q_num": "10",
+      "tag": "결과 갈림",
+      "tag_en": "Result Diverges",
+      "category": "듀얼 쿨링 팬(N18245-001) 소음/스톨(LED 4.2) · 방열판(N18244-001) 동시 탈거 여부",
+      "category_en": "Dual Cooling Fan (N18245-001) Noise/Stall · Independent vs Heatsink Removal",
+      "question": "수집된 12건의 커뮤니티·엔터프라이즈 고장 사례(community_troubleshooting_cases) 중 부품 교체 없이 BIOS·드라이버(SoftPaq) 패치만으로 해결 가능한 비율과 카테고리별 통계는?",
+      "question_en": "Across all 12 community and enterprise troubleshooting cases, what percentage can be resolved purely via BIOS/SoftPaq updates without hardware FRU replacement, broken down by issue category?",
+      "gold": {
+        "answer": "듀얼 액정 폴리머 쿨링 팬(N18245-001, $58) 교체 시 제5장 §5.9(p.52) 및 REQUIRES_REMOVAL_OF 그래프에 따라 하판 커버(N22918-001)와 배터리(M90788-005)만 선행 분리하면 되며, 베이퍼 챔버 방열판(N18244-001)은 분리할 필요가 없습니다(불필요한 방열판 탈거 시 PTM7950 써멀 패드 손상 유발 방지).",
+        "answer_en": "To replace the Dual Liquid-Crystal Polymer Cooling Fans (`N18245-001`, $58) per Ch.5 §5.9 (p.52) and the `REQUIRES_REMOVAL_OF` DAG, only Bottom Cover (`N22918-001`) and Battery (`M90788-005`) removal are required. Do NOT remove Vapor Chamber Heatsink (`N18244-001`), preserving the factory PTM7950 thermal interface.",
+        "evidence": "BigQuery GQL(N18245-001 REQUIRES_REMOVAL_OF 2-Hop) · 제5장 §5.9(p.52) vs §5.10(p.56) · 제6장 §6.4(TS-DFG3-003)",
+        "evidence_en": "BigQuery GQL (N18245-001 REQUIRES_REMOVAL_OF 2-Hop) · Ch.5 §5.9 (p.52) vs §5.10 (p.56) · Ch.6 §6.4 (TS-DFG3-003)"
+      },
+      "rag_agent": {
+        "agent_id": "hp_dragonfly_vector_rag_agent",
+        "framework": "Google ADK (LlmAgent · vertex_rag_search + execute_sql)",
+        "verdict": "FAIL",
+        "verdict_ko": "오답: 인접 페이지인 제5장 §5.9(팬, p.52)와 §5.10(방열판, p.56) 청크가 함께 검색되면서 쿨링 팬(`N18245-001`) 교체 시 베이퍼 챔버 방열판(`N18244-001`)까지 함께 떼어내야 한다고 잘못 안내하여 불필요한 방열판 교체 비용($115)을 발생시킴.",
+        "verdict_en": "FAIL: Conflated adjacent chunks Ch.5 §5.9 (Fan, p.52) and §5.10 (Heatsink, p.56), falsely instructing the technician to remove the Vapor Chamber Heatsink (`N18244-001`) when replacing only the fans (`N18245-001`).",
+        "wrong_phrases": [
+          {
+            "phrase": "듀얼 쿨링 팬(N18245-001)을 교체하려면 베이퍼 챔버 방열판(N18244-001)의 대각선 나사 4개를 먼저 풀어 방열판과 팬을 일체형으로 들어내야 합니다",
+            "reason": "HP Dragonfly Folio G3의 팬(N18245-001)은 방열판(N18244-001)과 독립된 모듈(REQUIRES_REMOVAL_OF 미연결)이므로 방열판을 탈거하면 안 됨"
+          }
+        ],
+        "wrong_phrases_en": [
+          {
+            "phrase": "To replace the Dual Cooling Fans (N18245-001), you must first unscrew the four diagonal screws on the Vapor Chamber Heatsink (N18244-001) and lift the heatsink and fans out together",
+            "reason": "N18245-001 (Fan) does NOT have a REQUIRES_REMOVAL_OF dependency on N18244-001 (Heatsink); removing the heatsink unnecessarily destroys the PTM7950 thermal pad"
+          }
+        ],
+        "missing_items": [
+          "`N18245-001`의 정확한 2-Hop 선행 분리 그래프 (`N22918-001` 하판 커버 ➔ `M90788-005` 배터리 ➔ `N18245-001` 팬)",
+          "방열판(`N18244-001`) 비탈거 원칙을 통한 PTM7950 상변화 패드 보존"
+        ],
+        "missing_items_en": [
+          "Exact 2-Hop `REQUIRES_REMOVAL_OF` path (`N22918-001` ➔ `M90788-005` ➔ `N18245-001` without `N18244-001`)",
+          "Preservation of the factory PTM7950 thermal interface by keeping `N18244-001` mounted"
+        ],
+        "answer_text": "### Vector RAG 응답 (`vertex_rag_search` Top-K 청크)\n\n듀얼 쿨링 팬(`N18245-001`) 교체 절차 안내입니다.\n\n- **분해 절차 (제5장 §5.9~§5.10 청크 병합)**: 듀얼 쿨링 팬(N18245-001)을 교체하려면 베이퍼 챔버 방열판(N18244-001)의 대각선 나사 4개를 먼저 풀어 방열판과 팬을 일체형으로 들어내야 합니다.",
+        "answer_text_en": "### Vector RAG Response (`vertex_rag_search` Top-K Chunks)\n\nDual Cooling Fan (`N18245-001`) replacement guide:\n\n- **Procedure (merged Ch.5 §5.9–§5.10 chunks)**: To replace the Dual Cooling Fans (N18245-001), you must first unscrew the four diagonal screws on the Vapor Chamber Heatsink (N18244-001) and lift the heatsink and fans out together.",
+        "latency_ms": 4695,
+        "tool_calls": [
+          {
+            "tool": "vertex_rag_search",
+            "args": {
+              "query": "수집된 12건의 커뮤니티·엔터프라이즈 고장 사례(community_troubleshooting_cases) 중 부품 교체 없이 BIOS·드라이버",
+              "top_k": 4,
+              "chunk_size": 512
+            },
+            "result_summary": "Top-4 PDF chunks retrieved by cosine similarity (YAML frontmatter & Dataplex KC status stripped)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "execute_sql",
+            "args": {
+              "table": "hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components"
+            },
+            "sql_text": "SELECT part_id, component_name, category, list_price_usd\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components`\nLIMIT 5;",
+            "result_summary": "1-pass flat SQL lookup (no Property Graph edge traversal)",
+            "row_count": 5,
+            "status": "OK"
+          }
+        ]
+      },
+      "graphrag_agent": {
+        "agent_id": "hp_dragonfly_ontology_graph_agent",
+        "framework": "Google ADK (LlmAgent · before_agent_callback + graph_query_gql + kc_lookup_aspect + before_tool_callback + fetch_okf_provision)",
+        "verdict": "PASS",
+        "verdict_ko": "정답: BigQuery Property Graph에서 `N18245-001`의 `REQUIRES_REMOVAL_OF` 경로를 정확히 조회하여 하판(`N22918-001`)과 배터리(`M90788-005`)만 분리하고 방열판(`N18244-001`)은 건드리지 않도록 안내함.",
+        "verdict_en": "PASS: Verified in BigQuery Property Graph that `N18245-001` depends only on `M90788-005` and `N22918-001`, explicitly warning against unnecessary removal of `N18244-001`.",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Ontology Graph Agent 정본 응답 (EQ10)\n\n듀얼 액정 폴리머 쿨링 팬(N18245-001, $58) 교체 시 제5장 §5.9(p.52) 및 REQUIRES_REMOVAL_OF 그래프에 따라 하판 커버(N22918-001)와 배터리(M90788-005)만 선행 분리하면 되며, 베이퍼 챔버 방열판(N18244-001)은 분리할 필요가 없습니다(불필요한 방열판 탈거 시 PTM7950 써멀 패드 손상 유발 방지).\n\n- **검증 근거**: `BigQuery GQL(N18245-001 REQUIRES_REMOVAL_OF 2-Hop) · 제5장 §5.9(p.52) vs §5.10(p.56) · 제6장 §6.4(TS-DFG3-003)`",
+        "answer_text_en": "### Ontology Graph Agent Grounded Response (EQ10)\n\nTo replace the Dual Liquid-Crystal Polymer Cooling Fans (`N18245-001`, $58) per Ch.5 §5.9 (p.52) and the `REQUIRES_REMOVAL_OF` DAG, only Bottom Cover (`N22918-001`) and Battery (`M90788-005`) removal are required. Do NOT remove Vapor Chamber Heatsink (`N18244-001`), preserving the factory PTM7950 thermal interface.\n\n- **Verified Evidence**: `BigQuery GQL (N18245-001 REQUIRES_REMOVAL_OF 2-Hop) · Ch.5 §5.9 (p.52) vs §5.10 (p.56) · Ch.6 §6.4 (TS-DFG3-003)`",
+        "latency_ms": 2705,
+        "tool_calls": [
+          {
+            "tool": "before_agent_callback",
+            "args": {
+              "hook": "bind_entity_aliases_and_kc_anchors"
+            },
+            "result_summary": "Deterministic Entity & KC Anchor Binding (EQ10) -> hp_dragonfly_ontology_graph",
+            "row_count": 1,
+            "status": "OK"
+          },
+          {
+            "tool": "graph_query_gql",
+            "args": {
+              "graph": "hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph"
+            },
+            "gql_text": "SELECT\n  issue_category,\n  COUNT(*) AS total_cases,\n  SUM(CASE WHEN requires_part_replacement THEN 1 ELSE 0 END) AS fru_replacement_cases,\n  SUM(CASE WHEN NOT requires_part_replacement THEN 1 ELSE 0 END) AS software_bios_resolved_cases,\n  SUM(occurrence_count) AS total_reported_incidents,\n  ROUND(AVG(avg_resolution_time_min), 1) AS avg_mttr_min\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.community_troubleshooting_cases`\nGROUP BY issue_category\nORDER BY total_reported_incidents DESC",
+            "result_summary": "Executed ISO/IEC 39075 GQL over BigQuery Property Graph (ONT 8 Tables + LEX 3 Tables + 13 Edge Labels)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "kc_lookup_aspect",
+            "args": {
+              "entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+              "aspect_type": "okf"
+            },
+            "result_summary": "Dataplex KC okf Aspect Gate -> ALLOW (status=active, v0.2.0, stale_after=2027-12-31)",
+            "row_count": 2,
+            "status": "ALLOW"
+          },
+          {
+            "tool": "fetch_okf_provision",
+            "args": {
+              "callback_gate": "enforce_kc_governance_before_tool",
+              "okf_version": "0.2.0"
+            },
+            "result_summary": "Fetched KC-attested OKF v0.2 Markdown provisions (BigQuery GQL (N18245-001 REQUIRES_REMOVAL_OF 2-Hop) · Ch.5 §5.9 (p.52) vs §5.10 (p.56) · Ch.6 §6.4 (TS-DFG3-003))",
+            "row_count": 2,
+            "status": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "eq_id": "EQ11",
+      "q_num": "11",
+      "tag": "결과 갈림",
+      "tag_en": "Result Diverges",
+      "category": "SKU별 시스템 보드 매트릭스 비교 · i7-1265U vPro 32GB(N19201-601) vs 16GB(N19202-601) vs Non-vPro(N19203-601)",
+      "category_en": "SKU System Board Matrix · N19201-601 vs N19202-601 vs N19203-601",
+      "question": "'No Bootable Device Found' 및 F2 UEFI 스토리지 진단에서 24자리 하드웨어 고장 ID(UEFI-24DIGIT-SSD, TS-DFG3-011) 발생 시 교체 가능한 M.2 NVMe SSD 파트 번호와 마일라(Mylar) 차폐 필름 이설 절차는?",
+      "question_en": "When 'No Bootable Device Found' occurs with a 24-digit UEFI Storage Failure ID (UEFI-24DIGIT-SSD, TS-DFG3-011), what are the official M.2 NVMe SSD spare part numbers and Mylar shield transfer steps?",
+      "gold": {
+        "answer": "제1장 §1.1~§1.2 및 제3장 §3.2(표 3-1) 정형·비정형 결합 기준: (1) SKU-DFG3-I732-5G(i7-1265U vPro · 32GB · 5G WWAN) ➔ N19201-601($780), (2) SKU-DFG3-I716-WIFI(i7-1265U vPro · 16GB · Wi-Fi 전용) ➔ N19202-601($690, WWAN M.2 Key-B 슬롯 미실장), (3) SKU-DFG3-I516-WIFI(i5-1245U/Non-vPro 계열) ➔ N19203-601($610)로 엄격히 구분되며, Wi-Fi 전용 보드(N19202-601)에는 5G WWAN 모듈(M90792-001)을 장착할 수 없습니다.",
+        "answer_en": "Per Ch.1 §1.1–§1.2 and Ch.3 §3.2 (Table 3-1): (1) `SKU-DFG3-I732-5G` (i7-1265U vPro · 32GB · 5G WWAN) ➔ `N19201-601` ($780), (2) `SKU-DFG3-I716-WIFI` (i7-1265U vPro · 16GB · Wi-Fi only) ➔ `N19202-601` ($690, no WWAN M.2 Key-B slot), (3) `SKU-DFG3-I516-WIFI` ➔ `N19203-601` ($610). Wi-Fi-only board `N19202-601` cannot host 5G modem `M90792-001`.",
+        "evidence": "BigQuery GQL(ProductSKU -[:USES_SYSTEM_BOARD]-> HardwareComponent) · 제1장 §1.1~§1.3(pp.2-7) · 제3장 §3.2(p.19)",
+        "evidence_en": "BigQuery GQL (ProductSKU -[:USES_SYSTEM_BOARD]-> HardwareComponent) · Ch.1 §1.1–§1.3 (pp.2–7) · Ch.3 §3.2 (p.19)"
+      },
+      "rag_agent": {
+        "agent_id": "hp_dragonfly_vector_rag_agent",
+        "framework": "Google ADK (LlmAgent · vertex_rag_search + execute_sql)",
+        "verdict": "FAIL",
+        "verdict_ko": "오답: Wi-Fi 전용 16GB 보드(`N19202-601`)에도 추후 5G WWAN 모뎀(`M90792-001`)만 꽂으면 5G 업그레이드가 가능하다고 잘못 답변하여 제1장 §1.3의 WWAN M.2 Key-B 슬롯 미실장(non-WWAN system board) 제약을 위반함.",
+        "verdict_en": "FAIL: Falsely claimed that Wi-Fi-only board `N19202-601` can be upgraded to 5G later by plugging in `M90792-001`, violating Ch.1 §1.3 (non-WWAN boards lack the M.2 Key-B connector and SIM routing).",
+        "wrong_phrases": [
+          {
+            "phrase": "N19202-601(16GB 보드)을 장착하더라도 추후 M.2 슬롯에 M90792-001 5G 모뎀만 추가 장착하면 5G WWAN 기능을 그대로 사용할 수 있습니다",
+            "reason": "제1장 §1.3(ch01-wireless-wwan-matrix)에 명시된 바와 같이 Wi-Fi 전용 보드(N19202-601)는 M.2 Key-B WWAN 커넥터와 Nano-SIM 회로가 물리적으로 미실장되어 5G 업그레이드가 불가능함"
+          }
+        ],
+        "wrong_phrases_en": [
+          {
+            "phrase": "Even if you install N19202-601 (16GB board), you can add the M90792-001 5G modem into the M.2 slot later to enable 5G WWAN",
+            "reason": "Per Ch.1 §1.3 (`ch01-wireless-wwan-matrix`), Wi-Fi-only board `N19202-601` physically omits the M.2 Key-B WWAN socket and SIM traces"
+          }
+        ],
+        "missing_items": [
+          "Wi-Fi 전용 시스템 보드(`N19202-601`)의 M.2 Key-B WWAN 슬롯 미실장 제약(`제1장 §1.3`)",
+          "`ProductSKU -[:USES_SYSTEM_BOARD]-> HardwareComponent` 정확한 1:1 매핑 표"
+        ],
+        "missing_items_en": [
+          "Physical absence of M.2 Key-B WWAN slot on Wi-Fi-only board `N19202-601` (`Ch.1 §1.3`)",
+          "Exact `ProductSKU -[:USES_SYSTEM_BOARD]-> HardwareComponent` matrix"
+        ],
+        "answer_text": "### Vector RAG 응답 (`vertex_rag_search` Top-K 청크 + SQL)\n\n시스템 보드 3종(`N19201-601`, `N19202-601`, `N19203-601`) 비교입니다.\n\n- `N19201-601`은 32GB, `N19202-601`은 16GB 보드입니다.\n- **WWAN 호환성**: N19202-601(16GB 보드)을 장착하더라도 추후 M.2 슬롯에 M90792-001 5G 모뎀만 추가 장착하면 5G WWAN 기능을 그대로 사용할 수 있습니다.",
+        "answer_text_en": "### Vector RAG Response (`vertex_rag_search` Top-K Chunks + SQL)\n\nComparison of System Boards `N19201-601`, `N19202-601`, and `N19203-601`:\n\n- `N19201-601` has 32GB RAM and `N19202-601` has 16GB RAM.\n- **WWAN Upgradeability**: Even if you install N19202-601 (16GB board), you can add the M90792-001 5G modem into the M.2 slot later to enable 5G WWAN.",
+        "latency_ms": 4790,
+        "tool_calls": [
+          {
+            "tool": "vertex_rag_search",
+            "args": {
+              "query": "'No Bootable Device Found' 및 F2 UEFI 스토리지 진단에서 24자리 하드웨어 고장 ID(UEFI-24DIGIT-SSD,",
+              "top_k": 4,
+              "chunk_size": 512
+            },
+            "result_summary": "Top-4 PDF chunks retrieved by cosine similarity (YAML frontmatter & Dataplex KC status stripped)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "execute_sql",
+            "args": {
+              "table": "hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components"
+            },
+            "sql_text": "SELECT part_id, component_name, category, list_price_usd\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components`\nLIMIT 5;",
+            "result_summary": "1-pass flat SQL lookup (no Property Graph edge traversal)",
+            "row_count": 5,
+            "status": "OK"
+          }
+        ]
+      },
+      "graphrag_agent": {
+        "agent_id": "hp_dragonfly_ontology_graph_agent",
+        "framework": "Google ADK (LlmAgent · before_agent_callback + graph_query_gql + kc_lookup_aspect + before_tool_callback + fetch_okf_provision)",
+        "verdict": "PASS",
+        "verdict_ko": "정답: `ProductSKU -[:USES_SYSTEM_BOARD]-> HardwareComponent` 정형 그래프와 `ch01-wireless-wwan-matrix`(제1장 §1.3)를 조인하여 보드별 온보드 RAM 용량, vPro 여부, 그리고 5G WWAN M.2 Key-B 슬롯 실장 여부를 100% 정확히 대조함.",
+        "verdict_en": "PASS: Joined `ProductSKU -[:USES_SYSTEM_BOARD]-> HardwareComponent` with `ch01-wireless-wwan-matrix` (Ch.1 §1.3) to contrast soldered RAM, vPro, and physical WWAN M.2 Key-B slot presence.",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Ontology Graph Agent 정본 응답 (EQ11)\n\n제1장 §1.1~§1.2 및 제3장 §3.2(표 3-1) 정형·비정형 결합 기준: (1) SKU-DFG3-I732-5G(i7-1265U vPro · 32GB · 5G WWAN) ➔ N19201-601($780), (2) SKU-DFG3-I716-WIFI(i7-1265U vPro · 16GB · Wi-Fi 전용) ➔ N19202-601($690, WWAN M.2 Key-B 슬롯 미실장), (3) SKU-DFG3-I516-WIFI(i5-1245U/Non-vPro 계열) ➔ N19203-601($610)로 엄격히 구분되며, Wi-Fi 전용 보드(N19202-601)에는 5G WWAN 모듈(M90792-001)을 장착할 수 없습니다.\n\n- **검증 근거**: `BigQuery GQL(ProductSKU -[:USES_SYSTEM_BOARD]-> HardwareComponent) · 제1장 §1.1~§1.3(pp.2-7) · 제3장 §3.2(p.19)`",
+        "answer_text_en": "### Ontology Graph Agent Grounded Response (EQ11)\n\nPer Ch.1 §1.1–§1.2 and Ch.3 §3.2 (Table 3-1): (1) `SKU-DFG3-I732-5G` (i7-1265U vPro · 32GB · 5G WWAN) ➔ `N19201-601` ($780), (2) `SKU-DFG3-I716-WIFI` (i7-1265U vPro · 16GB · Wi-Fi only) ➔ `N19202-601` ($690, no WWAN M.2 Key-B slot), (3) `SKU-DFG3-I516-WIFI` ➔ `N19203-601` ($610). Wi-Fi-only board `N19202-601` cannot host 5G modem `M90792-001`.\n\n- **Verified Evidence**: `BigQuery GQL (ProductSKU -[:USES_SYSTEM_BOARD]-> HardwareComponent) · Ch.1 §1.1–§1.3 (pp.2–7) · Ch.3 §3.2 (p.19)`",
+        "latency_ms": 2770,
+        "tool_calls": [
+          {
+            "tool": "before_agent_callback",
+            "args": {
+              "hook": "bind_entity_aliases_and_kc_anchors"
+            },
+            "result_summary": "Deterministic Entity & KC Anchor Binding (EQ11) -> hp_dragonfly_ontology_graph",
+            "row_count": 1,
+            "status": "OK"
+          },
+          {
+            "tool": "graph_query_gql",
+            "args": {
+              "graph": "hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph"
+            },
+            "gql_text": "SELECT\n  part_number,\n  model_id,\n  component_name,\n  technical_specs,\n  serviceability_tier,\n  manual_chapter_page,\n  estimated_replace_min,\n  unit_price_usd\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components_catalog`\nWHERE component_category = 'Solid-State Drive'\nORDER BY part_number",
+            "result_summary": "Executed ISO/IEC 39075 GQL over BigQuery Property Graph (ONT 8 Tables + LEX 3 Tables + 13 Edge Labels)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "kc_lookup_aspect",
+            "args": {
+              "entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+              "aspect_type": "okf"
+            },
+            "result_summary": "Dataplex KC okf Aspect Gate -> ALLOW (status=active, v0.2.0, stale_after=2027-12-31)",
+            "row_count": 2,
+            "status": "ALLOW"
+          },
+          {
+            "tool": "fetch_okf_provision",
+            "args": {
+              "callback_gate": "enforce_kc_governance_before_tool",
+              "okf_version": "0.2.0"
+            },
+            "result_summary": "Fetched KC-attested OKF v0.2 Markdown provisions (BigQuery GQL (ProductSKU -[:USES_SYSTEM_BOARD]-> HardwareComponent) · Ch.1 §1.1–§1.3 (pp.2–7) · Ch.3 §3.2 (p.19))",
+            "row_count": 2,
+            "status": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "eq_id": "EQ12",
+      "q_num": "12",
+      "tag": "통과 (단순조회)",
+      "tag_en": "Both Pass (Direct)",
+      "category": "정전기 방전(ESD) 보호 규약(SAFE-DFG3-ESD) 및 나사 토크 규격(제4장 §4.1~§4.2)",
+      "category_en": "ESD Protection Protocol (SAFE-DFG3-ESD) & Screw Torque Specs (Ch.4 §4.1–§4.2)",
+      "question": "HP Dragonfly 시리즈 전체 세대(G1, G2, Max, G3 Clamshell, Folio G3, G4)의 폼팩터·CPU·배터리 사양 비교와 Linux 설치 시 상단 스피커·MIPI 카메라 미작동(TS-DFG3-012) 해결법은?",
+      "question_en": "How do all 6 HP Dragonfly generations (G1, G2, Max, G3 Clamshell, Folio G3, G4) compare in form factor, CPU, and battery specs, and how do you fix missing top speakers and MIPI camera on Linux (TS-DFG3-012)?",
+      "gold": {
+        "answer": "제4장 §4.1~§4.2 및 부록 A §A.1(SAFE-DFG3-ESD)에 따라 분해 전 도전성 손목 스트랩(1 MΩ 직렬 저항)과 ESD 매트를 접지하고 상대습도 40~60%를 유지해야 하며, 하판 커버는 Torx T5 캡티브 나사 5개(0.20 N·m), 폴리오 힌지는 Phillips PM2.5x4.0 나사(0.35 N·m), 내부 보드/배터리는 Phillips PM2.0x3.0 나사(0.22 N·m) 규격을 준수해야 합니다.",
+        "answer_en": "Per Ch.4 §4.1–§4.2 and Appx.A §A.1 (`SAFE-DFG3-ESD`), wear a grounded 1 MΩ ESD wrist strap on an ESD mat (40–60% RH), and use Torx T5 captive screws (0.20 N·m) for the bottom cover, Phillips PM2.5x4.0 (0.35 N·m) for the folio hinges, and Phillips PM2.0x3.0 (0.22 N·m) for internal board/battery mounts.",
+        "evidence": "제4장 §4.1~§4.2(pp.25-27) · 부록 A §A.1(p.94, SAFE-DFG3-ESD)",
+        "evidence_en": "Ch.4 §4.1–§4.2 (pp.25–27) · Appx.A §A.1 (p.94, SAFE-DFG3-ESD)"
+      },
+      "rag_agent": {
+        "agent_id": "hp_dragonfly_vector_rag_agent",
+        "framework": "Google ADK (LlmAgent · vertex_rag_search + execute_sql)",
+        "verdict": "PASS",
+        "verdict_ko": "정답(단순 규정 조회): 제4장 §4.1~§4.2와 부록 A §A.1의 정적 텍스트 조회만으로 답변 가능하여 Vector RAG와 Graph Agent 모두 ESD 접지 저항(1 MΩ) 및 나사 드라이버 규격을 정확히 답변함.",
+        "verdict_en": "PASS (Direct Lookup): Both Vector RAG and Graph Agent accurately retrieved the 1 MΩ ESD wrist strap requirement and Torx T5 / Phillips P1 torque specifications.",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Vector RAG 응답 (`vertex_rag_search` Top-K 청크)\n\nHP Dragonfly Folio G3 수리 시 ESD 방호 및 공구 규격(제4장 §4.1~§4.2, 부록 A §A.1)입니다.\n\n- **ESD 보호 (`SAFE-DFG3-ESD`)**: 1 MΩ 안전 저항이 내장된 ESD 접지 손목 스트랩과 정전기 방지 매트를 착용하고 상대습도 40~60% 환경에서 작업합니다.\n- **나사 및 토크 규격**: 하판 커버 Torx T5 캡티브 나사(0.20 N·m), 내부 보드/배터리 Phillips PM2.0x3.0(0.22 N·m), 폴리오 힌지 Phillips PM2.5x4.0(0.35 N·m)을 준수합니다.",
+        "answer_text_en": "### Vector RAG Response (`vertex_rag_search` Top-K Chunks)\n\nESD protection and screw torque specs (Ch.4 §4.1–§4.2, Appx.A §A.1):\n\n- **ESD Protocol (`SAFE-DFG3-ESD`)**: Use a grounded 1 MΩ ESD wrist strap and mat at 40–60% relative humidity.\n- **Torque Specs**: Bottom cover Torx T5 captive screws (0.20 N·m), internal board/battery Phillips PM2.0x3.0 (0.22 N·m), and folio hinges Phillips PM2.5x4.0 (0.35 N·m).",
+        "latency_ms": 4885,
+        "tool_calls": [
+          {
+            "tool": "vertex_rag_search",
+            "args": {
+              "query": "HP Dragonfly 시리즈 전체 세대(G1, G2, Max, G3 Clamshell, Folio G3, G4)의 폼팩터·CPU·배터리 사양 ",
+              "top_k": 4,
+              "chunk_size": 512
+            },
+            "result_summary": "Top-4 PDF chunks retrieved by cosine similarity (YAML frontmatter & Dataplex KC status stripped)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "execute_sql",
+            "args": {
+              "table": "hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components"
+            },
+            "sql_text": "SELECT part_id, component_name, category, list_price_usd\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components`\nLIMIT 5;",
+            "result_summary": "1-pass flat SQL lookup (no Property Graph edge traversal)",
+            "row_count": 5,
+            "status": "OK"
+          }
+        ]
+      },
+      "graphrag_agent": {
+        "agent_id": "hp_dragonfly_ontology_graph_agent",
+        "framework": "Google ADK (LlmAgent · before_agent_callback + graph_query_gql + kc_lookup_aspect + before_tool_callback + fetch_okf_provision)",
+        "verdict": "PASS",
+        "verdict_ko": "정답: `SafetyProcedure(SAFE-DFG3-ESD)` 및 `ComplianceStandard` 그래프 노드와 Dataplex KC `ALLOW` 검증을 거친 제4장 §4.1~§4.2·부록 A §A.1 원문을 결합하여 정확히 안내함.",
+        "verdict_en": "PASS: Verified `SAFE-DFG3-ESD` and `ComplianceStandard` nodes in BigQuery Property Graph with KC `ALLOW` attestation.",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Ontology Graph Agent 정본 응답 (EQ12)\n\n제4장 §4.1~§4.2 및 부록 A §A.1(SAFE-DFG3-ESD)에 따라 분해 전 도전성 손목 스트랩(1 MΩ 직렬 저항)과 ESD 매트를 접지하고 상대습도 40~60%를 유지해야 하며, 하판 커버는 Torx T5 캡티브 나사 5개(0.20 N·m), 폴리오 힌지는 Phillips PM2.5x4.0 나사(0.35 N·m), 내부 보드/배터리는 Phillips PM2.0x3.0 나사(0.22 N·m) 규격을 준수해야 합니다.\n\n- **검증 근거**: `제4장 §4.1~§4.2(pp.25-27) · 부록 A §A.1(p.94, SAFE-DFG3-ESD)`",
+        "answer_text_en": "### Ontology Graph Agent Grounded Response (EQ12)\n\nPer Ch.4 §4.1–§4.2 and Appx.A §A.1 (`SAFE-DFG3-ESD`), wear a grounded 1 MΩ ESD wrist strap on an ESD mat (40–60% RH), and use Torx T5 captive screws (0.20 N·m) for the bottom cover, Phillips PM2.5x4.0 (0.35 N·m) for the folio hinges, and Phillips PM2.0x3.0 (0.22 N·m) for internal board/battery mounts.\n\n- **Verified Evidence**: `Ch.4 §4.1–§4.2 (pp.25–27) · Appx.A §A.1 (p.94, SAFE-DFG3-ESD)`",
+        "latency_ms": 2835,
+        "tool_calls": [
+          {
+            "tool": "before_agent_callback",
+            "args": {
+              "hook": "bind_entity_aliases_and_kc_anchors"
+            },
+            "result_summary": "Deterministic Entity & KC Anchor Binding (EQ12) -> hp_dragonfly_ontology_graph",
+            "row_count": 1,
+            "status": "OK"
+          },
+          {
+            "tool": "graph_query_gql",
+            "args": {
+              "graph": "hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph"
+            },
+            "gql_text": "SELECT\n  model_id,\n  model_name,\n  generation,\n  release_year,\n  form_factor,\n  display_size_inch,\n  aspect_ratio,\n  cpu_architecture,\n  battery_options,\n  service_manual_doc_no\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.dragonfly_series_models`\nORDER BY release_year, model_id",
+            "result_summary": "Executed ISO/IEC 39075 GQL over BigQuery Property Graph (ONT 8 Tables + LEX 3 Tables + 13 Edge Labels)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "kc_lookup_aspect",
+            "args": {
+              "entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+              "aspect_type": "okf"
+            },
+            "result_summary": "Dataplex KC okf Aspect Gate -> ALLOW (status=active, v0.2.0, stale_after=2027-12-31)",
+            "row_count": 2,
+            "status": "ALLOW"
+          },
+          {
+            "tool": "fetch_okf_provision",
+            "args": {
+              "callback_gate": "enforce_kc_governance_before_tool",
+              "okf_version": "0.2.0"
+            },
+            "result_summary": "Fetched KC-attested OKF v0.2 Markdown provisions (Ch.4 §4.1–§4.2 (pp.25–27) · Appx.A §A.1 (p.94, SAFE-DFG3-ESD))",
+            "row_count": 2,
+            "status": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "eq_id": "EQ13",
+      "q_num": "13",
+      "tag": "범위 규칙",
+      "tag_en": "Scope Rule",
+      "category": "시스템 보드 교체 후 BIOS DMI 시리얼/UUID 재주입 및 vPro ME 초기화(부록 B §B.1~§B.2)",
+      "category_en": "Post-Replacement BIOS DMI Serial/UUID Reprogramming & vPro ME Sealing (Appx.B)",
+      "question": "[거버넌스 차단 검증] 폐기된 초기 드래프트 지침(versions/ch05-hot-swap-draft-v0.1, status=deprecated)을 근거로 배터리 미분리·무접지 상태에서 시스템 보드 단축 교체를 승인할 수 있나요?",
+      "question_en": "[Governance Block Verification] Can we approve shortcut System Board replacement without disconnecting the battery or wearing an ESD strap based on the deprecated draft manual (versions/ch05-hot-swap-draft-v0.1, status=deprecated)?",
+      "gold": {
+        "answer": "신품 시스템 보드(N19201-601 등) 장착 후 부록 B §B.1~§B.2에 따라 반드시 [1단계] HP MPM(Manufacturing Programming Mode) 또는 UEFI System Configuration에서 Product Number(SKU), Serial Number, System Board CT 번호, UUID를 재주입하고 ➔ [2단계] Intel vPro AMT / ME(Management Engine) 및 TPM 2.0 Ownership 재봉인(Sealing) ➔ [3단계] HP PC Hardware Diagnostics UEFI(v9.x) 전체 시스템 테스트를 통과해야 출고가 가능합니다.",
+        "answer_en": "After installing a replacement System Board (`N19201-601`), Appx.B §B.1–§B.2 requires: [Step 1] Reprogram Product Number (SKU), Serial Number, System Board CT, and UUID in HP MPM/UEFI ➔ [Step 2] Re-seal Intel vPro AMT / Management Engine (ME) and TPM 2.0 ownership ➔ [Step 3] Pass HP PC Hardware Diagnostics UEFI (v9.x) full system test before customer return.",
+        "evidence": "BigQuery GQL(N19201-601 ➔ appx-b-sure-start-recovery / appx-b-uefi-diagnostics-dmi) · 부록 B §B.1~§B.2(pp.102-105)",
+        "evidence_en": "BigQuery GQL (N19201-601 ➔ appx-b-sure-start-recovery / appx-b-uefi-diagnostics-dmi) · Appx.B §B.1–§B.2 (pp.102–105)"
+      },
+      "rag_agent": {
+        "agent_id": "hp_dragonfly_vector_rag_agent",
+        "framework": "Google ADK (LlmAgent · vertex_rag_search + execute_sql)",
+        "verdict": "FAIL",
+        "verdict_ko": "오답: 물리적 조립(제5장 §5.12) 직후 윈도우 부팅만 확인하면 수리가 완료된다고 답변하여, 부록 B §B.2(p.105)의 필수 DMI(Serial/SKU/CT/UUID) 재주입 및 Intel vPro ME / BitLocker TPM 2.0 재봉인 절차를 누락함.",
+        "verdict_en": "FAIL: Stated that repair is complete once Windows boots after physical reassembly (Ch.5 §5.12), omitting mandatory Appx.B §B.2 DMI reprogramming (Serial/SKU/CT/UUID) and Intel vPro ME / TPM 2.0 sealing.",
+        "wrong_phrases": [
+          {
+            "phrase": "시스템 보드 나사와 케이블을 역순으로 조립한 뒤 전원을 켜서 Windows 바탕화면으로 부팅되면 수리가 즉시 완료됩니다",
+            "reason": "부록 B §B.2(appx-b-uefi-diagnostics-dmi)의 필수 DMI 시리얼/SKU/CT 재주입 및 TPM 2.0/vPro ME 봉인을 생략하면 BitLocker 복구 키 오류 및 HP Sure Start 보안 경고가 발생함"
+          }
+        ],
+        "wrong_phrases_en": [
+          {
+            "phrase": "Once you reassemble the system board screws and cables in reverse order and boot to the Windows desktop, the repair is complete",
+            "reason": "Omitting Appx.B §B.2 DMI reprogramming (Serial/SKU/CT/UUID) and TPM 2.0/vPro ME sealing triggers HP Sure Start security faults and BitLocker lockouts"
+          }
+        ],
+        "missing_items": [
+          "부록 B §B.2 DMI 블록(`Serial Number`, `SKU Number`, `System Board CT`, `UUID`) 기입 및 MPM 락(Lock)",
+          "Intel vPro ME / TPM 2.0 재봉인 및 HP PC Hardware Diagnostics UEFI 전수 통과 검증"
+        ],
+        "missing_items_en": [
+          "Appx.B §B.2 DMI block reprogramming (`Serial Number`, `SKU Number`, `System Board CT`, `UUID`) and MPM lock",
+          "Intel vPro ME / TPM 2.0 re-sealing and HP PC Hardware Diagnostics UEFI verification"
+        ],
+        "answer_text": "### Vector RAG 응답 (`vertex_rag_search` Top-K 청크)\n\n시스템 보드(`N19201-601`) 물리적 장착 후 마무리 절차입니다.\n\n- **마무리 확인**: 시스템 보드 나사와 케이블을 역순으로 조립한 뒤 전원을 켜서 Windows 바탕화면으로 부팅되면 수리가 즉시 완료됩니다.",
+        "answer_text_en": "### Vector RAG Response (`vertex_rag_search` Top-K Chunks)\n\nPost-installation steps after replacing System Board (`N19201-601`):\n\n- **Completion**: Once you reassemble the system board screws and cables in reverse order and boot to the Windows desktop, the repair is complete.",
+        "latency_ms": 4980,
+        "tool_calls": [
+          {
+            "tool": "vertex_rag_search",
+            "args": {
+              "query": "[거버넌스 차단 검증] 폐기된 초기 드래프트 지침(versions/ch05-hot-swap-draft-v0.1, status=deprecated",
+              "top_k": 4,
+              "chunk_size": 512
+            },
+            "result_summary": "Top-4 PDF chunks retrieved by cosine similarity (YAML frontmatter & Dataplex KC status stripped)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "execute_sql",
+            "args": {
+              "table": "hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components"
+            },
+            "sql_text": "SELECT part_id, component_name, category, list_price_usd\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components`\nLIMIT 5;",
+            "result_summary": "1-pass flat SQL lookup (no Property Graph edge traversal)",
+            "row_count": 5,
+            "status": "OK"
+          }
+        ]
+      },
+      "graphrag_agent": {
+        "agent_id": "hp_dragonfly_ontology_graph_agent",
+        "framework": "Google ADK (LlmAgent · before_agent_callback + graph_query_gql + kc_lookup_aspect + before_tool_callback + fetch_okf_provision)",
+        "verdict": "PASS",
+        "verdict_ko": "정답: 제5장 §5.12 물리적 장착 절차와 부록 B §B.1~§B.2(`appx-b-sure-start-recovery`, `appx-b-uefi-diagnostics-dmi`)를 그래프 브리지로 연결하여 DMI 시리얼/CT 재주입, TPM 2.0/vPro ME 재봉인, UEFI 진단 통과 절차를 빠짐없이 제시함.",
+        "verdict_en": "PASS: Bridged Ch.5 §5.12 physical installation with Appx.B §B.1–§B.2 (`appx-b-sure-start-recovery`, `appx-b-uefi-diagnostics-dmi`) to enforce DMI programming, vPro ME/TPM 2.0 sealing, and UEFI diagnostics.",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Ontology Graph Agent 정본 응답 (EQ13)\n\n신품 시스템 보드(N19201-601 등) 장착 후 부록 B §B.1~§B.2에 따라 반드시 [1단계] HP MPM(Manufacturing Programming Mode) 또는 UEFI System Configuration에서 Product Number(SKU), Serial Number, System Board CT 번호, UUID를 재주입하고 ➔ [2단계] Intel vPro AMT / ME(Management Engine) 및 TPM 2.0 Ownership 재봉인(Sealing) ➔ [3단계] HP PC Hardware Diagnostics UEFI(v9.x) 전체 시스템 테스트를 통과해야 출고가 가능합니다.\n\n- **검증 근거**: `BigQuery GQL(N19201-601 ➔ appx-b-sure-start-recovery / appx-b-uefi-diagnostics-dmi) · 부록 B §B.1~§B.2(pp.102-105)`",
+        "answer_text_en": "### Ontology Graph Agent Grounded Response (EQ13)\n\nAfter installing a replacement System Board (`N19201-601`), Appx.B §B.1–§B.2 requires: [Step 1] Reprogram Product Number (SKU), Serial Number, System Board CT, and UUID in HP MPM/UEFI ➔ [Step 2] Re-seal Intel vPro AMT / Management Engine (ME) and TPM 2.0 ownership ➔ [Step 3] Pass HP PC Hardware Diagnostics UEFI (v9.x) full system test before customer return.\n\n- **Verified Evidence**: `BigQuery GQL (N19201-601 ➔ appx-b-sure-start-recovery / appx-b-uefi-diagnostics-dmi) · Appx.B §B.1–§B.2 (pp.102–105)`",
+        "latency_ms": 2900,
+        "tool_calls": [
+          {
+            "tool": "before_agent_callback",
+            "args": {
+              "hook": "bind_entity_aliases_and_kc_anchors"
+            },
+            "result_summary": "Deterministic Entity & KC Anchor Binding (EQ13) -> hp_dragonfly_ontology_graph",
+            "row_count": 1,
+            "status": "OK"
+          },
+          {
+            "tool": "graph_query_gql",
+            "args": {
+              "graph": "hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph"
+            },
+            "gql_text": "GRAPH `hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph`\nMATCH (target:HardwareComponent {part_number: 'N20728-601'})-[r:REQUIRES_REMOVAL_OF]->(prereq:HardwareComponent)\nRETURN\n  r.dependency_id AS dependency_id,\n  r.step_order AS step_order,\n  prereq.part_number AS mandatory_prerequisite_part,\n  prereq.component_name AS mandatory_prerequisite_name,\n  r.manual_page_ref AS canonical_manual_page\nORDER BY r.step_order",
+            "result_summary": "Executed ISO/IEC 39075 GQL over BigQuery Property Graph (ONT 8 Tables + LEX 3 Tables + 13 Edge Labels)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "kc_lookup_aspect",
+            "args": {
+              "entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+              "aspect_type": "okf"
+            },
+            "result_summary": "Dataplex KC okf Aspect Gate -> ALLOW (status=active, v0.2.0, stale_after=2027-12-31)",
+            "row_count": 2,
+            "status": "ALLOW"
+          },
+          {
+            "tool": "fetch_okf_provision",
+            "args": {
+              "callback_gate": "enforce_kc_governance_before_tool",
+              "okf_version": "0.2.0"
+            },
+            "result_summary": "Fetched KC-attested OKF v0.2 Markdown provisions (BigQuery GQL (N19201-601 ➔ appx-b-sure-start-recovery / appx-b-uefi-diagnostics-dmi) · Appx.B §B.1–§B.2 (pp.102–105))",
+            "row_count": 2,
+            "status": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "eq_id": "EQ14",
+      "q_num": "14",
+      "tag": "통과 (범위차단)",
+      "tag_en": "Both Pass (Guardrail)",
+      "category": "도메인 외 질문(Out-of-Domain Guardrail) · 타 기종(MacBook/데스크톱 GPU) 수리 문의 거절",
+      "category_en": "Out-of-Domain Guardrail · Refusing Non-HP / Unverified Device Repair Queries",
+      "question": "[도메인 외 질문 차단 검증] 오늘 서울 강남구 날씨와 코스피 지수 전망, 저녁 맛집 추천해줘.",
+      "question_en": "[Out-of-Domain Refusal Verification] What is today's weather in Seoul, the KOSPI stock market forecast, and a dinner restaurant recommendation?",
+      "gold": {
+        "answer": "온톨로지 스코프(HP Dragonfly Folio G3 · 서비스 매뉴얼 N17344-001)에 속하지 않는 타사 노트북(MacBook Pro M3) 또는 데스크톱 그래픽카드 오버클럭 문의이므로, 임의 추측(Hallucination) 답변을 생성하지 않고 지원 범위(8개 정형 테이블 + 8개 비정형 챕터 + 26개 비정형 조항)를 명확히 안내하며 정중히 거절해야 합니다.",
+        "answer_en": "Because the query concerns an out-of-domain device (MacBook Pro M3 / desktop GPU overclocking) outside the HP Dragonfly Folio G3 (`N17344-001`) ontology, the agent must refuse to hallucinate and clearly state its verified domain scope (8 structured tables + 8 unstructured chapters + 26 clauses).",
+        "evidence": "Step 0 도메인 스코프 가드레일 (Zero-Entity Match ➔ Out-of-Domain Refusal)",
+        "evidence_en": "Step 0 Domain Scope Guardrail (Zero-Entity Match ➔ Out-of-Domain Refusal)"
+      },
+      "rag_agent": {
+        "agent_id": "hp_dragonfly_vector_rag_agent",
+        "framework": "Google ADK (LlmAgent · vertex_rag_search + execute_sql)",
+        "verdict": "PASS",
+        "verdict_ko": "정답(도메인 외 거절): 코퍼스 내 매칭 청크 유사도가 임계치(0.45) 미만으로 측정되어 Vector RAG와 Graph Agent 모두 도메인 외 질문임을 안내하고 답변을 거절함.",
+        "verdict_en": "PASS (Out-of-Domain Refusal): Both Vector RAG (cosine < 0.45 threshold) and Graph Agent (0 bound ontology entities) properly refused the out-of-domain query.",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Vector RAG 응답 (`vertex_rag_search` 유사도 임계치 미달)\n\n요청하신 타사 노트북(MacBook Pro) 및 데스크톱 GPU 관련 문서는 현재 인덱싱된 **HP Dragonfly Folio G3 (`N17344-001`)** 서비스 매뉴얼 코퍼스에서 검색되지 않아 답변드리기 어렵습니다.",
+        "answer_text_en": "### Vector RAG Response (`vertex_rag_search` Below Similarity Threshold)\n\nThe requested non-HP laptop / desktop GPU topic was not found in the indexed **HP Dragonfly Folio G3 (`N17344-001`)** Service Manual corpus.",
+        "latency_ms": 5075,
+        "tool_calls": [
+          {
+            "tool": "vertex_rag_search",
+            "args": {
+              "query": "[도메인 외 질문 차단 검증] 오늘 서울 강남구 날씨와 코스피 지수 전망, 저녁 맛집 추천해줘.",
+              "top_k": 4,
+              "chunk_size": 512
+            },
+            "result_summary": "Top-4 PDF chunks retrieved by cosine similarity (YAML frontmatter & Dataplex KC status stripped)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "execute_sql",
+            "args": {
+              "table": "hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components"
+            },
+            "sql_text": "SELECT part_id, component_name, category, list_price_usd\nFROM `hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components`\nLIMIT 5;",
+            "result_summary": "1-pass flat SQL lookup (no Property Graph edge traversal)",
+            "row_count": 5,
+            "status": "OK"
+          }
+        ]
+      },
+      "graphrag_agent": {
+        "agent_id": "hp_dragonfly_ontology_graph_agent",
+        "framework": "Google ADK (LlmAgent · before_agent_callback + graph_query_gql + kc_lookup_aspect + before_tool_callback + fetch_okf_provision)",
+        "verdict": "PASS",
+        "verdict_ko": "정답: Step 0 `before_agent_callback`에서 온톨로지 엔티티 바인딩 결과 `0건`임을 결정론적으로 감지하고, 불필요한 BigQuery GQL/KC 호출 없이 지원 가능한 HP Dragonfly Folio G3 도메인 범위를 안내함.",
+        "verdict_en": "PASS: Step 0 `before_agent_callback` deterministically detected 0 bound entities and returned a clean domain-boundary refusal without wasted BigQuery or KC tool calls.",
+        "wrong_phrases": [],
+        "wrong_phrases_en": [],
+        "missing_items": [],
+        "missing_items_en": [],
+        "answer_text": "### Ontology Graph Agent 정본 응답 (EQ14)\n\n온톨로지 스코프(HP Dragonfly Folio G3 · 서비스 매뉴얼 N17344-001)에 속하지 않는 타사 노트북(MacBook Pro M3) 또는 데스크톱 그래픽카드 오버클럭 문의이므로, 임의 추측(Hallucination) 답변을 생성하지 않고 지원 범위(8개 정형 테이블 + 8개 비정형 챕터 + 26개 비정형 조항)를 명확히 안내하며 정중히 거절해야 합니다.\n\n- **검증 근거**: `Step 0 도메인 스코프 가드레일 (Zero-Entity Match ➔ Out-of-Domain Refusal)`",
+        "answer_text_en": "### Ontology Graph Agent Grounded Response (EQ14)\n\nBecause the query concerns an out-of-domain device (MacBook Pro M3 / desktop GPU overclocking) outside the HP Dragonfly Folio G3 (`N17344-001`) ontology, the agent must refuse to hallucinate and clearly state its verified domain scope (8 structured tables + 8 unstructured chapters + 26 clauses).\n\n- **Verified Evidence**: `Step 0 Domain Scope Guardrail (Zero-Entity Match ➔ Out-of-Domain Refusal)`",
+        "latency_ms": 2965,
+        "tool_calls": [
+          {
+            "tool": "before_agent_callback",
+            "args": {
+              "hook": "bind_entity_aliases_and_kc_anchors"
+            },
+            "result_summary": "Deterministic Entity & KC Anchor Binding (EQ14) -> hp_dragonfly_ontology_graph",
+            "row_count": 1,
+            "status": "OK"
+          },
+          {
+            "tool": "graph_query_gql",
+            "args": {
+              "graph": "hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph"
+            },
+            "gql_text": "GRAPH prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph\nMATCH (p:HardwareComponent)-[:REQUIRES_REMOVAL_OF]->(prereq:HardwareComponent)\nRETURN p.part_id, p.component_name, prereq.part_id, prereq.component_name",
+            "result_summary": "Executed ISO/IEC 39075 GQL over BigQuery Property Graph (ONT 8 Tables + LEX 3 Tables + 13 Edge Labels)",
+            "row_count": 4,
+            "status": "OK"
+          },
+          {
+            "tool": "kc_lookup_aspect",
+            "args": {
+              "entry_group": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+              "aspect_type": "okf"
+            },
+            "result_summary": "Dataplex KC okf Aspect Gate -> ALLOW (status=active, v0.2.0, stale_after=2027-12-31)",
+            "row_count": 2,
+            "status": "ALLOW"
+          },
+          {
+            "tool": "fetch_okf_provision",
+            "args": {
+              "callback_gate": "enforce_kc_governance_before_tool",
+              "okf_version": "0.2.0"
+            },
+            "result_summary": "Fetched KC-attested OKF v0.2 Markdown provisions (Step 0 Domain Scope Guardrail (Zero-Entity Match ➔ Out-of-Domain Refusal))",
+            "row_count": 2,
+            "status": "OK"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -6670,95 +6670,929 @@
       .join("");
   }
 
-  function renderBenchmarkModule() {
-    const box = document.getElementById("module-benchmark");
-    if (!box) return;
-    const k = isKo();
+  // =========================================================================
+  // 8. MODULE 06: Google ADK RAG Agent vs. Ontology Graph Agent (`#module-benchmark`)
+  //    100% Structural & UX Parity with `krda-ontology-studio` (`mod-benchmark.js`)
+  // =========================================================================
+  let BENCH_VIEW_MODE = "live"; // 'live' | 'report' | 'code'
+  let BENCH_SELECTED_EQ_ID = "EQ01";
+  let BENCH_IS_SENDING = false;
+  let BENCH_LEFT_SIDEBAR_COLLAPSED = false;
+  let BENCH_SEARCH_FILTER = "";
+  let BENCH_INITIAL_SEEDED = false;
 
-    box.innerHTML = `
-      <div class="module-container">
-        <div class="mod-hero">
-          <div>
-            <div class="mod-tag">06 · Standard Vector RAG vs. Ontology Graph RAG Benchmark</div>
-            <div class="mod-title">
-              ${
-                k
-                  ? "단순 PDF 벡터 검색(Vector RAG) vs. BigQuery Property Graph + OKF v0.2 비교 검증"
-                  : "Standard PDF Chunk Vector RAG vs. BigQuery Property Graph + OKF v0.2 Benchmark"
-              }
+  function getBenchmarkData() {
+    if (window.HP_BENCHMARK_DATA && Array.isArray(window.HP_BENCHMARK_DATA.items)) {
+      return window.HP_BENCHMARK_DATA;
+    }
+    return {
+      summary: {
+        total_questions: 14,
+        rag_pass_count: 3,
+        rag_fail_count: 11,
+        rag_accuracy_pct: 21.4,
+        graphrag_pass_count: 14,
+        graphrag_fail_count: 0,
+        graphrag_accuracy_pct: 100.0
+      },
+      adk_agents: {
+        rag_agent_name: "hp_dragonfly_vector_rag_agent",
+        graph_agent_name: "hp_dragonfly_ontology_graph_agent",
+        rag_agent_code: "",
+        graph_agent_code: ""
+      },
+      items: []
+    };
+  }
+
+  function getBenchmarkItems() {
+    return getBenchmarkData().items || [];
+  }
+
+  function findBenchmarkItem(eqIdOrQuestion) {
+    const items = getBenchmarkItems();
+    if (!items.length) return null;
+    if (!eqIdOrQuestion) return items[0];
+    const direct = items.find((x) => x.eq_id === eqIdOrQuestion || x.q_num === eqIdOrQuestion);
+    if (direct) return direct;
+    const qNorm = String(eqIdOrQuestion).trim().toLowerCase();
+    const exactQ = items.find(
+      (x) =>
+        String(x.question || "").trim().toLowerCase() === qNorm ||
+        String(x.question_en || "").trim().toLowerCase() === qNorm
+    );
+    if (exactQ) return exactQ;
+    const subQ = items.find(
+      (x) =>
+        (x.question && String(x.question).toLowerCase().includes(qNorm)) ||
+        (x.question_en && String(x.question_en).toLowerCase().includes(qNorm)) ||
+        (x.category && String(x.category).toLowerCase().includes(qNorm)) ||
+        (x.category_en && String(x.category_en).toLowerCase().includes(qNorm))
+    );
+    return subQ || items[0];
+  }
+
+  function renderBenchMarkdownWithWrongHighlights(rawText, wrongPhrases) {
+    let html = formatAgentMarkdown(rawText || "");
+    const phrases = Array.isArray(wrongPhrases) ? wrongPhrases : [];
+    phrases.forEach((wp) => {
+      const target = String((wp && wp.phrase) || "").trim();
+      const reason = String((wp && wp.reason) || "").trim();
+      if (!target || target.length < 4) return;
+      const escapedTarget = escapeHtml(target);
+      if (html.includes(escapedTarget)) {
+        const markHtml = `<mark class="bench-wrong-span" title="${escapeHtml(reason)}">${escapedTarget}</mark>`;
+        html = html.split(escapedTarget).join(markHtml);
+      }
+    });
+    return html;
+  }
+
+  function buildBenchVerdictBoxHtml(armObj, isGraphArm) {
+    if (!armObj) return "";
+    const k = isKo();
+    const isPass = armObj.verdict === "PASS";
+    const verdictRationale = k ? armObj.verdict_ko || "" : armObj.verdict_en || armObj.verdict_ko || "";
+    const wrongPhrases = (k ? armObj.wrong_phrases : armObj.wrong_phrases_en || armObj.wrong_phrases) || [];
+    const missingItems = (k ? armObj.missing_items : armObj.missing_items_en || armObj.missing_items) || [];
+
+    const wrongHtml =
+      wrongPhrases.length > 0
+        ? `
+          <div style="margin-top:8px;">
+            <div style="font-size:11.5px; font-weight:600; color:#c5221f; margin-bottom:4px;">
+              ${k ? "오류 구절 (Hallucination / 오매칭)" : "Erroneous Spans (Hallucination / Mismatch)"}
             </div>
-            <div class="mod-desc">
-              ${
-                k
-                  ? "HP Dragonfly Folio G3 서비스 매뉴얼(109p) 및 8개 정형 테이블을 대상으로 멀티홉 분해 순서(Disassembly DAG), SKU별 온보드 시스템 보드 매핑, LED 점멸 코드 진단 시나리오를 비교 평가합니다."
-                  : "Evaluates multi-hop disassembly precedence (DAG), soldered LPDDR5 SKU-to-System-Board resolution, and POST LED blink code triage across Vector RAG vs. our Ontology Layer."
-              }
+            <ul style="margin:0; padding-left:18px; font-size:12px; color:var(--text); line-height:1.55;">
+              ${wrongPhrases
+                .map(
+                  (w) =>
+                    `<li style="margin-bottom:4px;"><code style="color:#c5221f; font-weight:600;">"${escapeHtml(
+                      w.phrase || ""
+                    )}"</code> — <span style="color:var(--text-sub);">${escapeHtml(w.reason || "")}</span></li>`
+                )
+                .join("")}
+            </ul>
+          </div>
+        `
+        : "";
+
+    const missingHtml =
+      missingItems.length > 0
+        ? `
+          <div style="margin-top:8px;">
+            <div style="font-size:11.5px; font-weight:600; color:#b06000; margin-bottom:4px;">
+              ${k ? "누락된 핵심 근거 (Omitted DAG / Governance)" : "Omitted Critical Evidence (DAG / Governance)"}
+            </div>
+            <ul style="margin:0; padding-left:18px; font-size:12px; color:var(--text-sub); line-height:1.55;">
+              ${missingItems.map((m) => `<li>${escapeHtml(m)}</li>`).join("")}
+            </ul>
+          </div>
+        `
+        : "";
+
+    return `
+      <div class="bench-verdict-box ${isPass ? "pass" : "fail"}" style="margin-bottom:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+          <span style="font-size:12px; font-weight:700; color:${isPass ? "#137333" : "#c5221f"}; display:inline-flex; align-items:center; gap:5px;">
+            <span class="material-symbols-outlined" style="font-size:16px;">${isPass ? "verified" : "error"}</span>
+            <span>${
+              isPass
+                ? k
+                  ? isGraphArm
+                    ? "정답 (PASS · BigQuery GQL + Dataplex KC 검증)"
+                    : "정답 (PASS · 단순 단일 섹션 조회)"
+                  : isGraphArm
+                  ? "PASS (Grounded via BigQuery GQL + Dataplex KC)"
+                  : "PASS (Direct Single-Section Lookup)"
+                : k
+                ? "오답 (FAIL · Vector RAG 한계 노출)"
+                : "FAIL (Vector RAG Structural Failure)"
+            }</span>
+          </span>
+          <span class="agent-neutral-pill">${escapeHtml(armObj.framework || "Google ADK")} · ${
+      armObj.latency_ms || 2200
+    } ms</span>
+        </div>
+        <div style="font-size:12.5px; color:var(--text); line-height:1.55;">
+          <strong>${k ? "판정 근거:" : "Verdict Rationale:"}</strong> ${escapeHtml(verdictRationale)}
+        </div>
+        ${wrongHtml}
+        ${missingHtml}
+      </div>
+    `;
+  }
+
+  function buildBenchToolTraceAccordionHtml(armObj, isGraphArm) {
+    if (!armObj) return "";
+    const k = isKo();
+    const calls = armObj.tool_calls || [];
+    if (!calls.length) return "";
+
+    const rowsHtml = calls
+      .map((tc, i) => {
+        const codeBlock = tc.gql_text || tc.sql_text || "";
+        return `
+          <div style="padding:8px 10px; border:1px solid var(--border); border-radius:6px; background:var(--surface); margin-bottom:6px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+              <span style="font-size:12px; font-weight:600; color:var(--text);">
+                Step ${isGraphArm ? i : i + 1} · <code>${escapeHtml(tc.tool || "tool")}</code>
+              </span>
+              <span class="agent-neutral-pill">${escapeHtml(tc.status || "OK")} · ${tc.row_count ?? 0} rows</span>
+            </div>
+            <div style="font-size:11.5px; color:var(--text-sub); margin-top:4px; line-height:1.5;">
+              ${escapeHtml(tc.result_summary || "")}
+            </div>
+            ${
+              codeBlock
+                ? `<pre class="query-code-pre" style="margin-top:6px; font-size:11px; padding:8px 10px;">${escapeHtml(
+                    codeBlock
+                  )}</pre>`
+                : ""
+            }
+          </div>
+        `;
+      })
+      .join("");
+
+    return `
+      <details class="query-accordion" style="margin-top:12px;">
+        <summary>
+          <span>${
+            isGraphArm
+              ? k
+                ? `ADK Ontology Graph Tool Trace (${calls.length}단계 · before_agent_callback ➔ GQL ➔ KC ➔ OKF)`
+                : `ADK Ontology Graph Tool Trace (${calls.length} stages · Callback ➔ GQL ➔ KC ➔ OKF)`
+              : k
+              ? `ADK Vector RAG Tool Trace (${calls.length}단계 · vertex_rag_search + execute_sql)`
+              : `ADK Vector RAG Tool Trace (${calls.length} stages · vertex_rag_search + execute_sql)`
+          }</span>
+          <span class="material-symbols-outlined qa-chevron">expand_more</span>
+        </summary>
+        <div class="query-accordion-body" style="padding:10px;">
+          ${rowsHtml}
+        </div>
+      </details>
+    `;
+  }
+
+  function buildBenchArmTurnBubbleHtml(item, armKey) {
+    if (!item) return "";
+    const k = isKo();
+    const isGraphArm = armKey === "graphrag";
+    const armObj = isGraphArm ? item.graphrag_agent : item.rag_agent;
+    if (!armObj) return "";
+
+    const rawAns = k ? armObj.answer_text : armObj.answer_text_en || armObj.answer_text;
+    const wrongPhrases = (k ? armObj.wrong_phrases : armObj.wrong_phrases_en || armObj.wrong_phrases) || [];
+    const bodyHtml = renderBenchMarkdownWithWrongHighlights(rawAns, wrongPhrases);
+
+    return `
+      <div class="msg-agent-bubble ${armObj.verdict === "FAIL" ? "blocked-bubble" : ""}" style="padding:14px 16px;">
+        ${buildBenchVerdictBoxHtml(armObj, isGraphArm)}
+        <div class="agent-md-body" style="font-size:13px;">
+          ${bodyHtml}
+        </div>
+        ${buildBenchToolTraceAccordionHtml(armObj, isGraphArm)}
+      </div>
+    `;
+  }
+
+  function renderBenchSidebarList() {
+    const listEl = document.getElementById("bench-q-list");
+    if (!listEl) return;
+    const k = isKo();
+    const items = getBenchmarkItems();
+    const qFilter = (BENCH_SEARCH_FILTER || "").trim().toLowerCase();
+
+    const filtered = items.filter((item) => {
+      if (!qFilter) return true;
+      const hay = `${item.eq_id} ${item.category} ${item.category_en} ${item.question} ${item.question_en} ${item.tag}`.toLowerCase();
+      return hay.includes(qFilter);
+    });
+
+    listEl.innerHTML = filtered
+      .map((item) => {
+        const isSel = item.eq_id === BENCH_SELECTED_EQ_ID;
+        const ragFail = item.rag_agent && item.rag_agent.verdict === "FAIL";
+        const tagText = k ? item.tag : item.tag_en || item.tag;
+        const qText = k ? item.question : item.question_en || item.question;
+        const catText = k ? item.category : item.category_en || item.category;
+        return `
+          <div class="agent-q-item ${isSel ? "active" : ""}" id="bench-qitem-${escapeHtml(
+          item.eq_id
+        )}" onclick="selectBenchmarkQuestion('${escapeHtml(item.eq_id)}')">
+            <span class="q-num">${escapeHtml(item.q_num || item.eq_id)}.</span>
+            <div class="q-body">
+              <div class="q-dept" style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
+                <span>${escapeHtml(item.eq_id)} · ${escapeHtml(catText.split("·")[0].trim())}</span>
+                <span class="agent-neutral-pill" style="${
+                  ragFail
+                    ? "background:rgba(217,48,37,0.10); color:#c5221f; border-color:rgba(217,48,37,0.28);"
+                    : "background:rgba(19,115,51,0.10); color:#137333; border-color:rgba(19,115,51,0.28);"
+                }">${escapeHtml(tagText)}</span>
+              </div>
+              <div class="q-text">${escapeHtml(qText)}</div>
             </div>
           </div>
-          <span class="mod-badge green">Ontology Accuracy: 100% Grounded</span>
+        `;
+      })
+      .join("");
+  }
+
+  function renderBenchReportContent() {
+    const container = document.getElementById("bench-report-container");
+    if (!container) return;
+    const k = isKo();
+    const data = getBenchmarkData();
+    const summary = data.summary || {};
+    const items = getBenchmarkItems();
+    const curItem = findBenchmarkItem(BENCH_SELECTED_EQ_ID) || items[0];
+    if (!curItem) return;
+
+    const curIdx = items.findIndex((x) => x.eq_id === curItem.eq_id);
+    const prevEqId = curIdx > 0 ? items[curIdx - 1].eq_id : items[items.length - 1].eq_id;
+    const nextEqId = curIdx < items.length - 1 ? items[curIdx + 1].eq_id : items[0].eq_id;
+
+    const curLabel = `${curItem.eq_id} · [${k ? curItem.tag : curItem.tag_en}] ${
+      k ? curItem.category : curItem.category_en
+    }`;
+
+    const optionsHtml = items
+      .map((it) => {
+        const isSel = it.eq_id === curItem.eq_id;
+        const lbl = `${it.eq_id} · [${k ? it.tag : it.tag_en}] ${k ? it.category : it.category_en}`;
+        return `
+          <div class="gcp-custom-select-opt ${isSel ? "selected" : ""}" onclick="selectBenchReportEqOption(event, '${escapeHtml(
+          it.eq_id
+        )}')">
+            <span>${escapeHtml(lbl)}</span>
+            <span class="material-symbols-outlined gcp-opt-check" style="opacity:${isSel ? "1" : "0"};">check</span>
+          </div>
+        `;
+      })
+      .join("");
+
+    container.innerHTML = `
+      <!-- Tier 1: Slim Summary & Question Selector Card -->
+      <div class="mod-card bench-select-card" style="padding:14px 18px; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:10px;">
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span style="font-size:14px; font-weight:700; color:var(--text);">
+              ${
+                k
+                  ? `EQ 14 벤치마크 평가 결과: Ontology Graph Agent 정답 ${summary.graphrag_pass_count || 14} / ${
+                      summary.total_questions || 14
+                    } (${summary.graphrag_accuracy_pct || 100}%) · Vector RAG Agent 정답 ${
+                      summary.rag_pass_count || 3
+                    } / ${summary.total_questions || 14} (${summary.rag_accuracy_pct || 21.4}%)`
+                  : `EQ 14 Benchmark Score: Ontology Graph Agent ${summary.graphrag_pass_count || 14} / ${
+                      summary.total_questions || 14
+                    } (${summary.graphrag_accuracy_pct || 100}%) vs. Vector RAG Agent ${
+                      summary.rag_pass_count || 3
+                    } / ${summary.total_questions || 14} (${summary.rag_accuracy_pct || 21.4}%)`
+              }
+            </span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <button type="button" class="gcp-action-btn" style="padding:4px 10px; font-size:12px;" onclick="selectBenchReportEq('${escapeHtml(
+              prevEqId
+            )}')">
+              <span class="material-symbols-outlined" style="font-size:15px;">chevron_left</span>
+              <span>${k ? "이전 문항" : "Prev"}</span>
+            </button>
+            <button type="button" class="gcp-action-btn" style="padding:4px 10px; font-size:12px;" onclick="selectBenchReportEq('${escapeHtml(
+              nextEqId
+            )}')">
+              <span>${k ? "다음 문항" : "Next"}</span>
+              <span class="material-symbols-outlined" style="font-size:15px;">chevron_right</span>
+            </button>
+          </div>
         </div>
 
-        <div class="mod-card">
-          <div class="mod-card-header">
-            <div class="mod-card-title">
-              <span class="material-symbols-outlined" style="color:var(--gcp-blue);">compare_arrows</span>
-              <span>${k ? "핵심 엔지니어링 평가 시나리오 비교표" : "Core Engineering Evaluation Scenarios"}</span>
+        <div class="gcp-custom-select" id="bench-eq-custom-select">
+          <button type="button" class="gcp-select gcp-custom-select-btn" onclick="toggleBenchEqSelectMenu(event)">
+            <span class="gcp-custom-select-val" id="bench-eq-select-val">${escapeHtml(curLabel)}</span>
+          </button>
+          <div class="gcp-custom-select-menu" id="bench-eq-select-menu">
+            ${optionsHtml}
+          </div>
+        </div>
+      </div>
+
+      <!-- Tier 2: Question & Gold Answer Header Card -->
+      <div class="mod-card" style="padding:16px 20px; margin-bottom:14px;">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:10px;">
+          <div style="flex:1; min-width:260px;">
+            <div style="font-size:11.5px; font-weight:700; color:var(--gcp-blue); margin-bottom:4px;">
+              ${escapeHtml(curItem.eq_id)} · ${escapeHtml(k ? curItem.category : curItem.category_en)}
+            </div>
+            <div style="font-size:14px; font-weight:600; color:var(--text); line-height:1.55;">
+              ${escapeHtml(k ? curItem.question : curItem.question_en)}
             </div>
           </div>
-          <table class="mod-table">
+          <button type="button" class="bq-run-btn" style="flex:0 0 auto; height:34px; padding:0 14px; font-size:12px;" onclick="runBenchmarkEqInLive('${escapeHtml(
+            curItem.eq_id
+          )}')">
+            <span class="material-symbols-outlined" style="font-size:16px;">play_arrow</span>
+            <span>${k ? "라이브 질의로 실행" : "Run in Live Split View"}</span>
+          </button>
+        </div>
+
+        <div style="padding:12px 14px; background:var(--code-bg); border:1px solid var(--border); border-radius:8px; font-size:12.5px; line-height:1.6;">
+          <div style="margin-bottom:4px;">
+            <strong style="color:var(--text);">${k ? "정답 기준 (Gold Answer):" : "Gold Standard Answer:"}</strong>
+            <span style="color:var(--text);">${escapeHtml(
+              k ? curItem.gold.answer : curItem.gold.answer_en
+            )}</span>
+          </div>
+          <div style="font-size:11.5px; color:var(--text-sub);">
+            <strong>${k ? "검증 근거 (Canonical Evidence):" : "Canonical Evidence:"}</strong>
+            <code>${escapeHtml(k ? curItem.gold.evidence : curItem.gold.evidence_en)}</code>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tier 3: 50:50 Comparison Grid -->
+      <div class="bench-report-grid">
+        <!-- Left Card: Vector RAG Agent -->
+        <div class="mod-card" style="padding:16px 18px; margin:0;">
+          <div class="mod-card-header" style="margin-bottom:10px;">
+            <span class="mod-card-title" style="font-size:13.5px;">
+              <span class="material-symbols-outlined" style="color:#c5221f; font-size:18px;">search</span>
+              <span>Vector RAG Agent (<code>hp_dragonfly_vector_rag_agent</code>)</span>
+            </span>
+            <span class="agent-neutral-pill">${escapeHtml(curItem.rag_agent.verdict)}</span>
+          </div>
+          ${buildBenchArmTurnBubbleHtml(curItem, "rag")}
+        </div>
+
+        <!-- Right Card: Ontology Graph Agent -->
+        <div class="mod-card" style="padding:16px 18px; margin:0;">
+          <div class="mod-card-header" style="margin-bottom:10px;">
+            <span class="mod-card-title" style="font-size:13.5px;">
+              <span class="material-symbols-outlined" style="color:#137333; font-size:18px;">hub</span>
+              <span>Ontology Graph Agent (<code>hp_dragonfly_ontology_graph_agent</code>)</span>
+            </span>
+            <span class="agent-neutral-pill" style="background:rgba(19,115,51,0.10); color:#137333; border-color:rgba(19,115,51,0.28);">PASS (100%)</span>
+          </div>
+          ${buildBenchArmTurnBubbleHtml(curItem, "graphrag")}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderBenchAdkCodeContent() {
+    const container = document.getElementById("bench-code-container");
+    if (!container) return;
+    const k = isKo();
+    const data = getBenchmarkData();
+    const adk = data.adk_agents || {};
+
+    container.innerHTML = `
+      <div class="mod-card" style="padding:16px 20px; margin-bottom:14px;">
+        <div class="mod-card-header" style="margin-bottom:8px;">
+          <span class="mod-card-title" style="font-size:14px;">
+            <span class="material-symbols-outlined" style="color:var(--gcp-blue);">terminal</span>
+            <span>${
+              k
+                ? "Google ADK (Agent Development Kit) 기반 두 에이전트 아키텍처 및 도구(Tools/Callbacks) 비교"
+                : "Google ADK Dual-Agent Architecture & Tooling Comparison"
+            }</span>
+          </span>
+          <span class="agent-neutral-pill">agents/adk_rag_vs_graph/{rag_agent.py, graph_agent.py}</span>
+        </div>
+        <div class="agent-table-scroll">
+          <table class="mod-table" style="font-size:12px;">
             <thead>
               <tr>
-                <th>${k ? "평가 시나리오" : "Evaluation Scenario"}</th>
-                <th>${k ? "일반 PDF 청크 Vector RAG 한계" : "Naive PDF Chunk Vector RAG Failure Mode"}</th>
-                <th>${k ? "HP Dragonfly 온톨로지 (GQL + OKF v0.2) 해법" : "HP Dragonfly Ontology (GQL + OKF v0.2) Resolution"}</th>
+                <th style="width:170px;">${k ? "비교 영역" : "Dimension"}</th>
+                <th>Arm A · <code>hp_dragonfly_vector_rag_agent</code> (Vector RAG)</th>
+                <th>Arm B · <code>hp_dragonfly_ontology_graph_agent</code> (Ontology Graph)</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td><b>1. Multi-Hop FRU Disassembly Order</b><br><span style="font-size:11.5px; color:var(--text-sub);">System Board / Thermal Fan Replacement</span></td>
-                <td>${
-                  k
-                    ? "5장(pp.29-72) 여러 페이지에 흩어진 선행 분리 단계를 누락하여 배터리 분리 전 리본 케이블 탈거를 안내함"
-                    : "Misses cross-page prerequisite steps in Chapter 5 (pp. 29–72), risking 700V ESD damage"
-                }</td>
-                <td>${
-                  k
-                    ? "<code>REQUIRES_REMOVAL_OF</code> 엣지 탐색으로 Bottom Cover(N22918-001) → Battery(M90788-005) → Heatsink 순서 및 나사 규격을 100% 보장"
-                    : "Traverses <code>REQUIRES_REMOVAL_OF</code> edges for deterministic step order, screw specs, and ESD rules"
-                }</td>
+                <td><strong>ADK 에이전트 정의</strong></td>
+                <td><code>LlmAgent(name="hp_dragonfly_vector_rag_agent", model="gemini-2.5-pro")</code></td>
+                <td><code>LlmAgent(name="hp_dragonfly_ontology_graph_agent", model="gemini-2.5-pro")</code></td>
               </tr>
               <tr>
-                <td><b>2. Soldered LPDDR5 System Board SKU Match</b><br><span style="font-size:11.5px; color:var(--text-sub);">i7-1265U vPro + 32GB + 5G WWAN</span></td>
-                <td>${
-                  k
-                    ? "표3-1의 16개 유사 시스템 보드 파트 번호 중 비-vPro 또는 16GB 보드 번호를 잘못 매칭함"
-                    : "Confuses 16 adjacent system board part numbers in Table 3-1 across RAM/vPro variants"
-                }</td>
-                <td>${
-                  k
-                    ? "<code>ProductSKU -[:USES_SYSTEM_BOARD]-> HardwareComponent</code> 정형 그래프 조인으로 단일 스페어 파트 번호를 정확히 반환"
-                    : "Exact join via <code>ProductSKU -[:USES_SYSTEM_BOARD]-> HardwareComponent</code> in BigQuery Property Graph"
-                }</td>
+                <td><strong>Step 0 · 사전 콜백</strong></td>
+                <td>없음 (자연어 질의를 그대로 임베딩 코사인 검색에 전달)</td>
+                <td><code>before_agent_callback = bind_entity_aliases_and_kc_anchors</code> (SKU·부품·LED 코드 결정론적 바인딩)</td>
               </tr>
               <tr>
-                <td><b>3. LED Blink 3.2 &amp; Camera Privacy Triage</b><br><span style="font-size:11.5px; color:var(--text-sub);">TS-DFG3-001 / TS-DFG3-005</span></td>
-                <td>${
-                  k
-                    ? "즉시 메인보드 또는 3K2K OLED 패널 통교체(고가 FRU)를 권고하여 불필요한 수리 비용 유발"
-                    : "Immediately recommends costly motherboard or full OLED display replacement"
-                }</td>
-                <td>${
-                  k
-                    ? "OKF Playbook과 <code>hardware-fru-replacement-rate</code> 지표를 결합해 무분해 HP Sure Start 복구 및 펌웨어(SoftPaq) 해결책을 선제 제시"
-                    : "Applies OKF Playbooks &amp; SoftPaq remediation before escalating to physical FRU replacement"
-                }</td>
+                <td><strong>Step 1 · 지식 탐색 도구</strong></td>
+                <td><code>vertex_rag_search(top_k=4)</code> + 단발성 <code>execute_sql</code> (멀티홉 관계 탐색 불가)</td>
+                <td><code>graph_query_gql</code> (ISO/IEC 39075 GQL로 <code>hp_dragonfly_ontology_graph</code> 10 노드 · 13 엣지 탐색)</td>
+              </tr>
+              <tr>
+                <td><strong>Step 2 · 거버넌스 게이트</strong></td>
+                <td>없음 (폐기된 <code>v0.1.0</code> 써멀 재도포 문서를 코사인 유사도 <code>0.912</code>로 오인출)</td>
+                <td><code>kc_lookup_aspect</code> + <code>before_tool_callback</code> (Dataplex KC <code>status=deprecated</code> 즉시 차단)</td>
+              </tr>
+              <tr>
+                <td><strong>Step 3 · 정본 원문 인출</strong></td>
+                <td>512-토큰 슬라이딩 청크 (표 3-1 행 경계 깨짐 및 YAML Frontmatter 유실)</td>
+                <td><code>fetch_okf_provision</code> (KC 유효성 통과 시 OKF v0.2 정본 조항 및 SHA-256 해시 인출)</td>
+              </tr>
+              <tr>
+                <td><strong>EQ01~EQ14 정확도</strong></td>
+                <td><strong style="color:#c5221f;">3 / 14 (21.4%)</strong> — 멀티홉 분해 DAG·폐기 내규 차단·온보드 SKU 매칭 실패</td>
+                <td><strong style="color:#137333;">14 / 14 (100.0%)</strong> — 전 문항 정본 근거 및 안전 규약 완벽 일치</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
+
+      <div class="bench-report-grid">
+        <div class="mod-card" style="padding:14px 16px; margin:0;">
+          <div class="mod-card-header" style="margin-bottom:8px;">
+            <span class="mod-card-title" style="font-size:13px;">
+              <code>agents/adk_rag_vs_graph/rag_agent.py</code>
+            </span>
+            <span class="agent-neutral-pill">Arm A · Vector RAG</span>
+          </div>
+          <pre class="query-code-pre" style="max-height:520px; overflow:auto; font-size:11.5px; line-height:1.5;">${escapeHtml(
+            adk.rag_agent_code || ""
+          )}</pre>
+        </div>
+
+        <div class="mod-card" style="padding:14px 16px; margin:0;">
+          <div class="mod-card-header" style="margin-bottom:8px;">
+            <span class="mod-card-title" style="font-size:13px;">
+              <code>agents/adk_rag_vs_graph/graph_agent.py</code>
+            </span>
+            <span class="agent-neutral-pill" style="background:rgba(19,115,51,0.10); color:#137333; border-color:rgba(19,115,51,0.28);">Arm B · Ontology Graph Agent</span>
+          </div>
+          <pre class="query-code-pre" style="max-height:520px; overflow:auto; font-size:11.5px; line-height:1.5;">${escapeHtml(
+            adk.graph_agent_code || ""
+          )}</pre>
+        </div>
+      </div>
     `;
   }
+
+  function appendBenchDualTurnToDom(item, customUserQuestion) {
+    const ragBox = document.getElementById("bench-rag-messages");
+    const graphBox = document.getElementById("bench-graphrag-messages");
+    if (!ragBox || !graphBox || !item) return;
+    const k = isKo();
+    const qText = customUserQuestion || (k ? item.question : item.question_en || item.question);
+
+    const emptyRag = ragBox.querySelector(".bench-empty-placeholder");
+    if (emptyRag) emptyRag.remove();
+    const emptyGraph = graphBox.querySelector(".bench-empty-placeholder");
+    if (emptyGraph) emptyGraph.remove();
+
+    const userRowHtml = `
+      <div class="msg-row">
+        <div class="msg-user-bubble">${escapeHtml(qText)}</div>
+      </div>
+    `;
+    ragBox.insertAdjacentHTML("beforeend", userRowHtml);
+    graphBox.insertAdjacentHTML("beforeend", userRowHtml);
+
+    const ragRespRow = document.createElement("div");
+    ragRespRow.className = "msg-row";
+    ragRespRow.innerHTML = buildBenchArmTurnBubbleHtml(item, "rag");
+    ragBox.appendChild(ragRespRow);
+
+    const graphRespRow = document.createElement("div");
+    graphRespRow.className = "msg-row";
+    graphRespRow.innerHTML = buildBenchArmTurnBubbleHtml(item, "graphrag");
+    graphBox.appendChild(graphRespRow);
+
+    ragBox.scrollTop = ragBox.scrollHeight;
+    graphBox.scrollTop = graphBox.scrollHeight;
+  }
+
+  function renderBenchmarkModule() {
+    const box = document.getElementById("module-benchmark");
+    if (!box) return;
+    const k = isKo();
+    const curItem = findBenchmarkItem(BENCH_SELECTED_EQ_ID);
+    const defaultInputVal = curItem ? (k ? curItem.question : curItem.question_en) : "";
+
+    box.innerHTML = `
+      <!-- Top Pane Subbar (46px) matching krda-ontology-studio mod-benchmark.js -->
+      <div class="pane-subbar" style="height:46px; flex:0 0 46px; padding:0 18px;">
+        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+          <span class="material-symbols-outlined" style="font-size:18px; color:var(--gcp-blue);">compare_arrows</span>
+          <span style="font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            ${
+              k
+                ? "06 · RAG Agent vs. Graph Agent — Google ADK 기반 정확도 비교 스튜디오 (14 / 14 vs. 3 / 14)"
+                : "06 · RAG Agent vs. Graph Agent — Google ADK Accuracy Benchmark Studio (14 / 14 vs. 3 / 14)"
+            }
+          </span>
+        </div>
+        <div class="mgmt-subtab-group">
+          <button type="button" class="mgmt-subtab-btn ${
+            BENCH_VIEW_MODE === "live" ? "active" : ""
+          }" id="bench-mode-btn-live" onclick="switchBenchmarkViewMode('live')">
+            ${k ? "라이브 질의" : "Live Dual-Agent Run"}
+          </button>
+          <button type="button" class="mgmt-subtab-btn ${
+            BENCH_VIEW_MODE === "report" ? "active" : ""
+          }" id="bench-mode-btn-report" onclick="switchBenchmarkViewMode('report')">
+            ${k ? "비교리포트 (14 vs 3)" : "Comparison Report (14 vs 3)"}
+          </button>
+          <button type="button" class="mgmt-subtab-btn ${
+            BENCH_VIEW_MODE === "code" ? "active" : ""
+          }" id="bench-mode-btn-code" onclick="switchBenchmarkViewMode('code')">
+            ${k ? "ADK 에이전트 코드" : "ADK Agent Code"}
+          </button>
+        </div>
+      </div>
+
+      <!-- View 1: Live Dual-Agent Split View (Default) -->
+      <div id="bench-view-live" class="bench-body-row" style="display:${
+        BENCH_VIEW_MODE === "live" ? "flex" : "none"
+      };">
+        <aside id="bench-sidebar" class="agent-nav-sidebar ${
+          BENCH_LEFT_SIDEBAR_COLLAPSED ? "collapsed" : ""
+        }" style="width:330px;">
+          <div class="agent-nav-header" style="padding:12px 14px; border-bottom:1px solid var(--border);">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
+              <span style="font-size:12.5px; font-weight:700; color:var(--text);">
+                ${k ? "벤치마크 문항 (EQ01 ~ EQ14)" : "Benchmark Questions (EQ01–EQ14)"}
+              </span>
+              <span class="agent-neutral-pill">Graph 100% · RAG 21.4%</span>
+            </div>
+            <div class="gcp-filter-bar" style="height:32px; padding:0 10px; border:1px solid var(--border); border-radius:6px;">
+              <span class="material-symbols-outlined" style="font-size:16px; color:var(--text-sub);">filter_list</span>
+              <input
+                type="text"
+                id="bench-q-search"
+                value="${escapeHtml(BENCH_SEARCH_FILTER)}"
+                placeholder="${k ? "EQ 번호, 부품번호, 증상 검색..." : "Filter EQ, part ID, symptom..."}"
+                oninput="filterBenchmarkQuestions(this.value)"
+              />
+            </div>
+          </div>
+          <div class="agent-q-list" id="bench-q-list"></div>
+        </aside>
+
+        <section class="bench-main-pane">
+          <div class="bench-split-grid">
+            <!-- Left Arm: Vector RAG Agent -->
+            <div class="bench-arm-col">
+              <div class="bench-arm-header">
+                <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+                  <span class="material-symbols-outlined" style="font-size:17px; color:#c5221f;">search</span>
+                  <strong style="font-size:12.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    Vector RAG Agent (Google ADK)
+                  </strong>
+                </div>
+                <span class="agent-neutral-pill" title="LlmAgent + vertex_rag_search + execute_sql">
+                  <code>vertex_rag_search</code> + <code>execute_sql</code> · 3/14 (21.4%)
+                </span>
+              </div>
+              <div class="bench-arm-messages" id="bench-rag-messages"></div>
+            </div>
+
+            <!-- Right Arm: Ontology Graph Agent -->
+            <div class="bench-arm-col">
+              <div class="bench-arm-header">
+                <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+                  <span class="material-symbols-outlined" style="font-size:17px; color:#137333;">hub</span>
+                  <strong style="font-size:12.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    Ontology Graph Agent (Google ADK)
+                  </strong>
+                </div>
+                <span class="agent-neutral-pill" style="background:rgba(19,115,51,0.10); color:#137333; border-color:rgba(19,115,51,0.28);" title="LlmAgent + before_agent_callback + graph_query_gql + kc_lookup_aspect + fetch_okf_provision">
+                  <code>GQL</code> + <code>Dataplex KC</code> + <code>OKF v0.2</code> · 14/14 (100%)
+                </span>
+              </div>
+              <div class="bench-arm-messages" id="bench-graphrag-messages"></div>
+            </div>
+          </div>
+
+          <!-- Shared Bottom Composer Bar -->
+          <div class="agent-chat-input-bar">
+            <div class="agent-composer-card">
+              <div class="composer-icon-wrap">
+                <button
+                  type="button"
+                  id="bench-left-toggle-btn"
+                  class="agent-reset-icon-btn"
+                  onclick="toggleBenchLeftSidebar()"
+                  aria-label="${k ? "질문 목록 패널 접기/펼치기" : "Toggle question list sidebar"}"
+                >
+                  <span class="material-symbols-outlined" style="font-size:18px;">${
+                    BENCH_LEFT_SIDEBAR_COLLAPSED ? "left_panel_open" : "left_panel_close"
+                  }</span>
+                </button>
+                <span class="composer-icon-tooltip">${
+                  k ? "질문 목록 패널 접기/펼치기" : "Toggle Question List"
+                }</span>
+              </div>
+
+              <div class="composer-icon-wrap">
+                <button
+                  type="button"
+                  class="agent-reset-icon-btn"
+                  onclick="resetBenchmarkConversation()"
+                  aria-label="${k ? "비교 대화 초기화" : "Reset comparison chat"}"
+                >
+                  <span class="material-symbols-outlined" style="font-size:18px;">restart_alt</span>
+                </button>
+                <span class="composer-icon-tooltip">${k ? "비교 대화 초기화" : "Reset Chat"}</span>
+              </div>
+
+              <textarea
+                id="bench-chat-input"
+                class="agent-chat-input"
+                rows="1"
+                placeholder="${
+                  k
+                    ? "좌측 EQ01~EQ14 질문을 클릭하거나 질문을 입력해 Vector RAG vs. Graph Agent를 동시 실행하세요..."
+                    : "Select EQ01–EQ14 on the left or type a prompt to run Vector RAG vs. Graph Agent simultaneously..."
+                }"
+                onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); sendBenchmarkPrompt(); }"
+              >${escapeHtml(defaultInputVal)}</textarea>
+
+              <button
+                type="button"
+                id="bench-send-btn"
+                class="agent-send-btn"
+                onclick="sendBenchmarkPrompt()"
+              >
+                <span class="material-symbols-outlined" style="font-size:16px;">play_arrow</span>
+                <span>${k ? "동시 비교 실행" : "Run Both Agents"}</span>
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- View 2: Static EQ 14 Comparison Report View -->
+      <div id="bench-view-report" class="bench-report-scroll" style="display:${
+        BENCH_VIEW_MODE === "report" ? "block" : "none"
+      };">
+        <div id="bench-report-container" style="max-width:1440px; margin:0 auto;"></div>
+      </div>
+
+      <!-- View 3: Google ADK Agent Python Code View -->
+      <div id="bench-view-code" class="bench-report-scroll" style="display:${
+        BENCH_VIEW_MODE === "code" ? "block" : "none"
+      };">
+        <div id="bench-code-container" style="max-width:1440px; margin:0 auto;"></div>
+      </div>
+    `;
+
+    renderBenchSidebarList();
+    renderBenchReportContent();
+    renderBenchAdkCodeContent();
+
+    if (curItem) {
+      appendBenchDualTurnToDom(curItem, k ? curItem.question : curItem.question_en);
+      BENCH_INITIAL_SEEDED = true;
+    }
+  }
+
+  window.switchBenchmarkViewMode = function (mode) {
+    if (!["live", "report", "code"].includes(mode)) return;
+    BENCH_VIEW_MODE = mode;
+    ["live", "report", "code"].forEach((m) => {
+      const btn = document.getElementById(`bench-mode-btn-${m}`);
+      if (btn) btn.classList.toggle("active", m === mode);
+      const view = document.getElementById(`bench-view-${m}`);
+      if (view) {
+        view.style.display = m === mode ? (m === "live" ? "flex" : "block") : "none";
+      }
+    });
+    if (mode === "report") renderBenchReportContent();
+    if (mode === "code") renderBenchAdkCodeContent();
+  };
+
+  window.toggleBenchLeftSidebar = function () {
+    BENCH_LEFT_SIDEBAR_COLLAPSED = !BENCH_LEFT_SIDEBAR_COLLAPSED;
+    const sb = document.getElementById("bench-sidebar");
+    if (sb) sb.classList.toggle("collapsed", BENCH_LEFT_SIDEBAR_COLLAPSED);
+    const btnIcon = document.querySelector("#bench-left-toggle-btn .material-symbols-outlined");
+    if (btnIcon) {
+      btnIcon.textContent = BENCH_LEFT_SIDEBAR_COLLAPSED ? "left_panel_open" : "left_panel_close";
+    }
+  };
+
+  window.filterBenchmarkQuestions = function (val) {
+    BENCH_SEARCH_FILTER = val || "";
+    renderBenchSidebarList();
+  };
+
+  window.selectBenchmarkQuestion = function (eqId) {
+    const item = findBenchmarkItem(eqId);
+    if (!item) return;
+    BENCH_SELECTED_EQ_ID = item.eq_id;
+    getBenchmarkItems().forEach((it) => {
+      const el = document.getElementById(`bench-qitem-${it.eq_id}`);
+      if (el) el.classList.toggle("active", it.eq_id === item.eq_id);
+    });
+    const inputEl = document.getElementById("bench-chat-input");
+    if (inputEl) {
+      inputEl.value = isKo() ? item.question : item.question_en || item.question;
+    }
+    window.sendBenchmarkPrompt(item.eq_id);
+  };
+
+  window.resetBenchmarkConversation = function () {
+    const k = isKo();
+    const ragBox = document.getElementById("bench-rag-messages");
+    const graphBox = document.getElementById("bench-graphrag-messages");
+    if (ragBox) {
+      ragBox.innerHTML = `<div class="bench-empty-placeholder" style="padding:36px 20px; text-align:center; color:var(--text-sub); font-size:12.5px;">${
+        k
+          ? "좌측에서 <code>EQ01</code> ~ <code>EQ14</code> 문항을 선택하거나 하단 입력창에서 동시 실행하면<br><strong>Vector RAG Agent (ADK)</strong>의 응답과 오류 구절 분석이 이곳에 표시됩니다."
+          : "Select <code>EQ01</code>–<code>EQ14</code> on the left or run a prompt below to inspect the <strong>Vector RAG Agent (ADK)</strong> response."
+      }</div>`;
+    }
+    if (graphBox) {
+      graphBox.innerHTML = `<div class="bench-empty-placeholder" style="padding:36px 20px; text-align:center; color:var(--text-sub); font-size:12.5px;">${
+        k
+          ? "좌측에서 <code>EQ01</code> ~ <code>EQ14</code> 문항을 선택하거나 하단 입력창에서 동시 실행하면<br><strong>Ontology Graph Agent (ADK)</strong>의 4단계 GQL + Dataplex KC 검증 응답이 이곳에 표시됩니다."
+          : "Select <code>EQ01</code>–<code>EQ14</code> on the left or run a prompt below to inspect the <strong>Ontology Graph Agent (ADK)</strong> response."
+      }</div>`;
+    }
+  };
+
+  window.sendBenchmarkPrompt = async function (explicitEqId) {
+    if (BENCH_IS_SENDING) return;
+    const k = isKo();
+    const inputEl = document.getElementById("bench-chat-input");
+    const sendBtn = document.getElementById("bench-send-btn");
+    const ragBox = document.getElementById("bench-rag-messages");
+    const graphBox = document.getElementById("bench-graphrag-messages");
+    if (!ragBox || !graphBox) return;
+
+    const rawQ = inputEl ? inputEl.value.trim() : "";
+    const matchedItem = findBenchmarkItem(explicitEqId || rawQ || BENCH_SELECTED_EQ_ID);
+    if (!matchedItem) return;
+
+    BENCH_SELECTED_EQ_ID = matchedItem.eq_id;
+    const questionText = rawQ || (k ? matchedItem.question : matchedItem.question_en);
+
+    BENCH_IS_SENDING = true;
+    if (sendBtn) sendBtn.disabled = true;
+
+    // Clear previous turns so side-by-side comparison stays vertically aligned
+    ragBox.innerHTML = "";
+    graphBox.innerHTML = "";
+
+    const userBubbleHtml = `
+      <div class="msg-row">
+        <div class="msg-user-bubble">${escapeHtml(questionText)}</div>
+      </div>
+    `;
+    ragBox.insertAdjacentHTML("beforeend", userBubbleHtml);
+    graphBox.insertAdjacentHTML("beforeend", userBubbleHtml);
+
+    const ragLoadingRow = document.createElement("div");
+    ragLoadingRow.className = "msg-row";
+    ragLoadingRow.innerHTML = `
+      <div class="msg-agent-bubble" style="padding:14px 18px;">
+        <div class="agent-loading-line">
+          <span class="material-symbols-outlined gcp-spin-sync" style="font-size:17px; color:var(--text-sub);">sync</span>
+          <span id="bench-rag-stage-txt" class="agent-loading-text">${
+            k
+              ? "Step 1 · vertex_rag_search : PDF 청크 임베딩 코사인 유사도 Top-4 검색 중..."
+              : "Step 1 · vertex_rag_search : Retrieving top-4 PDF chunks by cosine similarity..."
+          }</span>
+        </div>
+      </div>
+    `;
+    ragBox.appendChild(ragLoadingRow);
+
+    const graphLoadingRow = document.createElement("div");
+    graphLoadingRow.className = "msg-row";
+    graphLoadingRow.innerHTML = `
+      <div class="msg-agent-bubble" style="padding:14px 18px;">
+        <div class="agent-loading-line">
+          <span class="material-symbols-outlined gcp-spin-sync" style="font-size:17px; color:var(--text-sub);">sync</span>
+          <span id="bench-graph-stage-txt" class="agent-loading-text">${
+            k
+              ? "Step 0 · before_agent_callback : 온톨로지 엔티티 & KC 앵커 결정론적 바인딩 중..."
+              : "Step 0 · before_agent_callback : Binding ontology entity & Dataplex KC anchors..."
+          }</span>
+        </div>
+      </div>
+    `;
+    graphBox.appendChild(graphLoadingRow);
+
+    const ragStages = k
+      ? [
+          "Step 1 · vertex_rag_search : PDF 청크 임베딩 코사인 유사도 Top-4 검색 중...",
+          "Step 2 · execute_sql : 단일 테이블 단발성 SQL 조회 및 답변 합성 중..."
+        ]
+      : [
+          "Step 1 · vertex_rag_search : Retrieving top-4 PDF chunks by cosine similarity...",
+          "Step 2 · execute_sql : Running single-pass flat SQL & synthesizing answer..."
+        ];
+    const graphStages = k
+      ? [
+          "Step 0 · before_agent_callback : 온톨로지 엔티티 & KC 앵커 결정론적 바인딩 중...",
+          "Step 1 · graph_query_gql : BigQuery hp_dragonfly_ontology_graph ISO/IEC 39075 GQL 탐색 중...",
+          "Step 2 · kc_lookup_aspect : Dataplex Knowledge Catalog (okf Aspect) 유효성 검증 중...",
+          "Step 3 · fetch_okf_provision : 정본 OKF v0.2 마크다운 조항 인출 및 답변 합성 중..."
+        ]
+      : [
+          "Step 0 · before_agent_callback : Binding ontology entity & Dataplex KC anchors...",
+          "Step 1 · graph_query_gql : Traversing BigQuery hp_dragonfly_ontology_graph via GQL...",
+          "Step 2 · kc_lookup_aspect : Verifying Dataplex Knowledge Catalog (okf Aspect) gate...",
+          "Step 3 · fetch_okf_provision : Fetching attested OKF v0.2 Markdown provisions..."
+        ];
+
+    let gIdx = 0;
+    const stageTimer = setInterval(() => {
+      gIdx += 1;
+      const rEl = document.getElementById("bench-rag-stage-txt");
+      if (rEl && gIdx < ragStages.length) rEl.textContent = ragStages[gIdx];
+      const gEl = document.getElementById("bench-graph-stage-txt");
+      if (gEl && gIdx < graphStages.length) gEl.textContent = graphStages[gIdx];
+    }, 180);
+
+    try {
+      await new Promise((r) => setTimeout(r, 420));
+      ragLoadingRow.innerHTML = buildBenchArmTurnBubbleHtml(matchedItem, "rag");
+      graphLoadingRow.innerHTML = buildBenchArmTurnBubbleHtml(matchedItem, "graphrag");
+    } finally {
+      clearInterval(stageTimer);
+      BENCH_IS_SENDING = false;
+      if (sendBtn) sendBtn.disabled = false;
+    }
+  };
+
+  window.toggleBenchEqSelectMenu = function (ev) {
+    if (ev) ev.stopPropagation();
+    const wrap = document.getElementById("bench-eq-custom-select");
+    if (wrap) wrap.classList.toggle("open");
+  };
+
+  window.selectBenchReportEqOption = function (ev, eqId) {
+    if (ev) ev.stopPropagation();
+    const wrap = document.getElementById("bench-eq-custom-select");
+    if (wrap) wrap.classList.remove("open");
+    window.selectBenchReportEq(eqId);
+  };
+
+  window.selectBenchReportEq = function (eqId) {
+    const item = findBenchmarkItem(eqId);
+    if (!item) return;
+    BENCH_SELECTED_EQ_ID = item.eq_id;
+    renderBenchReportContent();
+    renderBenchSidebarList();
+  };
+
+  window.runBenchmarkEqInLive = function (eqId) {
+    const item = findBenchmarkItem(eqId);
+    if (!item) return;
+    BENCH_SELECTED_EQ_ID = item.eq_id;
+    window.switchBenchmarkViewMode("live");
+    window.selectBenchmarkQuestion(item.eq_id);
+  };
 
   // =========================================================================
   // Initialization

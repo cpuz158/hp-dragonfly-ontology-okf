@@ -251,6 +251,35 @@ class StudioRequestHandler(SimpleHTTPRequestHandler):
         self._send_json({"ok": False, "error": str(e)}, status=200)
       return
 
+    if parsed.path == "/api/benchmark/ask":
+      try:
+        payload = json.loads(raw_body)
+        eq_id = payload.get("eq_id")
+        question = (payload.get("question") or "").strip().lower()
+        arm = payload.get("arm", "both")
+        eq_path = WEB_DIR / "data" / "eq_compare.json"
+        eq_data = json.loads(eq_path.read_text(encoding="utf-8")) if eq_path.exists() else {"items": []}
+        items = eq_data.get("items") or []
+        matched = None
+        if eq_id:
+          matched = next((x for x in items if x.get("eq_id") == eq_id), None)
+        if not matched and question:
+          matched = next(
+              (
+                  x
+                  for x in items
+                  if question in (x.get("question") or "").lower()
+                  or question in (x.get("question_en") or "").lower()
+              ),
+              None,
+          )
+        if not matched and items:
+          matched = items[0]
+        self._send_json({"ok": True, "arm": arm, "item": matched}, status=200)
+      except Exception as e:
+        self._send_json({"ok": False, "error": str(e)}, status=200)
+      return
+
     self._send_json({"ok": False, "error": "Unknown endpoint"}, status=404)
 
   def _serve_file(self, file_path: Path, content_type: str) -> None:
