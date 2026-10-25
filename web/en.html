@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script>window.INITIAL_STUDIO_LANG = "en";</script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="light dark" />
@@ -25,7 +24,7 @@
   </script>
 
   <!-- Google Cloud Console Enterprise Stylesheet -->
-  <link rel="stylesheet" href="css/gcp-console.css?v=20261025_08" />
+  <link rel="stylesheet" href="css/gcp-console.css?v=20261025_09" />
 </head>
 <body>
 
@@ -179,12 +178,12 @@
         <div class="ctrl-group">
           <label id="g-scope-label">Graph Scope Filter</label>
           <select id="graph-scope-select" class="gcp-select" onchange="buildOkfGraph(this.value)">
-            <option value="ALL">ALL · 전체 매뉴얼(109p) · 28 OKF 번들 별자리</option>
-            <option value="DAG_SAFETY">01. 분해 선행 DAG (REQUIRES_REMOVAL_OF) &amp; 700V ESD</option>
-            <option value="BIOS_BLINK">02. LED 점멸 진단(3.2/2.2) · HP Sure Start &amp; LPDDR5</option>
-            <option value="SKU_PARTS">03. 12개 SKU 구성 · 38종 스페어 파트 &amp; 5G 화이트리스트</option>
-            <option value="THERMAL_DISPLAY">04. 발열/배터리 스웰링(90B) · 3K2K OLED 풀탭 &amp; TB4 독</option>
-            <option value="CORE">05. 핵심 안전 특례 · 만료 스냅샷(v0.1) &amp; 플레이북 서브그래프</option>
+            <option value="ALL">ALL · 전체 매뉴얼(109p) · 26개 비정형 조항 별자리</option>
+            <option value="DAG_SAFETY">01. [04~06] 분해 선행 DAG (REQUIRES_REMOVAL_OF) &amp; 700V ESD</option>
+            <option value="BIOS_BLINK">02. [07~08] LED 점멸 진단(3.2/2.2) · HP Sure Start &amp; 정비내규</option>
+            <option value="SKU_PARTS">03. [01·03] 온보드 LPDDR5 사양 · 별표 3-1/3-2 부품 카탈로그</option>
+            <option value="THERMAL_DISPLAY">04. [02·06] 3K2K OLED 풀탭 · 카메라 프라이버시 &amp; TB4 포트</option>
+            <option value="CORE">05. 핵심 안전 특례 · 만료 스냅샷(v0.1.0) &amp; 내규 서브그래프</option>
           </select>
         </div>
 
@@ -434,10 +433,11 @@
     <section id="module-benchmark" class="module-workspace" style="display:none;"></section>
   </div>
 
+  <script>window.INITIAL_STUDIO_LANG = "en";</script>
   <!-- Pre-bundled Data & Application Scripts -->
-  <script src="data/studio_bundle.js?v=20261025_08"></script>
-  <script src="js/agent-qa-bank.js?v=20261025_08"></script>
-  <script src="js/i18n.js?v=20261025_08"></script>
-  <script src="js/app.js?v=20261025_08"></script>
+  <script src="data/studio_bundle.js?v=20261025_09"></script>
+  <script src="js/agent-qa-bank.js?v=20261025_09"></script>
+  <script src="js/i18n.js?v=20261025_09"></script>
+  <script src="js/app.js?v=20261025_09"></script>
 </body>
 </html>

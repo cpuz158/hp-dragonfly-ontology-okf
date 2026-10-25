@@ -7,6 +7,7 @@
   "use strict";
 
   const BUNDLE = window.HP_ONTOLOGY_BUNDLE || {};
+  const OKF_DOC_ROOTS = BUNDLE.okf_doc_roots || [];
   const OKF_FILES = BUNDLE.okf_files || [];
   const OKF_GRAPH = BUNDLE.okf_graph || { nodes: [], edges: [] };
   const BQ_TABLES = BUNDLE.bq_tables || [];
@@ -20,18 +21,17 @@
   let INTRO_TAB = "arch"; // 'arch' | 'pipeline'
   let MGMT_TAB = "kcmd"; // 'kcmd' | 'git'
   let GRAPH_MODE = false;
-  let CURRENT_OKF_IDX = Math.max(
-    0,
-    OKF_FILES.findIndex((f) => f.rel_path === "tables/component_disassembly_deps.md")
-  );
+  let CURRENT_OKF_IDX = 0;
+  let ACTIVE_DOC_ROOT_ID = null;
   let OPEN_CATS = {
-    datasets: true,
-    tables: true,
-    references: true,
-    metrics: true,
-    computations: true,
-    playbooks: true,
-    root: true
+    "01_CH1_PRODUCT_SPECS": true,
+    "02_CH2_COMPONENTS_PORTS": true,
+    "03_CH3_SPARE_PARTS": true,
+    "04_CH5_SAFETY_RULES": true,
+    "05_CH5_BASE_STORAGE_WWAN": true,
+    "06_CH5_THERMAL_BOARD_DISPLAY": true,
+    "07_CH6_7_BIOS_DIAGNOSTICS": true,
+    "08_INTERNAL_FIELD_SOP_PLAYBOOKS": true
   };
   let FM_OPEN = true;
   let SELECTED_SNAP_IDX = 0;
@@ -581,10 +581,127 @@
 
   // =========================================================================
   // 4. MODULE 02: OKF Validation (1:1 PDF Split Compare & Knowledge Graph)
+  //    100% Unstructured Document Contexts organized sequentially ([01]~[08])
   // =========================================================================
-  window.toggleCatGroup = function (cat) {
-    OPEN_CATS[cat] = !OPEN_CATS[cat];
+  function highlightOkfTerms(html) {
+    const terms = [
+      "M90788-601",
+      "M90788-005",
+      "N22918-001",
+      "M90790-001",
+      "N01291-001",
+      "N09033-001",
+      "N08542-001",
+      "N17344-001",
+      "HP Sure Start Gen7",
+      "Win+B",
+      "LPDDR5-6400",
+      "700V",
+      "Stretch-Release Pull-Tab",
+      "Caps Lock 3.2",
+      "Caps Lock 2.2",
+      "POST 90B",
+      "Torx T5",
+      "Mylar"
+    ];
+    let out = html;
+    terms.forEach((t) => {
+      const esc = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp(`(?![^<]*>)(${esc})`, "g");
+      out = out.replace(re, '<span class="hl-term">$1</span>');
+    });
+    return out;
+  }
+
+  window.toggleCatGroup = function (docId) {
+    OPEN_CATS[docId] = !OPEN_CATS[docId];
     renderSidebar();
+  };
+
+  window.selectDocRoot = function (docId) {
+    OPEN_CATS[docId] = !OPEN_CATS[docId];
+    ACTIVE_DOC_ROOT_ID = docId;
+    const d = OKF_DOC_ROOTS.find((r) => r.doc_id === docId);
+    renderSidebar();
+    if (!d) return;
+
+    const k = isKo();
+    const pdfUrl = `/docs/pdf_6290467_en-US-1.pdf#page=${d.pdf_page}&zoom=100`;
+    const pdfNameEl = document.getElementById("pdf-name-label");
+    if (pdfNameEl) pdfNameEl.textContent = "pdf_6290467_en-US-1.pdf (N17344-001)";
+
+    const pdfPageEl = document.getElementById("pdf-page-label");
+    if (pdfPageEl) {
+      pdfPageEl.textContent = k
+        ? `p.${d.pdf_page} (범위 pp.${d.source_pages_span}) · [${d.doc_num}] ${d.doc_short_ko}`
+        : `p.${d.pdf_page} (pp.${d.source_pages_span}) · [${d.doc_num}] ${d.doc_short_en}`;
+    }
+
+    const frame = document.getElementById("pdf-frame");
+    if (frame && frame.getAttribute("data-src") !== pdfUrl) {
+      frame.removeAttribute("src");
+      setTimeout(() => {
+        frame.src = pdfUrl;
+        frame.setAttribute("data-src", pdfUrl);
+      }, 15);
+    }
+
+    const okfFileEl = document.getElementById("okf-file-label");
+    if (okfFileEl) okfFileEl.textContent = d.gcs_uri || `okf/${d.rel_path}`;
+
+    const readerEl = document.getElementById("okf-reader");
+    if (readerEl) {
+      const rawMatch = (d.raw || "").match(/^---\s*\n([\s\S]*?)\n---/);
+      const rawYaml = rawMatch ? `---\n${rawMatch[1]}\n---` : "";
+      const renderedMd =
+        window.marked && typeof window.marked.parse === "function"
+          ? highlightOkfTerms(window.marked.parse(d.body || ""))
+          : `<pre>${escapeHtml(d.body || "")}</pre>`;
+      const childItems = OKF_FILES.map((f, idx) => ({ f, idx })).filter((x) => x.f.doc_id === docId);
+      readerEl.innerHTML = `
+        <div class="okf-subpath-line">${escapeHtml(d.gcs_uri || `gs://hp-dragonfly-okf/okf/${d.rel_path}`)}</div>
+        <div class="section-label">
+          <span>${k ? `하위 비정형 조항 컨텍스트 (${childItems.length}건)` : `Child Unstructured Context Clauses (${childItems.length})`}</span>
+          <span>${k ? "클릭 시 해당 조항으로 이동" : "Click to inspect clause"}</span>
+        </div>
+        <div class="biz-edge-list">
+          ${childItems
+            .map(
+              ({ f, idx }) => `
+            <div class="biz-edge-item" onclick="selectItem(${idx})">
+              <div class="biz-edge-top">
+                <span class="edge-badge">
+                  <span class="edge-dot" style="background:${f.status === "deprecated" ? "#c5221f" : "#1a73e8"};"></span>
+                  ${escapeHtml(k ? f.section_number : f.section_number_en || f.section_number)}
+                </span>
+                <span class="edge-jump-meta">p.${f.pdf_page} · ${escapeHtml(f.version || "v0.2.0")} ↗</span>
+              </div>
+              <div class="edge-reason" style="margin-top:4px; font-weight:600; color:var(--text);">${escapeHtml(
+                k ? f.title_ko : f.title_en
+              )}</div>
+            </div>
+          `
+            )
+            .join("")}
+        </div>
+        <details class="fm-accordion" ${FM_OPEN ? "open" : ""} ontoggle="onFmToggle(this.open)">
+          <summary>
+            <span class="fm-summary-left">
+              <span>YAML Frontmatter</span>
+              <span class="fm-summary-meta">Source Document (doc.md) · pp.${escapeHtml(d.source_pages_span)}</span>
+            </span>
+            <span class="material-symbols-outlined fm-chevron">expand_more</span>
+          </summary>
+          <div class="frontmatter-block">${colorizeYaml(rawYaml)}</div>
+        </details>
+        <div class="section-label">
+          <span>${k ? "문서 루트 요약 (Document Root Overview)" : "Document Root Overview (doc.md)"}</span>
+        </div>
+        <div class="okf-title">${escapeHtml(k ? d.title_ko : d.title_en)}</div>
+        <div class="okf-body-box okf-md-content">${renderedMd}</div>
+      `;
+      readerEl.scrollTop = 0;
+    }
   };
 
   window.renderSidebar = function () {
@@ -594,52 +711,44 @@
     if (!box) return;
 
     const k = isKo();
-    const catTitles = {
-      datasets: k ? "01. 데이터셋 (datasets/)" : "01. Datasets (datasets/)",
-      tables: k ? "02. 정형 테이블 (tables/ · 8)" : "02. Structured Tables (tables/ · 8)",
-      references: k ? "03. PDF 레퍼런스 (references/ · 5)" : "03. PDF References (references/ · 5)",
-      metrics: k ? "04. 서비스 지표 (metrics/ · 2)" : "04. Service Metrics (metrics/ · 2)",
-      computations: k ? "05. 검증 쿼리 (computations/ · 2)" : "05. Computations (computations/ · 2)",
-      playbooks: k ? "06. 진단 플레이북 (playbooks/ · 2)" : "06. Playbooks (playbooks/ · 2)",
-      root: k ? "07. 루트 인덱스 & 감사 로그" : "07. Root Index & Audit Log"
-    };
+    const groups = OKF_DOC_ROOTS.map((d) => {
+      const items = [];
+      OKF_FILES.forEach((f, idx) => {
+        if (f.doc_id !== d.doc_id) return;
+        if (q) {
+          const hay = `${f.section_number} ${f.section_number_en} ${f.title_ko} ${f.title_en} ${f.rel_path} ${f.body}`.toLowerCase();
+          if (!hay.includes(q)) return;
+        }
+        items.push({ ...f, idx });
+      });
+      return { doc: d, items };
+    }).filter((g) => !q || g.items.length > 0);
 
-    const byCat = {};
-    OKF_FILES.forEach((f, idx) => {
-      if (q) {
-        const hay = `${f.rel_path} ${f.filename} ${f.pdf_section_en} ${f.pdf_section_ko} ${f.body}`.toLowerCase();
-        if (!hay.includes(q)) return;
-      }
-      const c = f.category || "root";
-      if (!byCat[c]) byCat[c] = [];
-      byCat[c].push({ ...f, idx });
-    });
-
-    box.innerHTML = Object.entries(byCat)
-      .map(([cat, items]) => {
-        const isOpen = q ? true : Boolean(OPEN_CATS[cat]);
+    box.innerHTML = groups
+      .map(({ doc, items }) => {
+        const isOpen = q ? true : Boolean(OPEN_CATS[doc.doc_id]);
+        const isDocRootActive = ACTIVE_DOC_ROOT_ID === doc.doc_id;
         return `
           <div class="doc-section">
-            <div class="doc-group-title" onclick="toggleCatGroup('${escapeHtml(cat)}')">
-              <span>${escapeHtml(catTitles[cat] || cat)}</span>
-              <span style="font-size:11px; font-weight:500; color:var(--text-sub);">${items.length}</span>
+            <div class="doc-group-title ${isDocRootActive ? "doc-root-active" : ""}" onclick="selectDocRoot('${escapeHtml(doc.doc_id)}')" title="${escapeHtml(k ? doc.title_ko : doc.title_en)}">
+              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">[${escapeHtml(doc.doc_num)}] ${escapeHtml(k ? doc.doc_short_ko : doc.doc_short_en)}</span>
+              <span class="badge-pill badge-blue">${items.length}</span>
             </div>
             <div class="doc-items ${isOpen ? "" : "collapsed"}">
               ${items
-                .map(
-                  (it) => `
-                <div class="nav-item ${it.idx === CURRENT_OKF_IDX ? "active" : ""}" onclick="selectItem(${it.idx})">
+                .map((it) => {
+                  const isDep = it.status === "deprecated";
+                  const isActive = !ACTIVE_DOC_ROOT_ID && it.idx === CURRENT_OKF_IDX;
+                  return `
+                <div class="nav-item ${isActive ? "active" : ""}" onclick="selectItem(${it.idx})" style="${isDep ? "opacity:0.78;" : ""}">
                   <div class="nav-item-top">
-                    <span>${escapeHtml(it.filename)}</span>
-                    <span class="nav-page">p.${it.pdf_page}</span>
+                    <span>${escapeHtml(k ? it.section_number : it.section_number_en || it.section_number)}</span>
+                    <span class="nav-page">${isDep ? "DEPRECATED · " : ""}p.${it.pdf_page}</span>
                   </div>
-                  <div class="nav-item-sub">${escapeHtml(
-                    (it.frontmatter && (it.frontmatter.title || it.frontmatter.description)) ||
-                      (k ? it.pdf_section_ko : it.pdf_section_en)
-                  )}</div>
+                  <div class="nav-item-sub">${escapeHtml(k ? it.title_ko : it.title_en)}</div>
                 </div>
-              `
-                )
+              `;
+                })
                 .join("")}
             </div>
           </div>
@@ -653,8 +762,13 @@
   };
 
   window.selectByConceptId = function (conceptId) {
-    const targetRel = conceptId.endsWith(".md") ? conceptId : conceptId + ".md";
-    const idx = OKF_FILES.findIndex((f) => f.rel_path === targetRel || f.id === conceptId);
+    const clean = String(conceptId || "").replace(/\.md$/, "");
+    const idx = OKF_FILES.findIndex(
+      (f) =>
+        f.id === clean ||
+        f.rel_path === conceptId ||
+        (Array.isArray(f.legacy_aliases) && (f.legacy_aliases.includes(conceptId) || f.legacy_aliases.includes(clean + ".md")))
+    );
     if (idx < 0) return;
     if (GRAPH_MODE) {
       openGraphDetailForIdx(idx);
@@ -670,195 +784,197 @@
   };
 
   // =========================================================================
-  // 4.1 5-Tier OKF Constellation Graph Definitions (100% Parity with `krda-ontology-studio`)
-  //     Tier 1: Document / Ontology Roots (`#3b6ea5` / `#527a9a`, dot, size 34)
-  //     Tier 2: Major Chapters / Domain Hubs (`#6b88a8`, dot, size 22)
-  //     Tier 3: OKF Concept / Provision Nodes (`#3b735b` normal / `#a85c56` caveat-DAG / `#b88a44` governance, dot, size 15-17.5)
-  //     Tier 4: Fine-Grained Sub-Clause / Rule Chunks (`#3b735b` / `#a85c56`, dot, size 12.5)
-  //     Tier 5: Core Hardware & Diagnostic Entity Diamonds (`#b88a44`, diamond, size 12.5, dashed MENTIONS edges)
+  // 4.1 5-Tier OKF Constellation Graph Definitions (100% Unstructured Contexts)
+  //     Tier 1: Source Document Roots (`#3b6ea5` Manual PDF / `#527a9a` SOP Policy, size 34)
+  //     Tier 2: Sequential Chapter Hubs (`[01]`~`[08]`, `#6b88a8`, size 22)
+  //     Tier 3: Unstructured Clause / Provision Nodes (`#3b735b` / `#a85c56` / `#b88a44`, size 15-17.5)
+  //     Tier 4: Fine-Grained Sub-Clause / Rule Chunks (`#3b735b` / `#a85c56`, size 11.5)
+  //     Tier 5: Core Hardware & Diagnostic Entity Diamonds (`#b88a44`, diamond, size 12.5)
   // =========================================================================
   let okfGraphNodes = [];
   let okfGraphEdges = [];
 
   const HP_CAVEAT_CONCEPTS = new Set([
-    "tables/component_disassembly_deps",
-    "references/disassembly-prerequisite-graph-and-esd",
-    "playbooks/no-boot-bios-sure-start-recovery",
-    "playbooks/oled-camera-and-cable-replacement",
-    "computations/multi-hop-disassembly-critical-path",
-    "references/bios-nvm-and-hp-sure-start-security"
+    "manuals/01_ch1_product_specs/sec_1_2_soldered_lpddr5_memory_rule",
+    "manuals/04_ch5_preliminary_safety/sec_5_1_esd_700v_grounding_protocol",
+    "manuals/04_ch5_preliminary_safety/sec_5_3_swollen_battery_safety_rule",
+    "manuals/05_ch5_base_battery_storage/sec_5_5_battery_pack_isolation_and_removal",
+    "manuals/06_ch5_thermal_sysboard_display/sec_5_16_system_board_multihop_dag",
+    "manuals/06_ch5_thermal_sysboard_display/sec_5_18_oled_display_pulltab_and_camera_cable",
+    "internal_policies/08_hp_field_service_sop/sop_art_001_no_boot_sure_start_before_board_swap",
+    "internal_policies/08_hp_field_service_sop/sop_art_003_v1_deprecated_live_battery_hotswap"
   ]);
 
   const HP_GOVERNANCE_CONCEPTS = new Set([
-    "tables/diagnostic_codes_reference",
-    "tables/community_troubleshooting_cases",
-    "tables/firmware_bios_and_nvm",
-    "references/post-led-blink-and-uefi-diagnostics",
-    "metrics/component-service-complexity-score",
-    "metrics/hardware-fru-replacement-rate",
-    "computations/fru-replacement-rate-by-category"
+    "manuals/03_ch3_spare_parts_catalog/table_3_1_major_system_fru_catalog",
+    "manuals/03_ch3_spare_parts_catalog/table_3_1_system_board_fru_matrix",
+    "manuals/03_ch3_spare_parts_catalog/table_3_2_display_and_antenna_subcomponents",
+    "manuals/07_ch6_7_bios_and_blink_codes/sec_6_1_bios_setup_and_sure_start_recovery",
+    "manuals/07_ch6_7_bios_and_blink_codes/sec_7_1_led_blink_codes_and_post_messages",
+    "manuals/07_ch6_7_bios_and_blink_codes/sec_7_2_symptom_root_cause_triage_matrix",
+    "internal_policies/08_hp_field_service_sop/sop_art_002_thermal_dptf_before_heatsink_swap"
   ]);
 
   const HP_SEMANTIC_EDGES = [
     {
-      fromId: "playbooks/no-boot-bios-sure-start-recovery",
-      toId: "tables/component_disassembly_deps",
-      rel: "OVERRULES_PREMATURE_FRU_SWAP",
+      fromId: "internal_policies/08_hp_field_service_sop/sop_art_001_no_boot_sure_start_before_board_swap",
+      toId: "manuals/06_ch5_thermal_sysboard_display/sec_5_16_system_board_multihop_dag",
+      rel: "OVERRULES_PREMATURE_BOARD_SWAP",
       color: "#a85c56",
       reason_ko:
-        "Caps Lock 3.2/2.2 점멸 시 즉시 메인보드를 분해·교체하지 않고, 반드시 무분해 Win+B HP Sure Start 복구 및 15초 EC 리셋을 1차로 선행하도록 제어합니다.",
+        "내규 제1조는 Caps Lock 3.2/2.2 점멸 시 제5장 §5.16 메인보드 분해를 즉시 수행하지 않고, 무분해 Win+B HP Sure Start 복구를 1차로 강제합니다.",
       reason_en:
-        "Requires non-invasive Win+B HP Sure Start recovery and 15s EC reset prior to escalating to physical System Board disassembly."
+        "SOP Article 1 mandates non-invasive Win+B HP Sure Start recovery prior to invoking Ch.5 §5.16 System Board disassembly."
     },
     {
-      fromId: "tables/component_disassembly_deps",
-      toId: "references/disassembly-prerequisite-graph-and-esd",
-      rel: "ENFORCES_700V_ESD_AND_BATTERY_DAG",
+      fromId: "manuals/04_ch5_preliminary_safety/sec_5_1_esd_700v_grounding_protocol",
+      toId: "internal_policies/08_hp_field_service_sop/sop_art_003_v1_deprecated_live_battery_hotswap",
+      rel: "SUPERSEDES_DEPRECATED_V01_HOTSWAP",
       color: "#a85c56",
       reason_ko:
-        "시스템 보드(M90788-601) 및 열전도 모듈 분리 전 하판 커버(N22918-001) ➔ 배터리(M90788-005) 절연 및 700V ESD 방전 절차를 강제합니다.",
+        "제5장 §5.1(700V ESD 및 배터리 선행 분리 의무)이 구버전(v0.1.0) 내규 제3조(배터리 활성 상태 SSD 핫스왑 허용)를 영구 폐기(Deprecated)합니다.",
       reason_en:
-        "Enforces mandatory Bottom Cover (N22918-001) ➔ Battery (M90788-005) isolation and 700V ESD grounding before touching board components."
+        "Ch.5 §5.1 (700V ESD & mandatory battery isolation) permanently supersedes deprecated v0.1.0 SOP Article 3 (live battery SSD hot-swap)."
     },
     {
-      fromId: "computations/multi-hop-disassembly-critical-path",
-      toId: "tables/component_disassembly_deps",
-      rel: "TRAVERSES_PREREQ_DAG_EDGES",
+      fromId: "manuals/06_ch5_thermal_sysboard_display/sec_5_16_system_board_multihop_dag",
+      toId: "manuals/05_ch5_base_battery_storage/sec_5_5_battery_pack_isolation_and_removal",
+      rel: "REQUIRES_REMOVAL_OF_BATTERY",
       color: "#a85c56",
       reason_ko:
-        "BigQuery Property Graph의 REQUIRES_REMOVAL_OF 엣지(15건)를 다중 홉 탐색하여 목표 FRU 교체에 필요한 최소 분해 경로와 나사 규격(T5/PH0)을 도출합니다.",
+        "제5장 §5.16 시스템 보드(M90788-601) 분리 전 반드시 §5.5 배터리 팩(M90788-005) 커넥터 분리 및 절연이 선행되어야 합니다.",
       reason_en:
-        "Traverses 15 REQUIRES_REMOVAL_OF edges in BigQuery Property Graph to compute deterministic multi-hop removal order and screw specs."
+        "Ch.5 §5.16 System Board removal strictly requires prior Ch.5 §5.5 Battery Pack (M90788-005) connector isolation."
     },
     {
-      fromId: "playbooks/oled-camera-and-cable-replacement",
-      toId: "references/disassembly-prerequisite-graph-and-esd",
-      rel: "REQUIRES_STRETCH_RELEASE_PULL_TAB",
+      fromId: "manuals/05_ch5_base_battery_storage/sec_5_5_battery_pack_isolation_and_removal",
+      toId: "manuals/05_ch5_base_battery_storage/sec_5_4_bottom_cover_removal",
+      rel: "REQUIRES_REMOVAL_OF_BOTTOM_COVER",
       color: "#a85c56",
       reason_ko:
-        "3K2K OLED 패널(N01291-001) 분리 시 지렛대 도구 사용을 금지하고 신축성 접착 풀탭(Stretch-Release Pull-Tab)을 수평 견인하도록 규정합니다.",
+        "제5장 §5.5 배터리 팩 분리 전 §5.4 하판 커버(N22918-001, Torx T5 5개) 분리가 최우선 선행 조건(Step 1)입니다.",
       reason_en:
-        "Prohibits prying tools on 3K2K OLED panels (N01291-001); mandates horizontal traction on stretch-release adhesive pull-tabs."
+        "Ch.5 §5.5 Battery removal requires Ch.5 §5.4 Bottom Cover (N22918-001, 5x Torx T5) removal as Step 1."
     },
     {
-      fromId: "tables/product_skus_and_configs",
-      toId: "tables/hardware_components_catalog",
-      rel: "BINDS_SOLDERED_LPDDR5_SYSTEM_BOARD",
-      color: "#3b6ea5",
+      fromId: "manuals/06_ch5_thermal_sysboard_display/sec_5_16_system_board_multihop_dag",
+      toId: "manuals/06_ch5_thermal_sysboard_display/sec_5_12_vapor_chamber_heatsink_and_fan",
+      rel: "REQUIRES_REMOVAL_OF_HEATSINK",
+      color: "#a85c56",
       reason_ko:
-        "온보드 납땜(Soldered)된 LPDDR5(16GB/32GB) 및 CPU/vPro/5G 구성에 따라 12개 SKU 각각에 대응하는 단일 시스템 보드 FRU 파트 번호를 1:1 매핑합니다.",
+        "시스템 보드 분리 전 §5.12 베이퍼 챔버 히트싱크(M90790-001) 대각선 나사 해체 및 서멀 컴파운드 재도포 절차가 필요합니다.",
       reason_en:
-        "Maps each of the 12 ProductSKUs to its exact soldered CPU + LPDDR5 System Board FRU part number in HardwareComponent."
+        "System Board removal requires prior §5.12 Vapor Chamber Heatsink (M90790-001) diagonal loosening and thermal repaste."
     },
     {
-      fromId: "tables/product_skus_and_configs",
-      toId: "tables/dragonfly_series_models",
-      rel: "BELONGS_TO_SERIES_MODEL",
-      color: "#3b6ea5",
+      fromId: "manuals/06_ch5_thermal_sysboard_display/sec_5_18_oled_display_pulltab_and_camera_cable",
+      toId: "manuals/03_ch3_spare_parts_catalog/table_3_2_display_and_antenna_subcomponents",
+      rel: "ENFORCES_OLED_PULLTAB_ON_SUBPARTS",
+      color: "#a85c56",
       reason_ko:
-        "12개 세부 노트북 SKU가 속한 상위 폼팩터 제품군(Clamshell G3 vs. Folio G3 2-in-1 Pull-Forward) 및 섀시 열설계(TDP) 규격을 연결합니다.",
+        "제5장 §5.18 신축성 풀탭(Stretch-Release Pull-Tab) 수평 견인 규정이 제3장 별표 3-2의 3K2K OLED 패널(N01291-001) 및 카메라 케이블 교체에 적용됩니다.",
       reason_en:
-        "Links 12 configured SKUs to their parent ProductModel chassis architecture (Clamshell G3 vs. Folio G3 2-in-1)."
+        "Ch.5 §5.18 Stretch-Release Pull-Tab rule governs replacement of Ch.3 Table 3-2 3K2K OLED panel (N01291-001) and camera cables."
     },
     {
-      fromId: "tables/community_troubleshooting_cases",
-      toId: "tables/diagnostic_codes_reference",
-      rel: "EMITS_POST_BLINK_CODE",
+      fromId: "manuals/01_ch1_product_specs/sec_1_2_soldered_lpddr5_memory_rule",
+      toId: "manuals/03_ch3_spare_parts_catalog/table_3_1_system_board_fru_matrix",
+      rel: "MANDATES_BOARD_LEVEL_FRU_SELECTION",
+      color: "#a85c56",
+      reason_ko:
+        "제1장 §1.2 온보드 납땜(Soldered) LPDDR5-6400 아키텍처로 인해 메모리 불량·증설 시 제3장 별표 3-1(보드)의 시스템 보드 통교체가 필요합니다.",
+      reason_en:
+        "Ch.1 §1.2 Soldered LPDDR5-6400 constraint mandates full System Board FRU replacement per Ch.3 Table 3-1(Board)."
+    },
+    {
+      fromId: "manuals/07_ch6_7_bios_and_blink_codes/sec_7_1_led_blink_codes_and_post_messages",
+      toId: "manuals/01_ch1_product_specs/sec_1_2_soldered_lpddr5_memory_rule",
+      rel: "DIAGNOSES_SOLDERED_RAM_FAILURE",
       color: "#b88a44",
       reason_ko:
-        "현장 고장 사례(TS-DFG3-001~012)에서 관측되는 Caps Lock LED 점멸 패턴(3.2 메모리, 2.2 BIOS, 90B 팬 오류 등)을 공식 진단코드 테이블과 매핑합니다.",
+        "제7장 §7.1 Caps Lock 3.2 점멸(메모리 초기화 실패)은 제1장 §1.2의 SO-DIMM 슬롯 부재(납땜 메모리) 규정과 결합되어 해석됩니다.",
       reason_en:
-        "Connects field TroubleshootingCases (TS-DFG3-001..012) to official Caps Lock LED blink and POST diagnostic codes."
+        "Ch.7 §7.1 Caps Lock 3.2 blink code (memory failure) links directly to Ch.1 §1.2 soldered LPDDR5 memory constraint."
     },
     {
-      fromId: "tables/community_troubleshooting_cases",
-      toId: "tables/hardware_components_catalog",
-      rel: "IDENTIFIES_CULPRIT_FRU_PART",
-      color: "#3b6ea5",
+      fromId: "manuals/07_ch6_7_bios_and_blink_codes/sec_7_1_led_blink_codes_and_post_messages",
+      toId: "manuals/07_ch6_7_bios_and_blink_codes/sec_6_1_bios_setup_and_sure_start_recovery",
+      rel: "TRIGGERS_SURE_START_RECOVERY",
+      color: "#b88a44",
       reason_ko:
-        "각 고장 사례의 물리적 결함 원인 부품(related_part_number ➔ part_number)을 연결하여 증상에서 교체 대상 FRU까지 즉시 도달합니다.",
+        "제7장 §7.1 Caps Lock 2.2 점멸(BIOS 손상) 시 제6장 §6.1의 HP Sure Start Gen7 16MB 골든 이미지 자동 복구 절차를 실행합니다.",
       reason_en:
-        "Binds each field TroubleshootingCase to its root-cause HardwareComponent FRU via related_part_number."
+        "Ch.7 §7.1 Caps Lock 2.2 blink code triggers Ch.6 §6.1 HP Sure Start Gen7 16MB Golden Image SPI recovery."
     },
     {
-      fromId: "tables/community_troubleshooting_cases",
-      toId: "playbooks/no-boot-bios-sure-start-recovery",
-      rel: "GOVERNED_BY_RECOVERY_SOP",
+      fromId: "internal_policies/08_hp_field_service_sop/sop_art_002_thermal_dptf_before_heatsink_swap",
+      toId: "manuals/06_ch5_thermal_sysboard_display/sec_5_12_vapor_chamber_heatsink_and_fan",
+      rel: "GATES_HEATSINK_REPLACEMENT",
       color: "#3b735b",
       reason_ko:
-        "부팅 불량 및 바이오스 손상 사례 해결 시 에이전트가 준수해야 할 표준 복구 플레이북(HP Sure Start Gen7)을 지정합니다.",
+        "내규 제2조는 POST 90B 및 스로틀링 발생 시 제5장 §5.12 히트싱크(M90790-001) 교체 전에 BIOS U95 01.08.00 + DPTF 업데이트를 선행하도록 규정합니다.",
       reason_en:
-        "Governs no-boot and BIOS corruption troubleshooting cases under the attested HP Sure Start Gen7 recovery playbook."
+        "SOP Article 2 gates Ch.5 §5.12 Heatsink replacement behind BIOS U95 01.08.00 + Intel DPTF update verification."
     },
     {
-      fromId: "tables/community_troubleshooting_cases",
-      toId: "playbooks/oled-camera-and-cable-replacement",
-      rel: "GOVERNED_BY_OLED_CAMERA_SOP",
+      fromId: "manuals/04_ch5_preliminary_safety/sec_5_3_swollen_battery_safety_rule",
+      toId: "manuals/05_ch5_base_battery_storage/sec_5_5_battery_pack_isolation_and_removal",
+      rel: "MODIFIES_BATTERY_REMOVAL_SAFETY",
+      color: "#a85c56",
+      reason_ko:
+        "제5장 §5.3 배터리 스웰링(팽창) 감지 시 §5.5 일반 배터리 분리 절차에 비전도성 핀셋 및 방폭 컨테이너 격리 수칙을 추가 적용합니다.",
+      reason_en:
+        "Ch.5 §5.3 Swollen Battery safety rule adds non-conductive tweezer and Class-D containment constraints to §5.5 battery removal."
+    },
+    {
+      fromId: "manuals/05_ch5_base_battery_storage/sec_5_6_nvme_ssd_and_mylar_shield_procedure",
+      toId: "manuals/04_ch5_preliminary_safety/sec_5_1_esd_700v_grounding_protocol",
+      rel: "ENFORCES_MYLAR_ESD_SHIELDING",
       color: "#3b735b",
       reason_ko:
-        "5MP IR 카메라 프라이버시 셔터 불량 및 OLED 힌지 배선 간헐적 단선 사례에 대한 비파괴 트리아지 플레이북을 연결합니다.",
+        "제5장 §5.6 PCIe Gen4 NVMe SSD(M90791-001) 교체 시 §5.1 ESD 방전 및 열전도 마일러(Mylar) 실드 슬리브 원위치 복원을 강제합니다.",
       reason_en:
-        "Links camera shutter and OLED display cable cases to the non-destructive cable/shutter triage playbook."
+        "Ch.5 §5.6 NVMe SSD replacement enforces §5.1 700V ESD grounding and thermal Mylar shield restoration."
     },
     {
-      fromId: "tables/diagnostic_codes_reference",
-      toId: "references/post-led-blink-and-uefi-diagnostics",
-      rel: "ATTESTED_IN_CH7_MANUAL",
-      color: "#b88a44",
-      reason_ko:
-        "BigQuery 진단코드 11건이 원본 서비스 매뉴얼 PDF(N17344-001 p.81~88)의 Chapter 7 표와 100% 일치함을 증명합니다.",
-      reason_en:
-        "Attests structured diagnostic_codes_reference rows against Chapter 7 (p.81-88) of the HP Service Guide PDF."
-    },
-    {
-      fromId: "tables/firmware_bios_and_nvm",
-      toId: "references/bios-nvm-and-hp-sure-start-security",
-      rel: "IMPLEMENTS_SURE_START_GEN7_NVM",
-      color: "#b88a44",
-      reason_ko:
-        "U95 시스템 BIOS와 32MB SPI Flash / 16MB 골든 이미지가 HP Sure Start Gen7 보안 감시 및 NIST SP 800-88 초기화 규격을 구현합니다.",
-      reason_en:
-        "Binds structured BIOS/NVM firmware records to HP Sure Start Gen7 hardware-enforced SPI flash protection and NIST SP 800-88 sanitization."
-    },
-    {
-      fromId: "tables/ports_sensors_and_docks",
-      toId: "references/thunderbolt-4-port-and-dock-architecture",
-      rel: "SPECIFIES_TB4_PD_AND_DSC_MATRIX",
-      color: "#3b735b",
-      reason_ko:
-        "듀얼 Thunderbolt 4 (40Gbps, 100W USB-PD 3.0) 포트와 HP Thunderbolt Dock G4 연결 시 최대 해상도(DSC 1.2 듀얼 4K@60Hz) 매트릭스를 정의합니다.",
-      reason_en:
-        "Links physical port/sensor specs to the Thunderbolt 4 100W PD charging and DisplayPort 1.4 DSC multi-monitor matrix."
-    },
-    {
-      fromId: "metrics/hardware-fru-replacement-rate",
-      toId: "computations/fru-replacement-rate-by-category",
-      rel: "CALCULATED_BY_GQL_AGGREGATION",
-      color: "#b88a44",
-      reason_ko:
-        "펌웨어·Sure Start 무출동 해결율 대비 실제 하드웨어 FRU 교체 비율 지표를 산출하는 공식 SQL/GQL 연산식을 연결합니다.",
-      reason_en:
-        "Links the Hardware FRU Replacement Rate SLA metric to its underlying BigQuery aggregation computation."
-    },
-    {
-      fromId: "metrics/component-service-complexity-score",
-      toId: "computations/multi-hop-disassembly-critical-path",
-      rel: "SCORED_BY_DAG_HOP_DEPTH",
-      color: "#b88a44",
-      reason_ko:
-        "선행 분해 단계 수(step_order 깊이), ZIF 리본 케이블 위험도, 열전도 그리스 재도포 여부를 종합하여 부품별 수리 복잡도 점수를 산출합니다.",
-      reason_en:
-        "Computes component service complexity score from prerequisite DAG hop depth, ZIF cable fragility, and thermal repaste requirements."
-    },
-    {
-      fromId: "datasets/prj_ontology_hp_dragonfly",
-      toId: "references/hp-folio-g3-service-manual-n17344",
-      rel: "BRIDGES_BQ_ONTOLOGY_TO_PDF_N17344",
+      fromId: "manuals/05_ch5_base_battery_storage/sec_5_7_wwan_5g_and_wlan_antenna_routing",
+      toId: "manuals/01_ch1_product_specs/sec_1_3_storage_and_wireless_specs",
+      rel: "VALIDATES_FCC_IMEI_WHITELIST",
       color: "#3b6ea5",
       reason_ko:
-        "BigQuery 정형 온톨로지 데이터셋(8개 테이블, 109행)과 109페이지 공식 영문 서비스 매뉴얼 PDF(N17344-001)를 2-Layer 하이브리드 온톨로지로 통합합니다.",
+        "제5장 §5.7 Intel 5G Solution 5000(N08542-001) 안테나 배선 시 제1장 §1.3의 WWAN 직판 구성 및 BIOS FCC/IMEI 화이트리스트 요건을 검증합니다.",
       reason_en:
-        "Unites the 8 structured BigQuery ontology tables (109 rows) with the 109-page HP Maintenance & Service Guide PDF (N17344-001)."
+        "Ch.5 §5.7 5G WWAN antenna routing verifies Ch.1 §1.3 factory WWAN antenna requirement and BIOS FCC/IMEI whitelist."
+    },
+    {
+      fromId: "manuals/02_ch2_external_components/sec_2_1_thunderbolt_and_io_ports",
+      toId: "manuals/02_ch2_external_components/sec_2_2_display_oled_sureview_camera",
+      rel: "DRIVES_EXTERNAL_AND_INTERNAL_DISPLAY",
+      color: "#3b6ea5",
+      reason_ko:
+        "제2장 §2.1 듀얼 Thunderbolt 4(100W PD, DP 1.4a DSC) 포트 규격과 §2.2 내장 3K2K OLED / Sure View 패널 구성을 연결합니다.",
+      reason_en:
+        "Connects Ch.2 §2.1 Dual Thunderbolt 4 (100W PD, DP 1.4a DSC) matrix with §2.2 internal 3K2K OLED / Sure View panels."
+    },
+    {
+      fromId: "manuals/02_ch2_external_components/sec_2_4_service_tag_and_regulatory_labels",
+      toId: "manuals/03_ch3_spare_parts_catalog/table_3_1_major_system_fru_catalog",
+      rel: "MAPS_SERIAL_SKU_TO_FRU_CATALOG",
+      color: "#3b6ea5",
+      reason_ko:
+        "제2장 §2.4 하판 서비스 태그(ProdID/SN) 식별 규칙을 통해 제3장 별표 3-1의 정확한 스페어 파트 번호(FRU)를 조회합니다.",
+      reason_en:
+        "Maps Ch.2 §2.4 Bottom Cover Service Tag (ProdID/SN) identification to Ch.3 Table 3-1 Spare Parts FRU catalog."
+    },
+    {
+      fromId: "manuals/07_ch6_7_bios_and_blink_codes/sec_7_2_symptom_root_cause_triage_matrix",
+      toId: "internal_policies/08_hp_field_service_sop/sop_art_001_no_boot_sure_start_before_board_swap",
+      rel: "ALIGNS_MANUAL_TRIAGE_WITH_SOP",
+      color: "#3b735b",
+      reason_ko:
+        "제7장 §7.2 공식 증상별 원인 트리아지 매트릭스와 사내 정비내규 제1조~제2조의 무출동 복구 우선 원칙을 상호 정렬합니다.",
+      reason_en:
+        "Aligns Ch.7 §7.2 Symptom-to-FRU Triage Matrix with Internal Field Service SOP Articles 1 & 2."
     }
   ];
 
@@ -867,217 +983,142 @@
       id: "ENT::M90788_601",
       name: "M90788-601\n(i7-1265U 32GB Board)",
       matchIds: [
-        "tables/hardware_components_catalog",
-        "tables/product_skus_and_configs",
-        "tables/component_disassembly_deps",
-        "playbooks/no-boot-bios-sure-start-recovery"
+        "manuals/03_ch3_spare_parts_catalog/table_3_1_system_board_fru_matrix",
+        "manuals/06_ch5_thermal_sysboard_display/sec_5_16_system_board_multihop_dag",
+        "internal_policies/08_hp_field_service_sop/sop_art_001_no_boot_sure_start_before_board_swap"
       ]
     },
     {
       id: "ENT::M90788_005",
       name: "M90788-005\n(68Wh Battery Isolation)",
       matchIds: [
-        "tables/component_disassembly_deps",
-        "references/disassembly-prerequisite-graph-and-esd",
-        "computations/multi-hop-disassembly-critical-path"
+        "manuals/04_ch5_preliminary_safety/sec_5_1_esd_700v_grounding_protocol",
+        "manuals/04_ch5_preliminary_safety/sec_5_3_swollen_battery_safety_rule",
+        "manuals/05_ch5_base_battery_storage/sec_5_5_battery_pack_isolation_and_removal"
       ]
     },
     {
       id: "ENT::N22918_001",
       name: "N22918-001\n(Bottom Cover Torx T5)",
       matchIds: [
-        "tables/component_disassembly_deps",
-        "tables/hardware_components_catalog",
-        "computations/multi-hop-disassembly-critical-path"
+        "manuals/03_ch3_spare_parts_catalog/table_3_1_major_system_fru_catalog",
+        "manuals/04_ch5_preliminary_safety/sec_5_2_pre_disassembly_and_tooling_rules",
+        "manuals/05_ch5_base_battery_storage/sec_5_4_bottom_cover_removal"
       ]
     },
     {
       id: "ENT::M90790_001",
       name: "M90790-001\n(Vapor Chamber Heatsink)",
       matchIds: [
-        "tables/component_disassembly_deps",
-        "tables/hardware_components_catalog",
-        "metrics/component-service-complexity-score"
+        "manuals/03_ch3_spare_parts_catalog/table_3_1_major_system_fru_catalog",
+        "manuals/06_ch5_thermal_sysboard_display/sec_5_12_vapor_chamber_heatsink_and_fan",
+        "internal_policies/08_hp_field_service_sop/sop_art_002_thermal_dptf_before_heatsink_swap"
       ]
     },
     {
       id: "ENT::N01291_001",
       name: "N01291-001\n(3K2K OLED Pull-Tab)",
       matchIds: [
-        "playbooks/oled-camera-and-cable-replacement",
-        "tables/hardware_components_catalog",
-        "references/disassembly-prerequisite-graph-and-esd"
+        "manuals/02_ch2_external_components/sec_2_2_display_oled_sureview_camera",
+        "manuals/03_ch3_spare_parts_catalog/table_3_2_display_and_antenna_subcomponents",
+        "manuals/06_ch5_thermal_sysboard_display/sec_5_18_oled_display_pulltab_and_camera_cable"
       ]
     },
     {
       id: "ENT::N09033_001",
       name: "N09033-001\n(Folio G3 32GB Board)",
       matchIds: [
-        "tables/product_skus_and_configs",
-        "tables/dragonfly_series_models",
-        "references/hp-folio-g3-service-manual-n17344"
+        "manuals/01_ch1_product_specs/sec_1_1_platform_architecture",
+        "manuals/01_ch1_product_specs/sec_1_2_soldered_lpddr5_memory_rule",
+        "manuals/03_ch3_spare_parts_catalog/table_3_1_system_board_fru_matrix"
       ]
     },
     {
       id: "ENT::N08542_001",
       name: "N08542-001\n(Intel XMM 7560R+ 5G)",
       matchIds: [
-        "tables/product_skus_and_configs",
-        "tables/hardware_components_catalog",
-        "tables/firmware_bios_and_nvm"
+        "manuals/01_ch1_product_specs/sec_1_3_storage_and_wireless_specs",
+        "manuals/05_ch5_base_battery_storage/sec_5_7_wwan_5g_and_wlan_antenna_routing"
       ]
     },
     {
       id: "ENT::LED_3_2",
       name: "LED-CAPS-3-2\n(Soldered LPDDR5 Error)",
       matchIds: [
-        "tables/diagnostic_codes_reference",
-        "references/post-led-blink-and-uefi-diagnostics",
-        "playbooks/no-boot-bios-sure-start-recovery",
-        "tables/community_troubleshooting_cases"
+        "manuals/01_ch1_product_specs/sec_1_2_soldered_lpddr5_memory_rule",
+        "manuals/07_ch6_7_bios_and_blink_codes/sec_7_1_led_blink_codes_and_post_messages",
+        "internal_policies/08_hp_field_service_sop/sop_art_001_no_boot_sure_start_before_board_swap"
       ]
     },
     {
       id: "ENT::LED_2_2",
       name: "LED-CAPS-2-2\n(Sure Start BIOS Corrupt)",
       matchIds: [
-        "tables/diagnostic_codes_reference",
-        "references/bios-nvm-and-hp-sure-start-security",
-        "playbooks/no-boot-bios-sure-start-recovery"
+        "manuals/07_ch6_7_bios_and_blink_codes/sec_6_1_bios_setup_and_sure_start_recovery",
+        "manuals/07_ch6_7_bios_and_blink_codes/sec_7_1_led_blink_codes_and_post_messages"
       ]
     },
     {
       id: "ENT::POST_90B",
       name: "POST-90B\n(Cooling Fan & Thermal)",
       matchIds: [
-        "tables/diagnostic_codes_reference",
-        "tables/community_troubleshooting_cases",
-        "references/post-led-blink-and-uefi-diagnostics"
+        "manuals/07_ch6_7_bios_and_blink_codes/sec_7_1_led_blink_codes_and_post_messages",
+        "manuals/07_ch6_7_bios_and_blink_codes/sec_7_2_symptom_root_cause_triage_matrix",
+        "internal_policies/08_hp_field_service_sop/sop_art_002_thermal_dptf_before_heatsink_swap"
       ]
     },
     {
       id: "ENT::SURE_START_WIN_B",
       name: "Win+B Recovery\n(HP Sure Start Gen7)",
       matchIds: [
-        "playbooks/no-boot-bios-sure-start-recovery",
-        "references/bios-nvm-and-hp-sure-start-security",
-        "tables/firmware_bios_and_nvm",
-        "metrics/hardware-fru-replacement-rate"
+        "manuals/07_ch6_7_bios_and_blink_codes/sec_6_1_bios_setup_and_sure_start_recovery",
+        "internal_policies/08_hp_field_service_sop/sop_art_001_no_boot_sure_start_before_board_swap"
       ]
     },
     {
       id: "ENT::ESD_700V_MYLAR",
       name: "700V ESD & Mylar\n(Shielding Rule)",
       matchIds: [
-        "references/disassembly-prerequisite-graph-and-esd",
-        "tables/component_disassembly_deps"
+        "manuals/04_ch5_preliminary_safety/sec_5_1_esd_700v_grounding_protocol",
+        "manuals/05_ch5_base_battery_storage/sec_5_6_nvme_ssd_and_mylar_shield_procedure"
       ]
     },
     {
       id: "ENT::TB4_DOCK_G4",
       name: "Thunderbolt 4\n(100W PD / DSC 1.2)",
       matchIds: [
-        "tables/ports_sensors_and_docks",
-        "references/thunderbolt-4-port-and-dock-architecture"
+        "manuals/02_ch2_external_components/sec_2_1_thunderbolt_and_io_ports",
+        "manuals/02_ch2_external_components/sec_2_3_keyboard_privacy_shutter_biometrics"
       ]
     },
     {
       id: "ENT::DEP_HOTSWAP_V01",
-      name: "[DEPRECATED v0.1]\nHot-Swap Draft Blocked",
+      name: "[DEPRECATED v0.1]\nHot-Swap Clause Blocked",
       matchIds: [
-        "playbooks/no-boot-bios-sure-start-recovery",
-        "tables/component_disassembly_deps"
+        "manuals/04_ch5_preliminary_safety/sec_5_1_esd_700v_grounding_protocol",
+        "internal_policies/08_hp_field_service_sop/sop_art_003_v1_deprecated_live_battery_hotswap"
       ]
     }
   ];
 
   function getDocAndChapterHubForOkfFile(f) {
-    const id = f.id;
-    if (
-      id === "tables/component_disassembly_deps" ||
-      id === "references/disassembly-prerequisite-graph-and-esd" ||
-      id === "computations/multi-hop-disassembly-critical-path"
-    ) {
-      return {
-        docId: "DOC::N17344_001",
-        docLabel: "HP Service Guide PDF\n(N17344-001 · 109p)",
-        docColor: "#3b6ea5",
-        docProvIdx: 15,
-        partId: "PART::CH5_DAG",
-        partLabel: "Ch.5 Disassembly DAG & ESD\n(p.29~72)",
-        partProvIdx: 14
-      };
-    }
-    if (
-      id === "tables/diagnostic_codes_reference" ||
-      id === "tables/community_troubleshooting_cases" ||
-      id === "references/post-led-blink-and-uefi-diagnostics"
-    ) {
-      return {
-        docId: "DOC::N17344_001",
-        docLabel: "HP Service Guide PDF\n(N17344-001 · 109p)",
-        docColor: "#3b6ea5",
-        docProvIdx: 15,
-        partId: "PART::CH7_DIAG",
-        partLabel: "Ch.7 Blink/POST & Field Cases\n(p.63~88)",
-        partProvIdx: 17
-      };
-    }
-    if (
-      id === "tables/firmware_bios_and_nvm" ||
-      id === "references/bios-nvm-and-hp-sure-start-security"
-    ) {
-      return {
-        docId: "DOC::N17344_001",
-        docLabel: "HP Service Guide PDF\n(N17344-001 · 109p)",
-        docColor: "#3b6ea5",
-        docProvIdx: 15,
-        partId: "PART::CH6_BIOS",
-        partLabel: "Ch.6 BIOS, NVM & Sure Start\n(p.73~80)",
-        partProvIdx: 13
-      };
-    }
-    if (id.startsWith("playbooks/")) {
-      return {
-        docId: "DOC::OKF_PLAYBOOKS",
-        docLabel: "OKF v0.2 Agent Playbooks\n(SOP & Governance)",
-        docColor: "#527a9a",
-        docProvIdx: 26,
-        partId: "PART::SOP_PLAYBOOKS",
-        partLabel: "Standard Triage Playbooks\n(Sure Start & OLED SOP)",
-        partProvIdx: 26
-      };
-    }
-    if (id.startsWith("metrics/") || id.startsWith("computations/")) {
-      return {
-        docId: "DOC::OKF_PLAYBOOKS",
-        docLabel: "OKF v0.2 Agent Playbooks\n(SOP & Governance)",
-        docColor: "#527a9a",
-        docProvIdx: 26,
-        partId: "PART::METRICS_COMP",
-        partLabel: "Attested GQL & SLA Metrics\n(DAG Depth & FRU Rate)",
-        partProvIdx: 20
-      };
-    }
-    if (id === "tables/hardware_components_catalog") {
-      return {
-        docId: "DOC::BQ_ONTOLOGY",
-        docLabel: "HP Dragonfly BQ Ontology\n(prj_ontology · 8 Tables)",
-        docColor: "#3b6ea5",
-        docProvIdx: 3,
-        partId: "PART::CH3_PARTS",
-        partLabel: "Ch.3 Illustrated Spare Parts\n(38 FRU/CRU · p.17)",
-        partProvIdx: 9
-      };
-    }
+    const k = isKo();
+    const docObj = OKF_DOC_ROOTS.find((d) => d.doc_id === f.doc_id) || OKF_DOC_ROOTS[0];
+    const isSop = f.doc_id === "08_INTERNAL_FIELD_SOP_PLAYBOOKS";
     return {
-      docId: "DOC::BQ_ONTOLOGY",
-      docLabel: "HP Dragonfly BQ Ontology\n(prj_ontology · 8 Tables)",
-      docColor: "#3b6ea5",
-      docProvIdx: 3,
-      partId: "PART::CH1_2_MODELS",
-      partLabel: "Ch.1~2 Models, SKUs & TB4\n(p.1~16)",
-      partProvIdx: 7
+      docId: isSop ? "DOC::INTERNAL_SOP" : "DOC::N17344_001",
+      docLabel: isSop
+        ? k
+          ? "사내 표준 정비내규\n(Field Service SOP · [08])"
+          : "HP Field Service SOP\n(Internal Policy · [08])"
+        : k
+        ? "HP 공식 서비스 매뉴얼 PDF\n(N17344-001 · [01]~[07])"
+        : "HP Service Guide PDF\n(N17344-001 · [01]~[07])",
+      docColor: isSop ? "#527a9a" : "#3b6ea5",
+      docProvIdx: isSop ? 23 : 0,
+      partId: `PART::${docObj.doc_id}`,
+      partLabel: `[${docObj.doc_num}] ${k ? docObj.doc_short_ko : docObj.doc_short_en}\n(pp.${docObj.source_pages_span})`,
+      partProvIdx: Math.max(0, OKF_FILES.findIndex((x) => x.doc_id === docObj.doc_id))
     };
   }
 
@@ -1087,6 +1128,7 @@
     const labelSubColor = isDark ? "#cbd5e1" : "#3c4043";
     const edgeBgColor = isDark ? "#1f1f1f" : "#f8f9fa";
     const structEdgeColor = isDark ? "#334155" : "#cbd5e1";
+    const k = isKo();
 
     const nodes = [];
     const edges = [];
@@ -1095,53 +1137,37 @@
     const hubSet = new Set();
 
     const filteredFiles = OKF_FILES.filter((f) => {
-      const id = f.id;
       if (!scope || scope === "ALL") return true;
       if (scope === "DAG_SAFETY") {
         return (
-          id === "tables/component_disassembly_deps" ||
-          id === "references/disassembly-prerequisite-graph-and-esd" ||
-          id === "computations/multi-hop-disassembly-critical-path" ||
-          id === "tables/hardware_components_catalog" ||
-          id === "metrics/component-service-complexity-score"
+          f.doc_id === "04_CH5_SAFETY_RULES" ||
+          f.doc_id === "05_CH5_BASE_STORAGE_WWAN" ||
+          f.doc_id === "06_CH5_THERMAL_BOARD_DISPLAY"
         );
       }
       if (scope === "BIOS_BLINK") {
         return (
-          id === "tables/diagnostic_codes_reference" ||
-          id === "references/post-led-blink-and-uefi-diagnostics" ||
-          id === "playbooks/no-boot-bios-sure-start-recovery" ||
-          id === "tables/firmware_bios_and_nvm" ||
-          id === "references/bios-nvm-and-hp-sure-start-security" ||
-          id === "tables/community_troubleshooting_cases"
+          f.doc_id === "07_CH6_7_BIOS_DIAGNOSTICS" ||
+          f.doc_id === "08_INTERNAL_FIELD_SOP_PLAYBOOKS" ||
+          f.id.includes("soldered_lpddr5")
         );
       }
       if (scope === "SKU_PARTS") {
         return (
-          id === "tables/dragonfly_series_models" ||
-          id === "tables/product_skus_and_configs" ||
-          id === "tables/hardware_components_catalog" ||
-          id === "datasets/prj_ontology_hp_dragonfly" ||
-          id === "references/hp-folio-g3-service-manual-n17344"
+          f.doc_id === "01_CH1_PRODUCT_SPECS" ||
+          f.doc_id === "03_CH3_SPARE_PARTS" ||
+          f.id.includes("service_tag")
         );
       }
       if (scope === "THERMAL_DISPLAY") {
         return (
-          id === "playbooks/oled-camera-and-cable-replacement" ||
-          id === "tables/ports_sensors_and_docks" ||
-          id === "references/thunderbolt-4-port-and-dock-architecture" ||
-          id === "tables/community_troubleshooting_cases" ||
-          id === "metrics/hardware-fru-replacement-rate" ||
-          id === "computations/fru-replacement-rate-by-category"
+          f.doc_id === "02_CH2_COMPONENTS_PORTS" ||
+          f.doc_id === "06_CH5_THERMAL_BOARD_DISPLAY" ||
+          f.id.includes("thermal_dptf")
         );
       }
       if (scope === "CORE") {
-        return HP_CAVEAT_CONCEPTS.has(id) || HP_GOVERNANCE_CONCEPTS.has(id);
-      }
-      if (scope === "tables") return id.startsWith("tables/") || id.startsWith("datasets/");
-      if (scope === "references") return id.startsWith("references/") || id.startsWith("tables/");
-      if (scope === "playbooks") {
-        return id.startsWith("playbooks/") || id.startsWith("computations/") || id.startsWith("metrics/");
+        return HP_CAVEAT_CONCEPTS.has(f.id) || HP_GOVERNANCE_CONCEPTS.has(f.id);
       }
       return true;
     });
@@ -1156,7 +1182,7 @@
       const hub = getDocAndChapterHubForOkfFile(f);
       primarySet.add(f.id);
 
-      // 1. Tier 1: Source Document / Ontology Root Node (`#3b6ea5` / `#527a9a`, size 34)
+      // 1. Tier 1: Source Document Root (`#3b6ea5` / `#527a9a`, size 34)
       if (!nodeSet.has(hub.docId)) {
         nodeSet.add(hub.docId);
         hubSet.add(hub.docId);
@@ -1177,7 +1203,7 @@
         });
       }
 
-      // 2. Tier 2: Chapter / Domain Section Hub (`#6b88a8`, size 22)
+      // 2. Tier 2: Chapter Section Hub (`[01]`~`[08]`, `#6b88a8`, size 22)
       if (!nodeSet.has(hub.partId)) {
         nodeSet.add(hub.partId);
         hubSet.add(hub.partId);
@@ -1205,18 +1231,18 @@
         });
       }
 
-      // 3. Tier 3: OKF Concept / Provision Node (`#3b735b` / `#a85c56` / `#b88a44`, size 15-17.5)
+      // 3. Tier 3: Unstructured Clause / Provision Node (`#3b735b` / `#a85c56` / `#b88a44`)
       const isCav = HP_CAVEAT_CONCEPTS.has(f.id);
       const isGov = HP_GOVERNANCE_CONCEPTS.has(f.id);
       const pColor = isCav ? "#a85c56" : isGov ? "#b88a44" : "#3b735b";
-      const shortName = f.id.split("/").pop();
+      const secNo = k ? f.section_number : f.section_number_en || f.section_number;
 
       if (!nodeSet.has(f.id)) {
         nodeSet.add(f.id);
         nodes.push({
           id: f.id,
-          label: `${shortName}\n(p.${f.pdf_page})`,
-          title: `${(f.frontmatter && f.frontmatter.title) || f.filename} · bundles/hp_dragonfly/${f.rel_path}`,
+          label: `${secNo}\n(p.${f.pdf_page})`,
+          title: `[${f.doc_num}] ${secNo} · ${k ? f.title_ko : f.title_en} (${f.gcs_uri})`,
           shape: "dot",
           size: isCav ? 17.5 : isGov ? 16 : 15,
           color: {
@@ -1237,9 +1263,8 @@
         });
       }
 
-      // 4. Tier 4: Sub-Clause / Rule Chunks radiating around non-index OKF concept hubs
-      const isIndexFile = shortName === "index" || shortName === "log";
-      if (!isIndexFile && f.body) {
+      // 4. Tier 4: Sub-Clause / Rule Chunks radiating around provision nodes
+      if (f.body) {
         const rawLines = f.body
           .split(/\n+/)
           .map((l) => l.replace(/^#+\s*/, "").replace(/^[-*]\s*/, "").replace(/`/g, "").trim())
@@ -1252,13 +1277,13 @@
             const lineText = rawLines[i];
             const snippet = lineText.slice(0, 22) + (lineText.length > 22 ? "…" : "");
             const isSafetyChunk =
-              /battery|M90788-005|ESD|700V|soldered|LPDDR5|Sure Start|Win\+B|pull-tab|OLED|mandatory|prerequisite|warning/i.test(
+              /battery|M90788-005|ESD|700V|soldered|LPDDR5|Sure Start|Win\+B|pull-tab|OLED|mandatory|prerequisite|warning|DEPRECATED/i.test(
                 lineText
               );
             nodes.push({
               id: subId,
               label: snippet,
-              title: `${shortName} · ${lineText}`,
+              title: `${secNo} · ${lineText}`,
               shape: "dot",
               size: 11.5,
               color: {
@@ -1297,9 +1322,10 @@
           nodeSet.add(ep.id);
           const isCav = HP_CAVEAT_CONCEPTS.has(ep.id);
           const epColor = isCav ? "#a85c56" : "#3b735b";
+          const epSec = k ? ep.f.section_number : ep.f.section_number_en || ep.f.section_number;
           nodes.push({
             id: ep.id,
-            label: `[연결 컨셉]\n${ep.id.split("/").pop()} (p.${ep.f.pdf_page})`,
+            label: `${epSec}\n(p.${ep.f.pdf_page})`,
             title: ep.f.rel_path,
             shape: "dot",
             size: 14.5,
@@ -1315,7 +1341,7 @@
         from: s.id,
         to: d.id,
         label: se.rel,
-        title: isKo() ? se.reason_ko : se.reason_en,
+        title: k ? se.reason_ko : se.reason_en,
         color: { color: se.color, highlight: labelMainColor },
         width: 2.2,
         arrows: "to",
@@ -1382,55 +1408,44 @@
     const cid = f.id;
 
     const richMatches = HP_SEMANTIC_EDGES.filter((e) => e.fromId === cid || e.toId === cid);
-    const rawGraphEdges = (OKF_GRAPH.edges || [])
-      .map((e) => e.data || {})
-      .filter(
-        (e) =>
-          (e.source === cid || e.target === cid) &&
-          !richMatches.some(
-            (r) =>
-              (r.fromId === e.source && r.toId === e.target) ||
-              (r.fromId === e.target && r.toId === e.source)
-          )
-      );
-
-    const combinedRels = [
-      ...richMatches.map((r) => ({
-        isOut: r.fromId === cid,
-        fromId: r.fromId,
-        toId: r.toId,
-        otherId: r.fromId === cid ? r.toId : r.fromId,
-        rel: r.rel,
-        color: r.color,
-        reason: k ? r.reason_ko : r.reason_en
-      })),
-      ...rawGraphEdges.slice(0, 8).map((e) => {
-        const isOut = e.source === cid;
-        return {
-          isOut,
-          fromId: e.source,
-          toId: e.target,
-          otherId: isOut ? e.target : e.source,
-          rel: isOut ? "REFERENCES_OKF_CONCEPT" : "CITED_BY_OKF_CONCEPT",
-          color: isOut ? "#3b6ea5" : "#3b735b",
-          reason: k
-            ? "OKF v0.2 Progressive Disclosure 마크다운 상호참조 링크로 연결된 컨셉입니다."
-            : "Cross-referenced via OKF v0.2 Progressive Disclosure markdown link."
-        };
-      })
-    ];
+    const combinedRels = richMatches.map((r) => ({
+      isOut: r.fromId === cid,
+      fromId: r.fromId,
+      toId: r.toId,
+      otherId: r.fromId === cid ? r.toId : r.fromId,
+      rel: r.rel,
+      color: r.color,
+      reason: k ? r.reason_ko : r.reason_en
+    }));
 
     let relHtml = "";
     if (combinedRels.length > 0) {
       relHtml = `
         <div class="section-label">
           <span>Business Semantic Relations (${combinedRels.length})</span>
-          <span>${k ? "클릭 시 연결 컨셉으로 이동" : "Click to jump to concept"}</span>
+          <span>${k ? "클릭 시 연결 조항으로 이동" : "Click to jump to clause"}</span>
         </div>
         <div class="biz-edge-list">
           ${combinedRels
             .map((e) => {
               const otherFile = OKF_FILES.find((x) => x.id === e.otherId);
+              const fromFile = OKF_FILES.find((x) => x.id === e.fromId);
+              const toFile = OKF_FILES.find((x) => x.id === e.toId);
+              const otherSec = otherFile
+                ? k
+                  ? otherFile.section_number
+                  : otherFile.section_number_en || otherFile.section_number
+                : e.otherId.split("/").pop();
+              const fromSec = fromFile
+                ? k
+                  ? fromFile.section_number
+                  : fromFile.section_number_en || fromFile.section_number
+                : e.fromId.split("/").pop();
+              const toSec = toFile
+                ? k
+                  ? toFile.section_number
+                  : toFile.section_number_en || toFile.section_number
+                : e.toId.split("/").pop();
               const otherPage = otherFile ? `p.${otherFile.pdf_page}` : "";
               return `
                 <div class="biz-edge-item" onclick="selectByConceptId('${escapeHtml(e.otherId)}')">
@@ -1439,20 +1454,14 @@
                       <span class="edge-dot" style="background:${e.color};"></span>
                       ${escapeHtml(e.rel)}
                     </span>
-                    <span class="edge-jump-meta">${escapeHtml(e.otherId.split("/").pop())} ${
-                otherPage ? `(${otherPage})` : ""
-              } ↗</span>
+                    <span class="edge-jump-meta">${escapeHtml(otherSec)} ${otherPage ? `(${otherPage})` : ""} ↗</span>
                   </div>
                   <div class="edge-target">
                     <span class="edge-kw">from</span>
-                    <span class="${e.isOut ? "edge-sec-self" : "edge-sec-peer"}">${escapeHtml(
-                e.fromId.split("/").pop()
-              )}</span>
+                    <span class="${e.isOut ? "edge-sec-self" : "edge-sec-peer"}">${escapeHtml(fromSec)}</span>
                     <span class="edge-arrow">➔</span>
                     <span class="edge-kw">to</span>
-                    <span class="${e.isOut ? "edge-sec-peer" : "edge-sec-self"}">${escapeHtml(
-                e.toId.split("/").pop()
-              )}</span>
+                    <span class="${e.isOut ? "edge-sec-peer" : "edge-sec-self"}">${escapeHtml(toSec)}</span>
                   </div>
                   <div class="edge-reason">${escapeHtml(e.reason)}</div>
                 </div>
@@ -1464,21 +1473,21 @@
     }
 
     const rawMatch = (f.raw || "").match(/^---\s*\n([\s\S]*?)\n---/);
-    const rawYaml = rawMatch ? `---\n${rawMatch[1]}\n---` : "# Progressive Disclosure Index (No YAML Frontmatter)";
-    const fmType = (f.frontmatter && f.frontmatter.type) || "Index";
+    const rawYaml = rawMatch ? `---\n${rawMatch[1]}\n---` : "# YAML Frontmatter";
+    const fmType = (f.frontmatter && f.frontmatter.type) || f.okf_type || "Provision";
     const renderedMd =
       window.marked && typeof window.marked.parse === "function"
-        ? window.marked.parse(f.body || "")
+        ? highlightOkfTerms(window.marked.parse(f.body || ""))
         : `<pre>${escapeHtml(f.body || "")}</pre>`;
 
     return `
-      <div class="okf-subpath-line">bundles/hp_dragonfly/${escapeHtml(f.rel_path)}</div>
+      <div class="okf-subpath-line">${escapeHtml(f.gcs_uri || `gs://hp-dragonfly-okf/okf/${f.rel_path}`)}</div>
       ${relHtml}
       <details class="fm-accordion" ${FM_OPEN ? "open" : ""} ontoggle="onFmToggle(this.open)">
         <summary>
           <span class="fm-summary-left">
             <span>YAML Frontmatter</span>
-            <span class="fm-summary-meta">${escapeHtml(fmType)} · PDF p.${f.pdf_page}</span>
+            <span class="fm-summary-meta">${escapeHtml(fmType)} · PDF p.${f.pdf_page} (${escapeHtml(f.version || "v0.2.0")})</span>
           </span>
           <span class="material-symbols-outlined fm-chevron">expand_more</span>
         </summary>
@@ -1486,20 +1495,20 @@
       </details>
 
       <div class="section-label">
-        <span>${k ? "OKF v0.2 영문 마크다운 명세 (Markdown Body)" : "OKF v0.2 English Specification (Markdown Body)"}</span>
+        <span>${k ? "OKF v0.2 비정형 컨텍스트 마크다운 (Markdown Body)" : "OKF v0.2 Unstructured Context (Markdown Body)"}</span>
+        <span style="color:var(--gcp-blue);">[${escapeHtml(f.doc_num || "01")}] ${escapeHtml(k ? f.section_number : f.section_number_en || f.section_number)}</span>
       </div>
-      <div class="okf-title">${escapeHtml(
-        (f.frontmatter && (f.frontmatter.title || f.frontmatter.description)) || f.filename
-      )}</div>
+      <div class="okf-title">${escapeHtml(k ? f.title_ko : f.title_en)}</div>
       <div class="okf-body-box okf-md-content">${renderedMd}</div>
     `;
   }
 
   window.selectItem = function (idx) {
+    ACTIVE_DOC_ROOT_ID = null;
     CURRENT_OKF_IDX = idx;
     const f = OKF_FILES[CURRENT_OKF_IDX];
     if (!f) return;
-    OPEN_CATS[f.category || "root"] = true;
+    OPEN_CATS[f.doc_id || "01_CH1_PRODUCT_SPECS"] = true;
     renderSidebar();
 
     const k = isKo();
@@ -1510,8 +1519,8 @@
     const pdfPageEl = document.getElementById("pdf-page-label");
     if (pdfPageEl) {
       pdfPageEl.textContent = k
-        ? `p.${f.pdf_page} / 총 109쪽 · ${f.pdf_section_ko}`
-        : `p.${f.pdf_page} of 109 · ${f.pdf_section_en}`;
+        ? `p.${f.pdf_page} / 총 109쪽 · [${f.doc_num}] ${f.section_number}`
+        : `p.${f.pdf_page} of 109 · [${f.doc_num}] ${f.section_number_en || f.section_number}`;
     }
 
     const frame = document.getElementById("pdf-frame");
@@ -1592,7 +1601,7 @@
     const pathEl = document.getElementById("graph-detail-path");
     if (pathEl) {
       pathEl.textContent = f.rel_path;
-      pathEl.title = `bundles/hp_dragonfly/${f.rel_path}`;
+      pathEl.title = f.gcs_uri || `gs://hp-dragonfly-okf/okf/${f.rel_path}`;
     }
     const bodyEl = document.getElementById("graph-detail-body");
     if (bodyEl) {
@@ -1711,1591 +1720,1499 @@
 
   // =========================================================================
   // 5. MODULE 03: OKF Management (`#module-enrollment`)
-  //    100% Parity with `krda-ontology-studio`:
-  //    Tab 1: `OKF Editor` (Left OKF Bundle Tree + Center Frontmatter/Markdown Editor + Right Live Preview/kcmd YAML + SemVer Publish Modal)
-  //    Tab 2: `Knowledge Catalog` (Left Filterable Entry List + Right Authentic GCP Dataplex KC Console View: Entry Details, Overview, Aspects)
+  //    100% DOM & CSS Parity with `krda-ontology-studio` (`mod-management.js`):
+  //    - 100% Unstructured Document Contexts organized sequentially ([01]~[08])
+  //    - Tab 1: `OKF Editor` (Left Sequential Tree + Center 3-Column `.mgmt-fm-grid` & Markdown Body + Right Live GCS Preview + `.mgmt-floating-snackbar` + `.mgmt-modal-overlay`)
+  //    - Tab 2: `Knowledge Catalog` (Left 34 Unstructured Entries: 전체/활성/만료 + Right Exact GCP Dataplex `Entry details` -> `Overview` -> `Aspects`)
   // =========================================================================
-  const MGMT_STATE = {};
-  const MGMT_SELECTED = new Set();
   let MGMT_SUB_VIEW = "EDITOR"; // 'EDITOR' | 'KC_EXPLORER'
-  let MGMT_RIGHT_TAB = "PREVIEW"; // 'PREVIEW' | 'KCMD_GIT'
-  let MGMT_ACTIVE_IDX = null;
-  let MGMT_SIDEBAR_COLLAPSED = false;
+  let MGMT_STATE = [];
+  let MGMT_DOC_STATE = {};
+  let MGMT_ACTIVE_KEY = 0; // number (0..25) or 'DOC:<doc_id>'
+  let MGMT_SELECTED_SET = new Set(); // Set of item keys (number or 'DOC:<doc_id>')
+  let MGMT_OPEN_DOCS = {};
   let MGMT_TREE_FILTER = "ALL"; // 'ALL' | 'MODIFIED'
-  let MGMT_SEARCH_QUERY = "";
-  let MGMT_OPEN_CATS = {
-    datasets: true,
-    tables: true,
-    references: true,
-    playbooks: true,
-    computations: true,
-    metrics: true,
-    root: true
-  };
-  let MGMT_MODAL_OPEN = false;
-  let MGMT_MODAL_MODE = "SINGLE"; // 'SINGLE' | 'BATCH'
-  let MGMT_MODAL_BUMP = "PATCH"; // 'PATCH' | 'MINOR' | 'MAJOR'
-  let MGMT_MODAL_NOTE = "";
-  let MGMT_MODAL_CONTACTS = "HP Field Service Ontology Lead <dhmoon@google.com>";
-  let MGMT_LAST_PUBLISHED = null;
+  let MGMT_LAST_PUBLISH_RESULT = null;
 
+  // KC Explorer State
   let KC_FILTER_STATUS = "ALL"; // 'ALL' | 'VERIFIED' | 'DEPRECATED'
-  let KC_FILTER_SCOPE = "ALL"; // 'ALL' | 'OKF' | 'BQ'
   let KC_SEARCH_QUERY = "";
-  let KC_SELECTED_KEY = null;
+  let KC_SELECTED_KEY = "ACTIVE:0";
 
-  const MGMT_FM_OPTIONS = {
-    type: [
-      { val: "Table", ko: "Table (정형 온톨로지 테이블 명세)", en: "Table (Structured Ontology Table Spec)" },
-      { val: "Reference", ko: "Reference (매뉴얼 레퍼런스/코드표)", en: "Reference (Service Manual Reference/Code Table)" },
-      { val: "Playbook", ko: "Playbook (현장 수리·복구 표준 절차)", en: "Playbook (Field Repair & Triage SOP)" },
-      { val: "Computation", ko: "Computation (온톨로지 추론 규칙/DAG)", en: "Computation (Ontology Reasoning / DAG Rule)" },
-      { val: "Metric", ko: "Metric (서비스 품질·벤치마크 지표)", en: "Metric (Service Quality & SLA Metric)" },
-      { val: "Dataset", ko: "Dataset (도메인 데이터셋 루트)", en: "Dataset (Domain Dataset Root)" },
-      { val: "Index", ko: "Index (점진적 공개 인덱스)", en: "Index (Progressive Disclosure Index)" }
-    ],
-    status: [
-      { val: "verified", ko: "verified (교차검증 완료 · 운영 활성)", en: "verified (Attested & Production Active)" },
-      { val: "stable", ko: "stable (안정화 버전)", en: "stable (Stable Release)" },
-      { val: "draft", ko: "draft (작성/검토 중 초안)", en: "draft (Work-in-Progress Draft)" },
-      { val: "deprecated", ko: "deprecated (구버전 만료 · 스냅샷 보관)", en: "deprecated (Superseded Snapshot)" }
-    ],
-    content_class: [
-      { val: "authentic", ko: "authentic (공식 매뉴얼·스키마 정본)", en: "authentic (Authoritative Manual/Schema Source)" },
-      { val: "specification", ko: "specification (기술 규격·파트 명세)", en: "specification (Technical & Part Specification)" },
-      { val: "guidance", ko: "guidance (트리아지·수리 가이드라인)", en: "guidance (Triage & Service Guidance)" },
-      { val: "curated_community", ko: "curated_community (현장 엔지니어 큐레이션)", en: "curated_community (Field Engineer Curated)" }
-    ],
-    treatment: [
-      { val: "verbatim_en", ko: "verbatim_en (영문 공식 원문 보존)", en: "verbatim_en (Verbatim English Source)" },
-      { val: "structured_schema", ko: "structured_schema (BigQuery 스키마 정규화)", en: "structured_schema (Normalized BigQuery Schema)" },
-      { val: "curated_triage", ko: "curated_triage (의사결정 트리 구조화)", en: "curated_triage (Structured Decision Tree)" },
-      { val: "verbatim_ko", ko: "verbatim_ko (국문 번역 대조본)", en: "verbatim_ko (Korean Localized Reference)" }
+  // Modal State
+  let MODAL_MODE = "SINGLE"; // 'SINGLE' | 'BATCH'
+  let MODAL_BUMP_LEVEL = "PATCH";
+  let MODAL_CONTACTS_VALUE = null;
+  let MODAL_PRESET_NOTE_VAL = "";
+  let MODAL_CHANGE_NOTE_TEXT = "";
+
+  const OKF_V02_DROPDOWN_OPTIONS = {
+    type: ["Provision", "PolicyClause", "Table", "Source Document", "Concept"],
+    status: ["active", "verified", "draft", "deprecated"],
+    content_class: ["verbatim", "authentic", "curated", "internal_policy"],
+    treatment: ["normative", "verbatim_en", "structured_table", "informative"],
+    license: [
+      "Proprietary (HP Inc. Maintenance & Service Guide N17344-001)",
+      "Internal-Only (HP Global Field Service SOP · 사내한 대외비)",
+      "HP Authorized Service Provider (ASP) Standard Technical License"
     ],
     generated_by: [
-      { val: "agent:hp-dragonfly-enrichment-agent/v1.0", label: "agent:hp-dragonfly-enrichment-agent/v1.0" },
-      { val: "process:kcmd_sync/v1.0.0", label: "process:kcmd_sync/v1.0.0" },
-      { val: "agent:gemini-2.5-pro", label: "agent:gemini-2.5-pro" }
+      "process:enrichment_agent/2.0",
+      "process:okf_studio_editor/0.2",
+      "agent:gemini-2.5-pro"
     ],
     verified_by: [
-      { val: "human:dhmoon@google.com", ko: "human:dhmoon@google.com (온톨로지 리드)", en: "human:dhmoon@google.com (Ontology Lead)" },
-      { val: "process:okf_validator/0.2", ko: "process:okf_validator/0.2 (P1~P4 자동 검증기)", en: "process:okf_validator/0.2 (P1~P4 Automated Validator)" },
-      { val: "human:field_service_lead", ko: "human:field_service_lead (HP 수리기술 책임자)", en: "human:field_service_lead (HP Field Service Lead)" },
-      { val: "human:bios_security_architect", ko: "human:bios_security_architect (Sure Start 보안 아키텍트)", en: "human:bios_security_architect (Sure Start Security Architect)" }
+      "hp-service-engineering-lead",
+      "hp-psirt-firmware-board",
+      "hp-hardware-qa-team",
+      "process:verify_provisions/1.0"
     ],
     verified_method: [
-      { val: "source_pdf_page_match", ko: "source_pdf_page_match (원본 PDF 페이지 1:1 대조)", en: "source_pdf_page_match (1:1 Source PDF Page Match)" },
-      { val: "bigquery_ddl_attestation", ko: "bigquery_ddl_attestation (BigQuery DDL 스키마 검증)", en: "bigquery_ddl_attestation (BigQuery DDL Schema Attestation)" },
-      { val: "engineering_signoff", ko: "engineering_signoff (하드웨어 엔지니어링 승인)", en: "engineering_signoff (Hardware Engineering Signoff)" }
+      "source_text_match",
+      "manual-review",
+      "committee_signoff",
+      "automated_lint_p1_p4"
     ],
     contacts: [
-      { val: "HP Field Service Ontology Lead <dhmoon@google.com>", ko: "HP Field Service Ontology Lead <dhmoon@google.com> [Owner]", en: "HP Field Service Ontology Lead <dhmoon@google.com> [Owner]" },
-      { val: "Hardware Sustaining Engineering <hw-ontology@hp-dragonfly.internal>", ko: "Hardware Sustaining Engineering <hw-ontology@hp-dragonfly.internal> [Steward]", en: "Hardware Sustaining Engineering <hw-ontology@hp-dragonfly.internal> [Steward]" },
-      { val: "BIOS & Security Governance <surestart-gov@hp-dragonfly.internal>", ko: "BIOS & Security Governance <surestart-gov@hp-dragonfly.internal> [Steward]", en: "BIOS & Security Governance <surestart-gov@hp-dragonfly.internal> [Steward]" }
-    ],
-    license: [
-      { val: "HP Inc. Maintenance & Service Guide (Doc Part N17344-001)", label: "HP Inc. Maintenance & Service Guide (Doc Part N17344-001)" },
-      { val: "Internal Enterprise Ontology Asset (Apache-2.0 / CC-BY-4.0)", label: "Internal Enterprise Ontology Asset (Apache-2.0 / CC-BY-4.0)" }
+      "김도현(수석) - HP 코리아 하드웨어정비기술팀 <dohyun.kim@hp-service.example.com>",
+      "박지훈(책임) - PSIRT 펌웨어·Sure Start 보안팀 <jihoon.park@hp-service.example.com>",
+      "이서연(팀장) - 글로벌 필드서비스 거버넌스팀 <seoyeon.lee@hp-service.example.com>",
+      "정민규(매니저) - 스페어파트·FRU 품질보증팀 <mingyu.jung@hp-service.example.com>"
     ]
   };
 
-  function computePseudoSha256(str) {
-    const s = String(str || "");
-    let h1 = 0xdeadbeef ^ s.length;
-    let h2 = 0x41c6ce57 ^ s.length;
-    for (let i = 0; i < s.length; i++) {
-      const ch = s.charCodeAt(i);
+  const CHANGE_NOTE_PRESETS = [
+    "정비기술팀 정기 검증 완료에 따른 verified.by 및 status 현행화",
+    "분해 선행 조건(DAG) 및 700V ESD 안전 단서(Caveat) 조항 연결 보완",
+    "HP Sure Start Gen7 펌웨어 복구 내규 개정에 따른 절차 업데이트",
+    "원문 대조(P1~P4) 재검증 및 마크다운 표 포맷 정제"
+  ];
+
+  function simpleSha256Hex64(str, fallbackSha) {
+    if (!str) return fallbackSha || "7ec775dc7d09f2ea35f898b9c18756a9ffd6a262583d76fc7055ab350d429c79";
+    let h1 = 0xdeadbeef ^ str.length;
+    let h2 = 0x41c6ce57 ^ str.length;
+    for (let i = 0, ch; i < str.length; i++) {
+      ch = str.charCodeAt(i);
       h1 = Math.imul(h1 ^ ch, 2654435761);
       h2 = Math.imul(h2 ^ ch, 1597334677);
     }
     h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
     h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-    const hex1 = (h1 >>> 0).toString(16).padStart(8, "0");
-    const hex2 = (h2 >>> 0).toString(16).padStart(8, "0");
-    return (hex1 + hex2 + "9f8e7d6c5b4a3928172635445566778899aabbccddeeff001122334455667788").slice(0, 64);
+    const p1 = (h1 >>> 0).toString(16).padStart(8, "0");
+    const p2 = (h2 >>> 0).toString(16).padStart(8, "0");
+    const tail = String(fallbackSha || "35f898b9c18756a9ffd6a262583d76fc7055ab350d429c79").slice(16, 64);
+    return (p1 + p2 + tail).slice(0, 64);
   }
 
-  function isContactOwnerRole(contactStr) {
-    const s = String(contactStr || "").toLowerCase();
-    return s.includes("lead") || s.includes("owner") || s.includes("dhmoon@google.com");
-  }
-
-  function initMgmtStateIfNeeded() {
-    if (Object.keys(MGMT_STATE).length > 0) return;
-
-    OKF_FILES.forEach((f, idx) => {
-      const rawFm = f.frontmatter || {};
-      const genObj = rawFm.generated || {};
-      const verObj = rawFm.verified || {};
-      const srcObj = Array.isArray(rawFm.sources) && rawFm.sources[0] ? rawFm.sources[0] : {};
-      const entrySlug = (f.rel_path || "index.md").replace(/\.md$/, "").replace(/[\/_]/g, "-");
-      const defaultType =
-        rawFm.type ||
-        (f.category === "tables"
-          ? "Table"
-          : f.category === "references"
-          ? "Reference"
-          : f.category === "playbooks"
-          ? "Playbook"
-          : f.category === "computations"
-          ? "Computation"
-          : f.category === "metrics"
-          ? "Metric"
-          : f.category === "datasets"
-          ? "Dataset"
-          : "Index");
-
-      const fm = {
-        title: rawFm.title || f.title || f.filename || f.rel_path,
-        type: defaultType,
-        version: String(rawFm.version || "1.0.0"),
-        status: rawFm.status || "verified",
-        content_class: rawFm.content_class || (f.category === "playbooks" ? "guidance" : "authentic"),
-        treatment: rawFm.treatment || (f.category === "tables" ? "structured_schema" : "verbatim_en"),
-        generated_by: genObj.by || "agent:hp-dragonfly-enrichment-agent/v1.0",
-        generated_at: genObj.at || "2026-10-25",
-        verified_by: verObj.by || "human:dhmoon@google.com",
-        verified_at: verObj.at || "2026-10-25",
-        verified_method: verObj.method || (f.category === "tables" ? "bigquery_ddl_attestation" : "source_pdf_page_match"),
-        stale_after: rawFm.stale_after || "2027-10-25",
-        contacts: rawFm.contacts || "HP Field Service Ontology Lead <dhmoon@google.com>",
-        license: rawFm.license || "HP Inc. Maintenance & Service Guide (Doc Part N17344-001)",
-        part_of: rawFm.part_of || "/bundles/hp_dragonfly/index.md",
-        source_page: f.pdf_page || 1,
-        source_pages_span: srcObj.pages || String(f.pdf_page || 1),
-        source_resource: srcObj.file || "docs/pdf_6290467_en-US-1.pdf",
-        sha256: srcObj.sha256 || computePseudoSha256(f.body || f.raw || f.rel_path),
-        description:
-          rawFm.description ||
-          `${f.title || f.filename} — HP Elite Dragonfly G3 / Folio G3 Ontology Specification (PDF p.${f.pdf_page || 1})`,
-        tags: Array.isArray(rawFm.tags)
-          ? rawFm.tags.join(", ")
-          : rawFm.tags || `hp-dragonfly, okf-v0.2, ${f.category || "root"}, p${f.pdf_page || 1}`
-      };
-
-      const initialVersions = [];
-      // Seed real pre-existing deprecated version snapshot in Dataplex (`versions-ch05-hot-swap-draft-v0-1`)
-      if (f.rel_path === "playbooks/no-boot-bios-sure-start-recovery.md") {
-        const depFm = JSON.parse(JSON.stringify(fm));
-        depFm.version = "0.1.0";
-        depFm.status = "deprecated";
-        depFm.title = "[Draft v0.1] Legacy Hot-Swap & SO-DIMM Memory Reseat Procedure (Deprecated)";
-        depFm.description =
-          "Superseded draft v0.1 that erroneously permitted hot-unplugging components before battery isolation (M90788-005) and suggested reseating soldered LPDDR5 memory.";
-        initialVersions.push({
-          version: "0.1.0",
-          status: "deprecated",
-          archivedAt: "2026-10-24T18:30:00Z",
-          changeNote:
-            "Superseded by v1.0.0: Enforced mandatory Battery (M90788-005) isolation DAG and replaced invalid SO-DIMM reseating with HP Sure Start (Win+B) + System Board FRU replacement.",
-          gcsUri: "bundles/hp_dragonfly/versions/ch05-hot-swap-draft-v0-1.md",
-          entryId: "versions-ch05-hot-swap-draft-v0-1",
-          fm: depFm,
-          body: `# [DEPRECATED v0.1.0] Legacy Hot-Swap & Memory Triage Draft\n\n> **DEPRECATION NOTICE**: This draft (` + "`v0.1.0`" + `) has been superseded by **v1.0.0** (` + "`playbooks/no-boot-bios-sure-start-recovery.md`" + ` & ` + "`tables/component_disassembly_deps.md`" + `).\n\n### Legacy Draft Content (Retained for Audit Lineage)\n1. Attempted SO-DIMM slot reseating on LED-CAPS-3-2 (invalid: HP Dragonfly G3 / Folio G3 memory is 100% soldered LPDDR5).\n2. Omitted mandatory Battery (` + "`M90788-005`" + `) disconnection prior to Thermal Module (` + "`N00342-001`" + `) and System Board removal.`
-        });
-      }
-
-      MGMT_STATE[idx] = {
-        idx,
-        id: f.id,
-        relPath: f.rel_path,
-        filename: f.filename,
-        category: f.category || "root",
-        pdfPage: f.pdf_page || 1,
-        pdfSectionKo: f.pdf_section_ko || "",
-        pdfSectionEn: f.pdf_section_en || "",
-        entryId: entrySlug,
-        entryFqn: `projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/${entrySlug}`,
-        gcsUri: `bundles/hp_dragonfly/${f.rel_path}`,
-        catalogYamlPath: `catalog_okf/kb_hp-dragonfly_us-central1_okf_hp_dragonfly/${entrySlug}.yaml`,
-        fm,
-        body: f.body || "",
-        savedFm: JSON.parse(JSON.stringify(fm)),
-        savedBody: f.body || "",
-        dirty: false,
-        updatedAt: "2026-10-25T02:15:00Z",
-        lastChangeNote:
-          f.rel_path === "playbooks/no-boot-bios-sure-start-recovery.md"
-            ? "Promoted v1.0.0 after deprecating v0.1.0 hot-swap draft; verified against HP Service Guide N17344-001 p.34 & p.76."
-            : "",
-        versions: initialVersions
-      };
-    });
-
-    if (MGMT_ACTIVE_IDX === null || !MGMT_STATE[MGMT_ACTIVE_IDX]) {
-      MGMT_ACTIVE_IDX = CURRENT_OKF_IDX >= 0 && MGMT_STATE[CURRENT_OKF_IDX] ? CURRENT_OKF_IDX : 0;
-    }
-  }
-
-  function checkIsMgmtDirty(st) {
-    if (!st) return false;
-    if (st.body !== st.savedBody) return true;
-    const keys = Object.keys(st.fm);
-    for (let i = 0; i < keys.length; i++) {
-      const k = keys[i];
-      if (k === "sha256") continue;
-      if (String(st.fm[k] || "") !== String(st.savedFm[k] || "")) return true;
-    }
-    return false;
-  }
-
-  function buildMgmtYamlFrontmatter(st) {
-    const fm = st.fm;
-    const tagsArr = String(fm.tags || "")
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-    const tagsFormatted = tagsArr.map((t) => `"${t}"`).join(", ");
-
-    const lines = [
-      "---",
-      `type: ${fm.type}`,
-      `version: "${fm.version}"`,
-      `status: ${fm.status}`,
-      `title: "${String(fm.title || "").replace(/"/g, '\\"')}"`,
-      `description: "${String(fm.description || "").replace(/"/g, '\\"')}"`,
-      `content_class: ${fm.content_class}`,
-      `treatment: ${fm.treatment}`,
-      `stale_after: "${fm.stale_after}"`,
-      `license: "${String(fm.license || "").replace(/"/g, '\\"')}"`
-    ];
-    if (fm.contacts) {
-      lines.push(`contacts: "${String(fm.contacts).replace(/"/g, '\\"')}"`);
-    }
-    lines.push(
-      "generated:",
-      `  by: "${fm.generated_by}"`,
-      `  at: "${fm.generated_at}"`,
-      "verified:",
-      `  by: "${fm.verified_by}"`,
-      `  at: "${fm.verified_at}"`,
-      `  method: "${fm.verified_method}"`,
-      "sources:",
-      "  - id: hp_service_guide_pdf",
-      `    file: "${fm.source_resource}"`,
-      `    pages: "${fm.source_pages_span || fm.source_page}"`,
-      `    sha256: "${fm.sha256}"`,
-      `part_of: "${fm.part_of}"`,
-      `tags: [${tagsFormatted}]`,
-      "---"
-    );
-    return lines.join("\n");
-  }
-
-  function buildKcmdYamlForState(st) {
-    const fm = st.fm;
-    return [
-      `name: ${st.entryFqn}`,
-      `entryType: projects/hp-dragonfly/locations/us-central1/entryTypes/okf-bundle`,
-      `entrySource:`,
-      `  displayName: "${String(fm.title || st.filename).replace(/"/g, '\\"')}"`,
-      `  description: "${String(fm.description || "").replace(/"/g, '\\"')}"`,
-      `  system: "Open Knowledge Format"`,
-      `  platform: "OKF"`,
-      `  resource: "${st.gcsUri}"`,
-      `aspects:`,
-      `  dataplex-types.global.overview:`,
-      `    aspectType: projects/dataplex-types/locations/global/aspectTypes/overview`,
-      `    data:`,
-      `      content: |`,
-      ...String(st.body || "")
-        .split("\n")
-        .slice(0, 18)
-        .map((l) => `        ${l}`),
-      `  hp-dragonfly.us-central1.okf:`,
-      `    aspectType: projects/hp-dragonfly/locations/us-central1/aspectTypes/okf`,
-      `    data:`,
-      `      type: "${fm.type}"`,
-      `      version: "${fm.version}"`,
-      `      status: "${fm.status}"`,
-      `      content_class: "${fm.content_class}"`,
-      `      treatment: "${fm.treatment}"`,
-      `      stale_after: "${fm.stale_after}"`,
-      `      generated_by: "${fm.generated_by}"`,
-      `      verified_by: "${fm.verified_by}"`,
-      `      verified_method: "${fm.verified_method}"`,
-      `      source_file: "${fm.source_resource}"`,
-      `      source_pages: "${fm.source_pages_span || fm.source_page}"`,
-      `      sha256: "${fm.sha256}"`
-    ].join("\n");
-  }
-
-  function formatMgmtPreviewBody(bodyText) {
-    if (window.marked && typeof window.marked.parse === "function") {
-      return window.marked.parse(bodyText || "");
-    }
-    return `<pre>${escapeHtml(bodyText || "")}</pre>`;
-  }
-
-  function bumpSemver(verStr, mode) {
-    const parts = String(verStr || "1.0.0")
-      .split(".")
-      .map((n) => parseInt(n, 10) || 0);
+  function bumpSemverJs(ver, level) {
+    const clean = String(ver || "0.2.0").replace(/^v/i, "");
+    const parts = clean.split(".").map((n) => parseInt(n, 10) || 0);
     while (parts.length < 3) parts.push(0);
-    if (mode === "MAJOR") return `${parts[0] + 1}.0.0`;
-    if (mode === "MINOR") return `${parts[0]}.${parts[1] + 1}.0`;
+    if (level === "MAJOR") return `${parts[0] + 1}.0.0`;
+    if (level === "MINOR") return `${parts[0]}.${parts[1] + 1}.0`;
     return `${parts[0]}.${parts[1]}.${parts[2] + 1}`;
   }
 
-  function getMgmtSummaryCounts() {
-    initMgmtStateIfNeeded();
-    let synced = 0;
-    let modified = 0;
-    let versioned = 0;
-    let deprecated = 0;
-    Object.values(MGMT_STATE).forEach((s) => {
-      if (s.dirty) modified++;
-      else synced++;
-      if (s.versions.length > 0) {
-        versioned++;
-        deprecated += s.versions.length;
-      }
-    });
-    return { synced, modified, versioned, deprecated };
+  function isContactOwnerRole(contactStr) {
+    const s = String(contactStr || "");
+    return s.includes("수석") || s.includes("팀장") || s.includes("Lead");
   }
 
-  window.toggleMgmtSubView = function (viewMode) {
-    MGMT_SUB_VIEW = viewMode;
-    renderManagementModule();
-  };
+  function initManagementState(forceReset) {
+    if (MGMT_STATE.length > 0 && !forceReset) return;
 
-  window.setMgmtRightTab = function (tab) {
-    MGMT_RIGHT_TAB = tab;
-    renderManagementModule();
-  };
-
-  window.toggleMgmtSidebar = function () {
-    MGMT_SIDEBAR_COLLAPSED = !MGMT_SIDEBAR_COLLAPSED;
-    renderManagementModule();
-  };
-
-  window.toggleMgmtCat = function (cat) {
-    MGMT_OPEN_CATS[cat] = !MGMT_OPEN_CATS[cat];
-    renderManagementModule();
-  };
-
-  window.selectMgmtFileItem = function (idx) {
-    initMgmtStateIfNeeded();
-    if (MGMT_STATE[idx]) {
-      MGMT_ACTIVE_IDX = idx;
-      CURRENT_OKF_IDX = idx;
-      MGMT_OPEN_CATS[MGMT_STATE[idx].category || "root"] = true;
-    }
-    renderManagementModule();
-  };
-
-  window.toggleMgmtSelectCheckbox = function (idx, checked, evt) {
-    if (evt && evt.stopPropagation) evt.stopPropagation();
-    if (checked) MGMT_SELECTED.add(idx);
-    else MGMT_SELECTED.delete(idx);
-    renderManagementModule();
-  };
-
-  window.selectAllMgmtItems = function () {
-    initMgmtStateIfNeeded();
-    Object.keys(MGMT_STATE).forEach((k) => MGMT_SELECTED.add(Number(k)));
-    renderManagementModule();
-  };
-
-  window.clearAllMgmtSelections = function () {
-    MGMT_SELECTED.clear();
-    renderManagementModule();
-  };
-
-  window.toggleMgmtTreeFilter = function (filterMode) {
-    MGMT_TREE_FILTER = MGMT_TREE_FILTER === filterMode ? "ALL" : filterMode;
-    renderManagementModule();
-  };
-
-  window.onMgmtTreeSearch = function (val) {
-    MGMT_SEARCH_QUERY = val || "";
-    renderManagementModule();
-  };
-
-  window.onMgmtFmChange = function (field, value) {
-    initMgmtStateIfNeeded();
-    const st = MGMT_STATE[MGMT_ACTIVE_IDX];
-    if (!st) return;
-    st.fm[field] = value;
-    st.dirty = checkIsMgmtDirty(st);
-    updateMgmtLivePreviewOnly();
-  };
-
-  window.onMgmtBodyChange = function (value) {
-    initMgmtStateIfNeeded();
-    const st = MGMT_STATE[MGMT_ACTIVE_IDX];
-    if (!st) return;
-    st.body = value;
-    st.fm.sha256 = computePseudoSha256(value);
-    st.dirty = checkIsMgmtDirty(st);
-    updateMgmtLivePreviewOnly();
-  };
-
-  function updateMgmtLivePreviewOnly() {
-    const st = MGMT_STATE[MGMT_ACTIVE_IDX];
-    if (!st) return;
-    const k = isKo();
-    const yamlEl = document.getElementById("mgmt-live-yaml-preview");
-    if (yamlEl) {
-      yamlEl.innerHTML = colorizeYaml(buildMgmtYamlFrontmatter(st));
-    }
-    const kcmdEl = document.getElementById("mgmt-live-kcmd-preview");
-    if (kcmdEl) {
-      kcmdEl.innerHTML = colorizeYaml(buildKcmdYamlForState(st));
-    }
-    const bodyEl = document.getElementById("mgmt-live-body-preview");
-    if (bodyEl) {
-      bodyEl.innerHTML = formatMgmtPreviewBody(st.body);
-    }
-    const titleEl = document.getElementById("mgmt-live-title-preview");
-    if (titleEl) {
-      titleEl.textContent = st.fm.title;
-    }
-    const shaEl = document.getElementById("mgmt-sha-badge");
-    if (shaEl) {
-      shaEl.textContent = `sha256: ${st.fm.sha256.slice(0, 16)}...`;
-    }
-    const statusPill = document.getElementById("mgmt-active-status-pill");
-    if (statusPill) {
-      statusPill.className = `mgmt-status-pill ${st.dirty ? "modified" : "synced"}`;
-      statusPill.textContent = st.dirty
-        ? k
-          ? "MODIFIED (미배포)"
-          : "MODIFIED (Unpublished)"
-        : `v${st.fm.version} · ${st.fm.status.toUpperCase()}`;
-    }
-    const resetBtn = document.getElementById("mgmt-reset-btn");
-    if (resetBtn) {
-      resetBtn.disabled = !st.dirty;
-      resetBtn.style.opacity = st.dirty ? "1" : "0.45";
-    }
-  }
-
-  window.resetCurrentMgmtFile = function () {
-    initMgmtStateIfNeeded();
-    const st = MGMT_STATE[MGMT_ACTIVE_IDX];
-    if (!st) return;
-    st.fm = JSON.parse(JSON.stringify(st.savedFm));
-    st.body = st.savedBody;
-    st.dirty = false;
-    renderManagementModule();
-  };
-
-  window.openPublishConfirmModal = function (mode) {
-    initMgmtStateIfNeeded();
-    const k = isKo();
-    MGMT_MODAL_MODE = mode === "BATCH" && MGMT_SELECTED.size > 0 ? "BATCH" : "SINGLE";
-    MGMT_MODAL_BUMP = "PATCH";
-    const cur = MGMT_STATE[MGMT_ACTIVE_IDX];
-    MGMT_MODAL_CONTACTS = (cur && cur.fm.contacts) || "HP Field Service Ontology Lead <dhmoon@google.com>";
-    if (!MGMT_MODAL_NOTE) {
-      MGMT_MODAL_NOTE =
-        cur && cur.dirty
-          ? k
-            ? `${cur.relPath} 온톨로지 명세 개정 및 Dataplex KC 동기화`
-            : `Updated ${cur.relPath} specification and synced to Dataplex KC`
-          : k
-          ? "OKF v0.2 거버넌스 메타데이터 검증 및 kcmd 배포"
-          : "Verified OKF v0.2 governance metadata and pushed via kcmd";
-    }
-    MGMT_MODAL_OPEN = true;
-    renderManagementModule();
-  };
-
-  window.closePublishConfirmModal = function () {
-    MGMT_MODAL_OPEN = false;
-    renderManagementModule();
-  };
-
-  window.setModalBumpType = function (bumpType) {
-    MGMT_MODAL_BUMP = bumpType;
-    renderManagementModule();
-  };
-
-  window.onModalNoteInput = function (val) {
-    MGMT_MODAL_NOTE = val;
-  };
-
-  window.setModalNotePreset = function (presetText) {
-    MGMT_MODAL_NOTE = presetText;
-    const inp = document.getElementById("mgmt-modal-note-input");
-    if (inp) inp.value = presetText;
-  };
-
-  window.onModalContactsChange = function (val) {
-    MGMT_MODAL_CONTACTS = val;
-  };
-
-  window.executeMgmtPublish = async function () {
-    initMgmtStateIfNeeded();
-    const k = isKo();
-    const targets =
-      MGMT_MODAL_MODE === "BATCH" && MGMT_SELECTED.size > 0
-        ? Array.from(MGMT_SELECTED)
-        : [MGMT_ACTIVE_IDX];
-
-    const nowIso = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-    const todayStr = nowIso.slice(0, 10);
-    const note =
-      (MGMT_MODAL_NOTE || "").trim() ||
-      (k ? "OKF Editor 개정 및 kcmd Dataplex KC 배포" : "OKF Editor revision & kcmd Dataplex KC push");
-
-    let firstPublishedIdx = MGMT_ACTIVE_IDX;
-    let prevVersionRecord = null;
-    const publishedFilesPayload = [];
-
-    targets.forEach((idx, i) => {
-      const st = MGMT_STATE[idx];
-      if (!st) return;
-
-      const oldVer = st.savedFm.version;
-      const newVer = bumpSemver(oldVer, MGMT_MODAL_BUMP);
-      const slugVer = oldVer.replace(/\./g, "-");
-      const baseSlug = st.relPath.replace(/\.md$/, "").replace(/[\/_]/g, "-");
-      const snapEntryId = `versions-${baseSlug}-v${slugVer}`;
-
-      const deprecatedSnapshot = {
-        version: oldVer,
-        status: "deprecated",
-        archivedAt: nowIso,
-        changeNote: note,
-        gcsUri: `bundles/hp_dragonfly/versions/${baseSlug}-v${slugVer}.md`,
-        entryId: snapEntryId,
-        fm: JSON.parse(JSON.stringify(st.savedFm)),
-        body: st.savedBody
+    MGMT_DOC_STATE = {};
+    OKF_DOC_ROOTS.forEach((d, dIdx) => {
+      MGMT_OPEN_DOCS[d.doc_id] = true;
+      const fm = d.frontmatter || {};
+      const verClean = String(fm.version || d.version || "0.2.0").replace(/^v/i, "");
+      const defaultContact = OKF_V02_DROPDOWN_OPTIONS.contacts[dIdx % OKF_V02_DROPDOWN_OPTIONS.contacts.length];
+      const editableFm = {
+        concept_id: d.id,
+        type: fm.type || "Source Document",
+        title: fm.title || d.title_ko,
+        description: fm.description || d.description_ko,
+        tags: Array.isArray(d.tags) ? d.tags.join(", ") : "hp-dragonfly, doc-root, okf-v0.2",
+        version: verClean,
+        status: fm.status || d.status || "active",
+        content_class: fm.content_class || "curated",
+        treatment: fm.treatment || "normative",
+        language: "en",
+        license: fm.license || "Proprietary (HP Inc. Maintenance & Service Guide N17344-001)",
+        generated_by: (fm.generated && fm.generated.by) || "agent:gemini-2.5-pro",
+        generated_at: (fm.generated && fm.generated.at) || "2026-10-25T04:00:00Z",
+        verified_by: (fm.verified && fm.verified.by) || "hp-service-engineering-lead",
+        verified_at: (fm.verified && fm.verified.at) || "2026-10-25T04:00:00Z",
+        verified_method: (fm.verified && fm.verified.method) || "source_text_match",
+        part_of: "/index.md",
+        sequence: d.pdf_page || 1,
+        section_number: `doc.md ([${d.doc_num}] 장 총괄)`,
+        source_page: d.pdf_page || 1,
+        source_pages_span: d.source_pages_span || String(d.pdf_page || 1),
+        source_resource: "okf://source/manuals/pdf_6290467_en-US-1.pdf",
+        source_uri: d.gcs_uri || `gs://hp-dragonfly-okf/okf/${d.rel_path}`,
+        contacts: defaultContact,
+        sha256: simpleSha256Hex64(d.body)
       };
-      deprecatedSnapshot.fm.status = "deprecated";
-      st.versions.unshift(deprecatedSnapshot);
-
-      st.fm.version = newVer;
-      st.fm.status = "verified";
-      st.fm.verified_at = todayStr;
-      st.fm.sha256 = computePseudoSha256(st.body);
-      if (MGMT_MODAL_CONTACTS) {
-        st.fm.contacts = MGMT_MODAL_CONTACTS;
-      }
-
-      st.savedFm = JSON.parse(JSON.stringify(st.fm));
-      st.savedBody = st.body;
-      st.dirty = false;
-      st.updatedAt = nowIso;
-      st.lastChangeNote = note;
-
-      // Sync back to OKF_FILES so 02 · OKF Validation also reflects the update!
-      if (OKF_FILES[idx]) {
-        OKF_FILES[idx].body = st.body;
-        if (OKF_FILES[idx].frontmatter) {
-          OKF_FILES[idx].frontmatter.version = newVer;
-          OKF_FILES[idx].frontmatter.status = "verified";
-          OKF_FILES[idx].frontmatter.title = st.fm.title;
-          OKF_FILES[idx].frontmatter.description = st.fm.description;
-        }
-      }
-
-      publishedFilesPayload.push({
-        rel_path: st.relPath,
-        old_version: oldVer,
-        new_version: newVer,
-        entry_id: st.entryId
-      });
-
-      if (i === 0) {
-        firstPublishedIdx = idx;
-        prevVersionRecord = deprecatedSnapshot;
-      }
+      MGMT_DOC_STATE[d.doc_id] = {
+        key: `DOC:${d.doc_id}`,
+        isDocRoot: true,
+        doc_id: d.doc_id,
+        doc_num: d.doc_num,
+        doc_short_ko: d.doc_short_ko,
+        doc_short_en: d.doc_short_en,
+        section_number: `doc.md ([${d.doc_num}] 총괄)`,
+        section_number_en: `doc.md ([${d.doc_num}] Root)`,
+        rel: d.rel_path,
+        kc_entry_id: d.kc_entry_id,
+        fm: JSON.parse(JSON.stringify(editableFm)),
+        baseFm: JSON.parse(JSON.stringify(editableFm)),
+        body: d.body,
+        baseBody: d.body,
+        isModified: false,
+        historyCount: 0,
+        changeNote: "OKF v0.2 Source Document Root Registration (doc.md)",
+        sha256: editableFm.sha256
+      };
     });
 
-    // Call backend `/api/okf/publish` to record commit hash
-    let commitHash = computePseudoSha256(note + nowIso).slice(0, 7);
-    try {
-      const resp = await fetch("/api/okf/publish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: MGMT_MODAL_MODE,
-          bump: MGMT_MODAL_BUMP,
-          note,
-          contacts: MGMT_MODAL_CONTACTS,
-          files: publishedFilesPayload
-        })
-      });
-      const data = await resp.json();
-      if (data && data.ok && data.commit_hash) {
-        commitHash = data.commit_hash;
-      }
-    } catch (_) {}
-
-    // Prepend new commit to GIT_COMMITS so Git history immediately reflects the Metadata-as-Code commit
-    GIT_COMMITS.unshift({
-      short_hash: commitHash,
-      date: nowIso.replace("T", " ").replace("Z", " +0000"),
-      subject: `feat(okf): publish ${publishedFilesPayload.map((p) => `${p.rel_path}@v${p.new_version}`).join(", ")} — ${note}`
+    MGMT_STATE = OKF_FILES.map((f, idx) => {
+      const fm = f.frontmatter || {};
+      const verClean = String(fm.version || f.version || "0.2.0").replace(/^v/i, "");
+      const isInternal = f.doc_id === "08_INTERNAL_FIELD_SOP_PLAYBOOKS";
+      const defaultContact = isInternal
+        ? OKF_V02_DROPDOWN_OPTIONS.contacts[2]
+        : OKF_V02_DROPDOWN_OPTIONS.contacts[idx % OKF_V02_DROPDOWN_OPTIONS.contacts.length];
+      const editableFm = {
+        concept_id: f.id,
+        type: fm.type || f.okf_type || "Provision",
+        title: fm.title || f.title_ko,
+        description: fm.description || f.description_ko || f.title_ko,
+        tags: Array.isArray(f.tags) ? f.tags.join(", ") : "hp-dragonfly, okf-v0.2",
+        version: verClean,
+        status: fm.status || f.status || "active",
+        content_class: fm.content_class || f.content_class || "verbatim",
+        treatment: fm.treatment || f.treatment || "normative",
+        language: "en",
+        license:
+          fm.license ||
+          f.license ||
+          (isInternal
+            ? "Internal-Only (HP Global Field Service SOP · 사내한 대외비)"
+            : "Proprietary (HP Inc. Maintenance & Service Guide N17344-001)"),
+        generated_by: (fm.generated && fm.generated.by) || f.generated_by || "agent:gemini-2.5-pro",
+        generated_at: (fm.generated && fm.generated.at) || f.generated_at || "2026-10-25T04:00:00Z",
+        verified_by: (fm.verified && fm.verified.by) || f.verified_by || "hp-service-engineering-lead",
+        verified_at: (fm.verified && fm.verified.at) || f.verified_at || "2026-10-25T04:00:00Z",
+        verified_method: (fm.verified && fm.verified.method) || f.verified_method || "source_text_match",
+        part_of: `/${f.rel_path.split("/").slice(0, 2).join("/")}/doc.md`,
+        sequence: f.pdf_page || 1,
+        section_number: f.section_number,
+        source_page: f.pdf_page || 1,
+        source_pages_span: f.source_pages_span || String(f.pdf_page || 1),
+        source_resource: "okf://source/manuals/pdf_6290467_en-US-1.pdf",
+        source_uri: f.gcs_uri || `gs://hp-dragonfly-okf/okf/${f.rel_path}`,
+        contacts: defaultContact,
+        sha256: simpleSha256Hex64(f.body)
+      };
+      return {
+        key: idx,
+        idx,
+        isDocRoot: false,
+        doc_id: f.doc_id,
+        doc_num: f.doc_num,
+        doc_short_ko: f.doc_short_ko,
+        doc_short_en: f.doc_short_en,
+        section_number: f.section_number,
+        section_number_en: f.section_number_en || f.section_number,
+        rel: f.rel_path,
+        kc_entry_id: f.kc_entry_id,
+        fm: JSON.parse(JSON.stringify(editableFm)),
+        baseFm: JSON.parse(JSON.stringify(editableFm)),
+        body: f.body,
+        baseBody: f.body,
+        isModified: false,
+        historyCount: 0,
+        supersededBy:
+          editableFm.status === "deprecated"
+            ? "manuals/04_ch5_preliminary_safety/sec_5_1_esd_700v_grounding_protocol"
+            : null,
+        supersededByVer: editableFm.status === "deprecated" ? "0.2.0" : null,
+        changeNote:
+          editableFm.status === "deprecated"
+            ? "v0.2.0(제5장 §5.1 700V ESD 방전 및 배터리 선행 분리 의무화) 개정에 따라 만료(deprecated) 처리"
+            : "OKF v0.2 Verbatim Bundle Registration (P1~P4 Verified)",
+        sha256: editableFm.sha256
+      };
     });
+  }
 
-    const firstSt = MGMT_STATE[firstPublishedIdx];
-    MGMT_LAST_PUBLISHED = {
-      idx: firstPublishedIdx,
-      count: targets.length,
-      title: firstSt ? firstSt.fm.title : "",
-      oldVer: prevVersionRecord ? prevVersionRecord.version : "1.0.0",
-      newVer: firstSt ? firstSt.fm.version : "1.0.1",
-      oldGcsUri: prevVersionRecord ? prevVersionRecord.gcsUri : "",
-      newGcsUri: firstSt ? firstSt.gcsUri : "",
-      changeNote: note,
-      commitHash,
-      publishedAt: nowIso
-    };
+  function getEffectiveItemState(key) {
+    initManagementState(false);
+    const k = key !== undefined && key !== null ? key : MGMT_ACTIVE_KEY;
+    if (typeof k === "string" && k.startsWith("DOC:")) {
+      const docId = k.slice(4);
+      return MGMT_DOC_STATE[docId] || MGMT_STATE[0];
+    }
+    const idx = typeof k === "number" ? k : 0;
+    return MGMT_STATE[idx] || MGMT_STATE[0];
+  }
 
-    KC_SELECTED_KEY = `ACTIVE:${firstPublishedIdx}`;
-    MGMT_MODAL_OPEN = false;
-    MGMT_MODAL_NOTE = "";
-    MGMT_SELECTED.clear();
-    renderManagementModule();
-  };
+  function getModifiedCount() {
+    let cnt = 0;
+    Object.values(MGMT_DOC_STATE).forEach((st) => {
+      if (st.isModified) cnt++;
+    });
+    MGMT_STATE.forEach((st) => {
+      if (st.isModified) cnt++;
+    });
+    return cnt;
+  }
 
-  window.openKcEntryForPublished = function (idx) {
-    MGMT_SUB_VIEW = "KC_EXPLORER";
-    KC_FILTER_STATUS = "ALL";
-    KC_SELECTED_KEY = `ACTIVE:${idx}`;
-    renderManagementModule();
-  };
+  function getUpdatedVersionCount() {
+    let cnt = 0;
+    Object.values(MGMT_DOC_STATE).forEach((st) => {
+      if (st.historyCount > 0) cnt++;
+    });
+    MGMT_STATE.forEach((st) => {
+      if (st.historyCount > 0) cnt++;
+    });
+    return cnt;
+  }
 
-  window.onKcSearchInput = function (val) {
-    KC_SEARCH_QUERY = val || "";
-    renderManagementModule();
-  };
+  function getDeprecatedCount() {
+    let cnt = 0;
+    Object.values(MGMT_DOC_STATE).forEach((st) => {
+      if (st.fm.status === "deprecated") cnt++;
+    });
+    MGMT_STATE.forEach((st) => {
+      if (st.fm.status === "deprecated") cnt++;
+    });
+    return cnt;
+  }
 
-  window.setKcStatusFilter = function (status) {
-    KC_FILTER_STATUS = status;
-    KC_SELECTED_KEY = null;
-    renderManagementModule();
-  };
-
-  window.setKcScopeFilter = function (scope) {
-    KC_FILTER_SCOPE = scope;
-    KC_SELECTED_KEY = null;
-    renderManagementModule();
-  };
-
-  window.selectKcExplorerEntry = function (key) {
-    KC_SELECTED_KEY = key;
-    if (typeof key === "string" && key.startsWith("ACTIVE:")) {
-      const idx = parseInt(key.slice(7), 10);
-      if (!isNaN(idx) && MGMT_STATE[idx]) {
-        MGMT_ACTIVE_IDX = idx;
-        CURRENT_OKF_IDX = idx;
-      }
+  window.toggleMgmtSubView = function (targetMode) {
+    if (targetMode) {
+      MGMT_SUB_VIEW = targetMode;
+    } else {
+      MGMT_SUB_VIEW = MGMT_SUB_VIEW === "EDITOR" ? "KC_EXPLORER" : "EDITOR";
     }
     renderManagementModule();
   };
 
-  function renderManagementModule() {
-    initMgmtStateIfNeeded();
+  window.toggleMgmtDocAccordion = function (docId) {
+    MGMT_OPEN_DOCS[docId] = !MGMT_OPEN_DOCS[docId];
+    MGMT_ACTIVE_KEY = "DOC:" + docId;
+    renderManagementModule();
+  };
+
+  window.renderManagementModule = function (idx) {
+    initManagementState(false);
+    if (typeof idx === "string" && idx.startsWith("DOC:")) {
+      MGMT_ACTIVE_KEY = idx;
+    } else if (typeof idx === "number" && idx >= 0 && idx < MGMT_STATE.length) {
+      MGMT_ACTIVE_KEY = idx;
+    }
+
     const container = document.getElementById("module-enrollment");
     if (!container) return;
 
-    const k = isKo();
-    const counts = getMgmtSummaryCounts();
+    const prevNavList = container.querySelector(".mgmt-sidebar .nav-list");
+    const prevNavScrollTop = prevNavList ? prevNavList.scrollTop : null;
+
+    const totalFiles = OKF_DOC_ROOTS.length + MGMT_STATE.length;
+    const modifiedCount = getModifiedCount();
+    const updatedCount = getUpdatedVersionCount();
+    const deprecatedCount = getDeprecatedCount();
+    const gcsBucketLabel = "gs://hp-dragonfly-okf/okf/";
+    const entryGroupLabel = "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly";
 
     container.innerHTML = `
       <div class="mgmt-shell">
-        <!-- Top Sub-navigation Bar: Left Sidebar Toggle + Sub-View Tabs + Right Live Status Pills -->
+        <!-- Sub-navigation bar inside 03 · okf-management -->
         <div class="mgmt-top-subbar">
-          <div style="display:flex; align-items:center; gap:10px; min-width:0; overflow:hidden;">
-            <button type="button" class="sidebar-collapse-btn" onclick="toggleMgmtSidebar()" title="${
-              k ? "좌측 파일/엔트리 패널 접기·펼치기" : "Toggle Left File/Entry Sidebar"
-            }">
-              <span class="material-symbols-outlined" style="font-size:16px;">${
-                MGMT_SIDEBAR_COLLAPSED ? "left_panel_open" : "left_panel_close"
-              }</span>
-            </button>
-            <div class="mgmt-subtab-group">
-              <button type="button" class="mgmt-subtab-btn ${MGMT_SUB_VIEW === "EDITOR" ? "active" : ""}" onclick="toggleMgmtSubView('EDITOR')">
-                <span class="material-symbols-outlined" style="font-size:15px;">edit_note</span>
-                <span>OKF Editor</span>
+          <div style="display:flex; align-items:center; gap:14px; min-width:0; overflow:hidden;">
+            <div class="mgmt-subtab-group" style="flex-shrink:0;">
+              <button class="mgmt-subtab-btn ${MGMT_SUB_VIEW === "EDITOR" ? "active" : ""}" onclick="toggleMgmtSubView('EDITOR')">
+                OKF Editor
               </button>
-              <button type="button" class="mgmt-subtab-btn ${MGMT_SUB_VIEW === "KC_EXPLORER" ? "active" : ""}" onclick="toggleMgmtSubView('KC_EXPLORER')">
-                <span class="material-symbols-outlined" style="font-size:15px;">inventory_2</span>
-                <span>Knowledge Catalog</span>
+              <button class="mgmt-subtab-btn ${MGMT_SUB_VIEW === "KC_EXPLORER" ? "active" : ""}" onclick="toggleMgmtSubView('KC_EXPLORER')">
+                Knowledge Catalog
               </button>
             </div>
             <span style="font-size:11.5px; color:var(--text-sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-              Git Repo: <code>bundles/hp_dragonfly/</code> (28 OKF v0.2) · EntryGroup: <code>projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly</code>
+              GCS: <code>${gcsBucketLabel}</code> · EntryGroup: <code>${entryGroupLabel}</code>
             </span>
           </div>
 
           <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-            <span class="mgmt-status-pill synced" title="${k ? "동기화 완료된 활성 OKF 파일 수" : "Synced Active OKF Files"}">SYNCED ${counts.synced}</span>
-            <span class="mgmt-status-pill modified" title="${k ? "편집 중(미배포) 파일 수" : "Modified (Unpublished) Files"}">MODIFIED ${counts.modified}</span>
-            <span class="mgmt-status-pill versioned" title="${k ? "버전 이력이 존재하는 엔트리 수" : "Versioned Entries"}">VERSIONED ${counts.versioned}</span>
-            <span class="mgmt-status-pill deprecated" title="${k ? "구버전 만료(DEPRECATED) 스냅샷 수" : "Deprecated Version Snapshots"}">DEPRECATED ${counts.deprecated}</span>
+            <span class="mgmt-status-pill synced">SYNCED ${totalFiles - modifiedCount}</span>
+            ${modifiedCount > 0 ? `<span class="mgmt-status-pill modified">MODIFIED ${modifiedCount}</span>` : ""}
+            ${updatedCount > 0 ? `<span class="mgmt-status-pill versioned">VERSIONED ${updatedCount}</span>` : ""}
+            ${deprecatedCount > 0 ? `<span class="mgmt-status-pill deprecated">DEPRECATED ${deprecatedCount}</span>` : ""}
           </div>
         </div>
 
         ${MGMT_SUB_VIEW === "EDITOR" ? renderMgmtEditorSplitHtml() : renderKcExplorerSplitHtml()}
       </div>
 
-      ${renderPublishConfirmModalHtml()}
+      <!-- Floating Bottom-Center Multi-Select Snackbar (Zero Layout Shift on Tree!) -->
+      <div id="mgmt-floating-snackbar-wrap">
+        ${renderMgmtFloatingSnackbarHtml()}
+      </div>
+
+      <!-- Confirm Modal Popup (Semantic Version Bump + Change Note + Diff) -->
+      <div class="mgmt-modal-overlay" id="mgmt-publish-modal">
+        <div class="mgmt-modal-dialog" id="mgmt-modal-dialog-content"></div>
+      </div>
+    `;
+
+    if (prevNavScrollTop !== null) {
+      const newNavList = container.querySelector(".mgmt-sidebar .nav-list");
+      if (newNavList) newNavList.scrollTop = prevNavScrollTop;
+    }
+  };
+
+  function renderMgmtFloatingSnackbarHtml() {
+    const count = MGMT_SELECTED_SET.size;
+    if (count === 0) return "";
+    const k = isKo();
+    return `
+      <div class="mgmt-floating-snackbar visible">
+        <div style="display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:var(--gcp-blue);">
+          <span>${count}${k ? "개 OKF 파일 선택됨" : " OKF files selected"}</span>
+        </div>
+        <div style="width:1px; height:18px; background:var(--border);"></div>
+        <button class="bq-run-btn" style="padding:6px 14px; font-size:12px; border-radius:999px;" onclick="openPublishConfirmModal('BATCH')">
+          ${k ? `일괄 프론트매터 변경 & KC 배포 (${count}건)` : `Batch Update & KC Publish (${count})`}
+        </button>
+        <button class="mgmt-chip-btn" style="padding:5px 11px; border-radius:999px;" onclick="mgmtSelectAllVisible(false)">
+          ${k ? "선택 해제" : "Clear"}
+        </button>
+      </div>
     `;
   }
 
   function renderMgmtEditorSplitHtml() {
+    const st = getEffectiveItemState(MGMT_ACTIVE_KEY);
+    if (!st) return "";
+    const fm = st.fm;
     const k = isKo();
-    const st = MGMT_STATE[MGMT_ACTIVE_IDX] || MGMT_STATE[0];
-    const counts = getMgmtSummaryCounts();
-    const selectedCount = MGMT_SELECTED.size;
-    let dirtyInSelection = 0;
-    MGMT_SELECTED.forEach((idx) => {
-      if (MGMT_STATE[idx] && MGMT_STATE[idx].dirty) dirtyInSelection++;
-    });
+    const searchPh = k
+      ? "조문 검색 (제1장, 별표 3-1, §5.1, 3.2, 내규)..."
+      : "Search clause (Ch.1, Table 3-1, §5.1, 3.2, SOP)...";
+    const pathParts = String(st.rel || "").split("/").filter(Boolean);
+    const rawBase = pathParts[pathParts.length - 1] || "doc.md";
+    const mdBasename =
+      rawBase === "doc.md" && pathParts.length >= 2
+        ? `${pathParts[pathParts.length - 2]}/doc.md`
+        : rawBase;
 
-    const catOrder = ["datasets", "tables", "references", "playbooks", "computations", "metrics", "root"];
-    const catLabels = {
-      datasets: k ? "datasets/ (데이터셋 루트)" : "datasets/ (Dataset Root)",
-      tables: k ? "tables/ (8개 BigQuery 정형 테이블)" : "tables/ (8 BigQuery Structured Tables)",
-      references: k ? "references/ (매뉴얼 코드·스펙 레퍼런스)" : "references/ (Service Manual References)",
-      playbooks: k ? "playbooks/ (현장 수리·복구 표준 절차)" : "playbooks/ (Field Service & BIOS Playbooks)",
-      computations: k ? "computations/ (온톨로지 추론·DAG 규칙)" : "computations/ (Ontology Reasoning & DAG)",
-      metrics: k ? "metrics/ (품질·SLA 지표)" : "metrics/ (Quality & SLA Metrics)",
-      root: k ? "root (번들 인덱스)" : "root (Bundle Index)"
-    };
-
-    const q = (MGMT_SEARCH_QUERY || "").trim().toLowerCase();
-    const allStates = Object.values(MGMT_STATE).filter((item) => {
-      if (MGMT_TREE_FILTER === "MODIFIED" && !item.dirty) return false;
-      if (!q) return true;
-      return (
-        item.relPath.toLowerCase().includes(q) ||
-        (item.fm.title || "").toLowerCase().includes(q) ||
-        (item.fm.description || "").toLowerCase().includes(q) ||
-        (item.body || "").toLowerCase().includes(q)
-      );
-    });
-
-    const groupedHtml = catOrder
-      .map((cat) => {
-        const items = allStates.filter((x) => (x.category || "root") === cat);
-        if (items.length === 0) return "";
-        const isOpen = MGMT_OPEN_CATS[cat] !== false || q.length > 0;
-        return `
-          <div class="sec-group" style="margin-bottom:6px;">
-            <div class="sec-group-header" onclick="toggleMgmtCat('${cat}')">
-              <div class="sec-group-title">
-                <span class="material-symbols-outlined" style="font-size:15px; color:var(--gcp-blue);">folder_open</span>
-                <span>${escapeHtml(catLabels[cat] || cat)}</span>
-              </div>
-              <div style="display:flex; align-items:center; gap:4px;">
-                <span class="sec-group-badge">${items.length}</span>
-                <span class="material-symbols-outlined" style="font-size:15px; color:var(--text-muted); transform:rotate(${
-                  isOpen ? "0deg" : "-90deg"
-                }); transition:transform 0.15s;">expand_more</span>
-              </div>
-            </div>
-            ${
-              isOpen
-                ? `<div class="sec-children">
-                    ${items
-                      .map((item) => {
-                        const isActive = item.idx === MGMT_ACTIVE_IDX;
-                        const isChecked = MGMT_SELECTED.has(item.idx);
-                        let pillClass = "synced";
-                        let pillText = `v${item.fm.version}`;
-                        if (item.dirty) {
-                          pillClass = "modified";
-                          pillText = "MODIFIED";
-                        } else if (item.versions.length > 0) {
-                          pillClass = "versioned";
-                          pillText = k
-                            ? `v${item.fm.version} · 이력${item.versions.length}`
-                            : `v${item.fm.version} · hist ${item.versions.length}`;
-                        }
-                        return `
-                          <div class="mgmt-tree-row ${isActive ? "active" : ""}" onclick="selectMgmtFileItem(${item.idx})">
-                            <input type="checkbox" class="mgmt-tree-cb" ${isChecked ? "checked" : ""} onclick="toggleMgmtSelectCheckbox(${item.idx}, this.checked, event)" />
-                            <div style="flex:1; min-width:0;">
-                              <div style="display:flex; align-items:center; justify-content:space-between; gap:4px;">
-                                <span style="font-size:12px; font-weight:${isActive ? "600" : "500"}; color:${
-                          isActive ? "var(--gcp-blue)" : "var(--text)"
-                        }; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                                  ${escapeHtml(item.filename)}
-                                </span>
-                                <span class="mgmt-status-pill ${pillClass}">${escapeHtml(pillText)}</span>
-                              </div>
-                              <div style="font-size:11px; color:var(--text-sub); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                                ${escapeHtml(item.fm.title)}
-                              </div>
-                              <div style="font-family:var(--mono); font-size:10px; color:var(--text-muted); margin-top:1px;">
-                                p.${item.pdfPage} · ${escapeHtml(item.relPath)}
-                              </div>
-                            </div>
-                          </div>
-                        `;
-                      })
-                      .join("")}
-                  </div>`
-                : ""
-            }
-          </div>
-        `;
-      })
-      .join("");
-
-    const kcmdCliBlock = `# 1. Push Enriched BigQuery Overview Aspects (1 Dataset + 8 Structured Tables)
-./bin/kcmd push ./catalog
-# Scope: bq-dataset.hp-dragonfly.prj_ontology_hp_dragonfly
-
-# 2. Push Full OKF v0.2 Bundle (28 Files -> 29 Entries) to Custom EntryGroup
-./bin/kcmd push ./catalog_okf
-# Scope: kb.hp-dragonfly.us-central1.okf_hp_dragonfly
-
-# 3. Round-Trip Pull Verification from Dataplex Knowledge Catalog
-./bin/kcmd pull ./catalog_okf_pulled -s kb.hp-dragonfly.us-central1.okf_hp_dragonfly`;
+    const pillClass = st.isModified
+      ? "modified"
+      : fm.status === "deprecated"
+      ? "deprecated"
+      : st.historyCount > 0
+      ? "versioned"
+      : "synced";
+    const pillText = st.isModified
+      ? k
+        ? "MODIFIED (미배포)"
+        : "MODIFIED (Unsaved)"
+      : `v${fm.version} · ${fm.status.toUpperCase()}`;
 
     return `
       <div class="mgmt-body-split">
-        <!-- 1. Left Categorized OKF Bundle Tree & Multi-Select Sidebar -->
-        <aside class="mgmt-sidebar ${MGMT_SIDEBAR_COLLAPSED ? "collapsed" : ""}" style="width:295px;">
-          <div class="search-wrap" style="display:flex; flex-direction:column; gap:7px;">
-            <input type="text" id="mgmt-tree-search" class="search-input" placeholder="${
-              k ? "OKF 파일/컨셉 검색 (disassembly, BIOS, blink)..." : "Search OKF file/concept (disassembly, BIOS, blink)..."
-            }" value="${escapeHtml(MGMT_SEARCH_QUERY)}" oninput="onMgmtTreeSearch(this.value)" />
-            <div style="display:flex; align-items:center; gap:5px;">
-              <button type="button" class="mgmt-chip-btn" style="flex:1;" onclick="selectAllMgmtItems()">
-                ${k ? "전체선택" : "Select All"}
-              </button>
-              <button type="button" class="mgmt-chip-btn" style="flex:1;" onclick="clearAllMgmtSelections()">
-                ${k ? "선택해제" : "Clear"}
-              </button>
-              <button type="button" class="mgmt-chip-btn ${MGMT_TREE_FILTER === "MODIFIED" ? "active" : ""}" style="flex:1.15;" onclick="toggleMgmtTreeFilter('MODIFIED')">
-                ${k ? `수정중(${counts.modified})` : `Modified(${counts.modified})`}
-              </button>
+        <!-- 1. Left GCS File Tree -->
+        <aside class="mgmt-sidebar">
+          <div class="search-wrap" style="display:flex; flex-direction:column; gap:8px;">
+            <input type="text" id="mgmt-tree-search" class="search-input" placeholder="${escapeHtml(
+              searchPh
+            )}" oninput="refreshMgmtTreeList()" />
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:4px;">
+              <div style="display:flex; gap:4px;">
+                <button class="mgmt-chip-btn" onclick="mgmtSelectAllVisible(true)" title="${
+                  k ? "현재 목록 전체 선택" : "Select all visible"
+                }">${k ? "전체선택" : "Select All"}</button>
+                <button class="mgmt-chip-btn" onclick="mgmtSelectAllVisible(false)" title="${
+                  k ? "선택 해제" : "Clear selection"
+                }">${k ? "선택해제" : "Clear"}</button>
+              </div>
+              <div style="display:flex; gap:4px;">
+                <button id="mgmt-filter-modified-btn" class="mgmt-chip-btn ${
+                  MGMT_TREE_FILTER === "MODIFIED" ? "active" : ""
+                }" onclick="setMgmtTreeFilter('MODIFIED')" title="${
+      k ? "수정중인 OKF 파일 필터 (재클릭 시 전체 보기)" : "Filter modified files"
+    }">${k ? "수정중" : "Modified"}(${getModifiedCount()})</button>
+              </div>
             </div>
           </div>
 
-          <div class="nav-list">
-            ${
-              groupedHtml ||
-              `<div style="padding:20px 12px; text-align:center; font-size:12px; color:var(--text-sub);">${
-                k ? "조건에 맞는 OKF 파일이 없습니다." : "No matching OKF files found."
-              }</div>`
-            }
+          <div class="nav-list" id="mgmt-tree-list">
+            ${buildMgmtTreeItemsHtml("")}
           </div>
         </aside>
 
-        <!-- 2. Center Spacious Frontmatter & Markdown Body Editor -->
+        <!-- 2. Center Spacious Frontmatter Dropdown & Markdown Body Editor -->
         <section class="mgmt-editor-pane">
           <div class="pane-subbar">
-            <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:0; overflow:hidden;">
-              <span style="font-weight:600; color:var(--text); flex-shrink:0;">OKF Editor</span>
-              <span style="color:var(--text-muted); flex-shrink:0;">/</span>
-              <code style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;" title="bundles/hp_dragonfly/${escapeHtml(
-                st.relPath
-              )}">bundles/hp_dragonfly/${escapeHtml(st.relPath)}</code>
-              <span id="mgmt-active-status-pill" class="mgmt-status-pill ${st.dirty ? "modified" : "synced"}" style="flex-shrink:0;">
-                ${
-                  st.dirty
-                    ? k
-                      ? "MODIFIED (미배포)"
-                      : "MODIFIED (Unpublished)"
-                    : `v${escapeHtml(st.fm.version)} · ${escapeHtml(st.fm.status.toUpperCase())}`
-                }
+            <div style="display:flex; align-items:center; gap:8px; min-width:0; overflow:hidden;">
+              <code style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(
+                mdBasename
+              )}</code>
+              <span id="mgmt-editor-status-pill" class="mgmt-status-pill ${pillClass}">
+                ${escapeHtml(pillText)}
               </span>
             </div>
-            <div style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
-              <button type="button" class="gcp-action-btn" style="padding:4px 10px; font-size:11.5px; white-space:nowrap;" onclick="switchModule('okf-validation'); selectItem(${
-                st.idx
-              });">
-                <span class="material-symbols-outlined" style="font-size:14px;">find_in_page</span>
-                ${k ? `02 · 원본 PDF (p.${st.pdfPage})` : `02 · Source PDF (p.${st.pdfPage})`}
-              </button>
-              <button type="button" id="mgmt-reset-btn" class="gcp-action-btn" style="padding:4px 10px; font-size:11.5px; white-space:nowrap; ${
-                st.dirty ? "" : "opacity:0.45;"
-              }" ${st.dirty ? "" : "disabled"} onclick="resetCurrentMgmtFile()">
+            <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+              <button id="mgmt-reset-btn" class="gcp-action-btn" style="flex:0 0 auto; height:30px; padding:0 12px; font-size:11.5px; line-height:1; ${
+                !st.isModified ? "opacity:0.45; cursor:default;" : ""
+              }" onclick="resetCurrentMgmtEdits()" ${!st.isModified ? "disabled" : ""}>
                 ${k ? "변경 취소" : "Reset"}
               </button>
-              <button type="button" class="bq-run-btn" style="width:auto; padding:5px 14px; font-size:11.5px; white-space:nowrap;" onclick="openPublishConfirmModal('SINGLE')">
-                <span class="material-symbols-outlined" style="font-size:15px;">rocket_launch</span>
-                ${k ? "편집 완료 및 KC 배포" : "Publish to Git & KC"}
+              <button class="bq-run-btn" style="flex:0 0 auto; height:30px; padding:0 14px; font-size:11.5px; line-height:1;" onclick="openPublishConfirmModal('SINGLE')">
+                ${k ? "편집 완료 및 KC 배포" : "Approve & Publish to KC"}
               </button>
             </div>
           </div>
 
           <div class="mgmt-editor-scroll">
-            <!-- Card 1: Frontmatter Governance Attributes -->
+            <!-- 1. Structured Frontmatter Card (Spacious 3-Column Grid, Zero Clutter) -->
             <div class="mgmt-card">
-              <div class="section-label" style="margin-top:0; margin-bottom:14px;">
-                <span>${
-                  k
-                    ? "1. Frontmatter 거버넌스 속성 편집 (OKF v0.2 · Dataplex Aspect Schema)"
-                    : "1. Frontmatter Governance Attributes (OKF v0.2 · Dataplex Aspect Schema)"
-                }</span>
-                <span>Entry: <code>${escapeHtml(st.entryId)}</code></span>
+              <div class="section-label" style="margin-bottom:14px;">
+                <span>Frontmatter Governance Attributes</span>
+                <span style="font-family:var(--mono); font-size:11px; color:var(--text-sub);" id="mgmt-live-sha">SHA-256: ${escapeHtml(
+                  st.sha256.slice(0, 16)
+                )}…</span>
               </div>
 
               <div class="mgmt-fm-grid">
-                <div class="mgmt-fm-field">
-                  <label><span>${k ? "OKF Type (문서 유형)" : "OKF Type"}</span><code>type</code></label>
-                  <select class="gcp-select" onchange="onMgmtFmChange('type', this.value)">
-                    ${MGMT_FM_OPTIONS.type
-                      .map(
-                        (o) =>
-                          `<option value="${escapeHtml(o.val)}" ${st.fm.type === o.val ? "selected" : ""}>${escapeHtml(
-                            k ? o.ko : o.en
-                          )}</option>`
-                      )
-                      .join("")}
-                  </select>
-                </div>
+                ${renderFmSelectField("type", "OKF Type", fm.type)}
+                ${renderFmSelectField("status", "Status", fm.status)}
+                ${renderFmSelectField("content_class", "Content Class", fm.content_class)}
 
-                <div class="mgmt-fm-field">
-                  <label><span>${k ? "Status (검증 상태)" : "Status"}</span><code>status</code></label>
-                  <select class="gcp-select" onchange="onMgmtFmChange('status', this.value)">
-                    ${MGMT_FM_OPTIONS.status
-                      .map(
-                        (o) =>
-                          `<option value="${escapeHtml(o.val)}" ${st.fm.status === o.val ? "selected" : ""}>${escapeHtml(
-                            k ? o.ko : o.en
-                          )}</option>`
-                      )
-                      .join("")}
-                  </select>
-                </div>
+                ${renderFmSelectField("treatment", "Treatment", fm.treatment)}
+                ${renderFmSelectField("generated_by", "Generated By", fm.generated_by)}
+                ${renderFmSelectField("verified_by", "Verified By", fm.verified_by)}
 
-                <div class="mgmt-fm-field">
-                  <label><span>${k ? "Content Class (본문 성격)" : "Content Class"}</span><code>content_class</code></label>
-                  <select class="gcp-select" onchange="onMgmtFmChange('content_class', this.value)">
-                    ${MGMT_FM_OPTIONS.content_class
-                      .map(
-                        (o) =>
-                          `<option value="${escapeHtml(o.val)}" ${
-                            st.fm.content_class === o.val ? "selected" : ""
-                          }>${escapeHtml(k ? o.ko : o.en)}</option>`
-                      )
-                      .join("")}
-                  </select>
-                </div>
-
-                <div class="mgmt-fm-field">
-                  <label><span>${k ? "Treatment (처리 방식)" : "Treatment"}</span><code>treatment</code></label>
-                  <select class="gcp-select" onchange="onMgmtFmChange('treatment', this.value)">
-                    ${MGMT_FM_OPTIONS.treatment
-                      .map(
-                        (o) =>
-                          `<option value="${escapeHtml(o.val)}" ${st.fm.treatment === o.val ? "selected" : ""}>${escapeHtml(
-                            k ? o.ko : o.en
-                          )}</option>`
-                      )
-                      .join("")}
-                  </select>
-                </div>
-
-                <div class="mgmt-fm-field">
-                  <label><span>${k ? "Generated By (생성 주체)" : "Generated By"}</span><code>generated.by</code></label>
-                  <select class="gcp-select" onchange="onMgmtFmChange('generated_by', this.value)">
-                    ${MGMT_FM_OPTIONS.generated_by
-                      .map(
-                        (o) =>
-                          `<option value="${escapeHtml(o.val)}" ${
-                            st.fm.generated_by === o.val ? "selected" : ""
-                          }>${escapeHtml(o.label)}</option>`
-                      )
-                      .join("")}
-                  </select>
-                </div>
-
-                <div class="mgmt-fm-field">
-                  <label><span>${k ? "Verified By (검증 주체)" : "Verified By"}</span><code>verified.by</code></label>
-                  <select class="gcp-select" onchange="onMgmtFmChange('verified_by', this.value)">
-                    ${MGMT_FM_OPTIONS.verified_by
-                      .map(
-                        (o) =>
-                          `<option value="${escapeHtml(o.val)}" ${
-                            st.fm.verified_by === o.val ? "selected" : ""
-                          }>${escapeHtml(k ? o.ko : o.en)}</option>`
-                      )
-                      .join("")}
-                  </select>
-                </div>
-
-                <div class="mgmt-fm-field">
-                  <label><span>${k ? "Verification Method (검증 방식)" : "Verification Method"}</span><code>verified.method</code></label>
-                  <select class="gcp-select" onchange="onMgmtFmChange('verified_method', this.value)">
-                    ${MGMT_FM_OPTIONS.verified_method
-                      .map(
-                        (o) =>
-                          `<option value="${escapeHtml(o.val)}" ${
-                            st.fm.verified_method === o.val ? "selected" : ""
-                          }>${escapeHtml(k ? o.ko : o.en)}</option>`
-                      )
-                      .join("")}
-                  </select>
+                ${renderFmSelectField("verified_method", "Verified Method", fm.verified_method)}
+                <div class="mgmt-fm-field span-2">
+                  ${renderFmSelectFieldInner("license", "License", fm.license)}
                 </div>
 
                 <div class="mgmt-fm-field span-2">
-                  <label><span>${k ? "Contacts (담당자 · Dataplex Aspect)" : "Contacts (Dataplex Aspect)"}</span><code>contacts</code></label>
-                  <select class="gcp-select" onchange="onMgmtFmChange('contacts', this.value)">
-                    ${MGMT_FM_OPTIONS.contacts
-                      .map(
-                        (o) =>
-                          `<option value="${escapeHtml(o.val)}" ${st.fm.contacts === o.val ? "selected" : ""}>${escapeHtml(
-                            k ? o.ko : o.en
-                          )}</option>`
-                      )
-                      .join("")}
-                  </select>
-                </div>
-
-                <div class="mgmt-fm-field span-2">
-                  <label><span>${k ? "Title (문서 제목)" : "Title"}</span><code>title</code></label>
-                  <input type="text" class="gcp-input" value="${escapeHtml(st.fm.title)}" oninput="onMgmtFmChange('title', this.value)" />
+                  <label><span>Title</span></label>
+                  <input type="text" class="gcp-input" value="${escapeHtml(
+                    fm.title
+                  )}" oninput="onMgmtFmChange('title', this.value)" />
                 </div>
 
                 <div class="mgmt-fm-field">
-                  <label><span>${k ? "Version & Stale After" : "Version & Stale After"}</span><code>version / stale_after</code></label>
-                  <div style="display:flex; gap:6px;">
-                    <input type="text" class="gcp-input" style="width:86px;" value="v${escapeHtml(st.fm.version)}" readonly title="${
-                      k ? "배포 모달에서 SemVer 자동 갱신" : "Updated via SemVer publish modal"
-                    }" />
-                    <input type="text" class="gcp-input" value="${escapeHtml(st.fm.stale_after)}" oninput="onMgmtFmChange('stale_after', this.value)" />
-                  </div>
-                </div>
-
-                <div class="mgmt-fm-field full">
-                  <label><span>${k ? "Description (Dataplex Entry 설명)" : "Description (Dataplex Entry Summary)"}</span><code>description</code></label>
-                  <input type="text" class="gcp-input" value="${escapeHtml(st.fm.description)}" oninput="onMgmtFmChange('description', this.value)" />
+                  <label><span>Version &amp; Verified At (${k ? "자동 갱신" : "Auto-updated"})</span></label>
+                  <input type="text" class="gcp-input" readonly value="v${escapeHtml(fm.version)} · ${escapeHtml(
+      fm.verified_at
+    )}" />
                 </div>
 
                 <div class="mgmt-fm-field span-2">
-                  <label><span>${k ? "License (라이선스 명세)" : "License"}</span><code>license</code></label>
-                  <select class="gcp-select" onchange="onMgmtFmChange('license', this.value)">
-                    ${MGMT_FM_OPTIONS.license
-                      .map(
-                        (o) =>
-                          `<option value="${escapeHtml(o.val)}" ${st.fm.license === o.val ? "selected" : ""}>${escapeHtml(
-                            o.label
-                          )}</option>`
-                      )
-                      .join("")}
-                  </select>
+                  <label><span>Description</span></label>
+                  <input type="text" class="gcp-input" value="${escapeHtml(
+                    fm.description
+                  )}" oninput="onMgmtFmChange('description', this.value)" />
                 </div>
 
                 <div class="mgmt-fm-field">
-                  <label><span>${k ? "Source PDF & Pages" : "Source PDF & Pages"}</span><code>sources[0]</code></label>
-                  <div style="display:flex; gap:6px;">
-                    <input type="text" class="gcp-input" value="${escapeHtml(st.fm.source_resource)}" readonly />
-                    <input type="text" class="gcp-input" style="width:74px;" value="p.${escapeHtml(
-                      st.fm.source_pages_span || st.fm.source_page
-                    )}" readonly />
-                  </div>
-                </div>
-
-                <div class="mgmt-fm-field full">
-                  <label><span>${k ? "Semantic Tags (쉼표 구분)" : "Semantic Tags (Comma-separated)"}</span><code>tags</code></label>
-                  <input type="text" class="gcp-input" value="${escapeHtml(st.fm.tags)}" oninput="onMgmtFmChange('tags', this.value)" />
+                  <label><span>Tags (${k ? "쉼표 구분" : "Comma-separated"})</span></label>
+                  <input type="text" class="gcp-input" value="${escapeHtml(
+                    fm.tags
+                  )}" oninput="onMgmtFmChange('tags', this.value)" />
                 </div>
               </div>
             </div>
 
-            <!-- Card 2: Markdown Body Editor -->
+            <!-- 2. Markdown Body Editor Card -->
             <div class="mgmt-card">
-              <div class="section-label" style="margin-top:0; margin-bottom:10px;">
-                <span>${
-                  k
-                    ? "2. Markdown Body 편집 (dataplex-types.global.overview 동기화 본문)"
-                    : "2. Markdown Body Editor (Synced to dataplex-types.global.overview)"
-                }</span>
-                <span id="mgmt-sha-badge" style="font-family:var(--mono); font-size:11px; color:var(--gcp-blue);">sha256: ${escapeHtml(
-                  st.fm.sha256.slice(0, 16)
-                )}...</span>
+              <div class="section-label" style="margin-bottom:10px;">
+                <span>Markdown Body</span>
+                <span style="font-size:11.5px; color:var(--text-sub);">Page p.${escapeHtml(fm.source_pages_span)}</span>
               </div>
-              <textarea id="mgmt-body-editor" class="mgmt-body-textarea" oninput="onMgmtBodyChange(this.value)" spellcheck="false">${escapeHtml(
+              <textarea class="mgmt-body-textarea" id="mgmt-body-input" oninput="onMgmtBodyChange(this.value)">${escapeHtml(
                 st.body
               )}</textarea>
             </div>
           </div>
         </section>
 
-        <!-- 3. Right Live OKF Preview & Metadata-as-Code (kcmd YAML / Git) Pane -->
-        <aside class="mgmt-preview-pane">
+        <!-- 3. Right Live GCS File Preview & Post-Publish Lineage Card -->
+        <section class="mgmt-preview-pane">
           <div class="pane-subbar">
-            <div class="mgmt-subtab-group">
-              <button type="button" class="mgmt-subtab-btn ${MGMT_RIGHT_TAB === "PREVIEW" ? "active" : ""}" style="padding:3px 9px; font-size:11px;" onclick="setMgmtRightTab('PREVIEW')">
-                ${k ? "OKF 실시간 프리뷰" : "Live OKF Preview"}
-              </button>
-              <button type="button" class="mgmt-subtab-btn ${MGMT_RIGHT_TAB === "KCMD_GIT" ? "active" : ""}" style="padding:3px 9px; font-size:11px;" onclick="setMgmtRightTab('KCMD_GIT')">
-                ${k ? "kcmd YAML & Git 이력" : "kcmd YAML & Git Log"}
-              </button>
-            </div>
-            <span class="badge-pill badge-blue">v${escapeHtml(st.fm.version)}</span>
+            <span>${k ? "실시간 GCS 마크다운 프리뷰" : "Live GCS Markdown Preview"} (<code>${escapeHtml(
+      mdBasename
+    )}</code>)</span>
+            <span class="badge-pill badge-blue" id="mgmt-preview-ver-badge">v${escapeHtml(fm.version)}</span>
           </div>
 
           <div class="mgmt-preview-scroll">
-            ${renderLastPublishBannerHtml(st)}
+            ${MGMT_LAST_PUBLISH_RESULT ? renderLastPublishBannerHtml(MGMT_LAST_PUBLISH_RESULT) : ""}
 
-            ${
-              MGMT_RIGHT_TAB === "PREVIEW"
-                ? `
-                  <div>
-                    <div class="section-label" style="margin-top:0;">
-                      <span>YAML Frontmatter</span>
-                      <span>OKF v0.2</span>
-                    </div>
-                    <div class="frontmatter-block" id="mgmt-live-yaml-preview" style="border:1px solid var(--border); border-radius:6px;">${colorizeYaml(
-                      buildMgmtYamlFrontmatter(st)
-                    )}</div>
-                  </div>
+            <div class="section-label">
+              <span>YAML Frontmatter</span>
+              <span style="font-family:var(--mono); font-size:11px;">${escapeHtml(
+                fm.type || "Provision"
+              )} · p.${escapeHtml(fm.source_pages_span)}</span>
+            </div>
+            <div class="frontmatter-block" style="border:1px solid var(--border); border-radius:6px;" id="mgmt-live-yaml-preview">${buildLiveYamlPreviewHtml(
+              fm,
+              st.sha256
+            )}</div>
 
-                  <div>
-                    <div class="section-label" style="margin-top:4px;">
-                      <span>Rendered Overview Markdown</span>
-                      <span>dataplex-types.global.overview</span>
-                    </div>
-                    <div class="okf-title" id="mgmt-live-title-preview" style="font-size:15px;">${escapeHtml(
-                      st.fm.title
-                    )}</div>
-                    <div class="okf-body-box okf-md-content" id="mgmt-live-body-preview">${formatMgmtPreviewBody(
-                      st.body
-                    )}</div>
-                  </div>
-                `
-                : `
-                  <div>
-                    <div class="section-label" style="margin-top:0;">
-                      <span>1. Generated kcmd Entry YAML</span>
-                      <span>${escapeHtml(st.catalogYamlPath.split("/").pop())}</span>
-                    </div>
-                    <div class="frontmatter-block" id="mgmt-live-kcmd-preview" style="border:1px solid var(--border); border-radius:6px; max-height:280px; overflow:auto;">${colorizeYaml(
-                      buildKcmdYamlForState(st)
-                    )}</div>
-                  </div>
-
-                  <div>
-                    <div class="section-label" style="margin-top:4px;">
-                      <span>2. kcmd CLI Synchronization Pipeline</span>
-                      <span>./bin/kcmd v1.0.0</span>
-                    </div>
-                    <div class="frontmatter-block" style="border:1px solid var(--border); border-radius:6px; font-size:11px;">${escapeHtml(
-                      kcmdCliBlock
-                    )}</div>
-                  </div>
-
-                  <div>
-                    <div class="section-label" style="margin-top:4px;">
-                      <span>3. Git Metadata-as-Code History (${GIT_COMMITS.length})</span>
-                      <span>branch: main</span>
-                    </div>
-                    <div style="border:1px solid var(--border); border-radius:6px; overflow:hidden; background:var(--surface);">
-                      <table class="mod-table" style="font-size:11.5px;">
-                        <thead>
-                          <tr>
-                            <th style="width:68px;">Commit</th>
-                            <th style="width:92px;">Date</th>
-                            <th>Subject</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          ${GIT_COMMITS.slice(0, 8)
-                            .map(
-                              (c) => `
-                            <tr>
-                              <td><code>${escapeHtml(c.short_hash)}</code></td>
-                              <td style="font-size:10.5px; color:var(--text-sub); white-space:nowrap;">${escapeHtml(
-                                (c.date || "").slice(0, 10)
-                              )}</td>
-                              <td>${escapeHtml(c.subject)}</td>
-                            </tr>
-                          `
-                            )
-                            .join("")}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                `
-            }
+            <div class="section-label" style="margin-top:6px;">
+              <span>Markdown Body</span>
+              <span style="font-family:var(--mono); font-size:11px;">MARKDOWN</span>
+            </div>
+            <div class="okf-title" id="mgmt-live-title-preview">${escapeHtml(fm.title)}</div>
+            <div class="okf-body-box okf-md-content" id="mgmt-live-body-preview">${formatMgmtPreviewBody(
+              st.body
+            )}</div>
           </div>
-        </aside>
+        </section>
       </div>
+    `;
+  }
 
-      <!-- Floating Bottom-Center Multi-Select Batch Action Snackbar -->
-      <div id="mgmt-batch-snackbar" class="mgmt-floating-snackbar ${selectedCount > 0 ? "visible" : ""}">
-        <span style="font-size:12.5px; font-weight:600; color:var(--text);">
-          ${
-            k
-              ? `선택된 파일 <strong style="color:var(--gcp-blue);">${selectedCount}개</strong>`
-              : `<strong style="color:var(--gcp-blue);">${selectedCount}</strong> files selected`
-          }
-          ${
-            dirtyInSelection > 0
-              ? `<span style="color:var(--gcp-amber); margin-left:6px;">(${
-                  k ? `수정됨 ${dirtyInSelection}개` : `${dirtyInSelection} modified`
-                })</span>`
-              : ""
-          }
-        </span>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <button type="button" class="mgmt-chip-btn" onclick="clearAllMgmtSelections()">
-            ${k ? "선택 해제" : "Clear"}
-          </button>
-          <button type="button" class="bq-run-btn" style="width:auto; padding:5px 14px; font-size:11.5px;" onclick="openPublishConfirmModal('BATCH')">
-            ${k ? `일괄 버전업 및 KC 배포 (${selectedCount})` : `Batch Bump & Publish (${selectedCount})`}
-          </button>
+  function renderFmSelectField(fieldKey, labelText, currentValue) {
+    return `<div class="mgmt-fm-field">${renderFmSelectFieldInner(fieldKey, labelText, currentValue)}</div>`;
+  }
+
+  function renderFmSelectFieldInner(fieldKey, labelText, currentValue) {
+    const opts = OKF_V02_DROPDOWN_OPTIONS[fieldKey] || [];
+    const allOpts = opts.includes(currentValue) ? opts : [currentValue, ...opts];
+    return `
+      <label><span>${escapeHtml(labelText)}</span></label>
+      <div class="gcp-custom-select" data-field="${escapeHtml(fieldKey)}">
+        <button type="button" class="gcp-select gcp-custom-select-btn" onclick="toggleGcpCustomSelect(event, this)">
+          <span class="gcp-custom-select-val">${escapeHtml(currentValue)}</span>
+        </button>
+        <div class="gcp-custom-select-menu">
+          ${allOpts
+            .map(
+              (o) => `
+            <div class="gcp-custom-select-opt ${
+              o === currentValue ? "selected" : ""
+            }" data-value="${escapeHtml(o)}" onclick="selectGcpCustomOption(event, '${fieldKey}', this)">
+              <span>${escapeHtml(o)}</span>
+              <span class="material-symbols-outlined gcp-opt-check" style="opacity:${
+                o === currentValue ? "1" : "0"
+              };">check</span>
+            </div>
+          `
+            )
+            .join("")}
         </div>
       </div>
     `;
   }
 
-  function renderLastPublishBannerHtml(st) {
-    if (!MGMT_LAST_PUBLISHED) return "";
-    const k = isKo();
-    const lp = MGMT_LAST_PUBLISHED;
+  function closeAllGcpCustomSelects(exceptWrap) {
+    document.querySelectorAll(".gcp-custom-select.open").forEach((el) => {
+      if (el !== exceptWrap) el.classList.remove("open");
+    });
+  }
+
+  window.toggleGcpCustomSelect = function (ev, btnEl) {
+    if (ev) ev.stopPropagation();
+    const wrap = btnEl ? btnEl.closest(".gcp-custom-select") : null;
+    if (!wrap) return;
+    const willOpen = !wrap.classList.contains("open");
+    closeAllGcpCustomSelects(wrap);
+    wrap.classList.toggle("open", willOpen);
+  };
+
+  window.selectGcpCustomOption = function (ev, fieldKey, optEl) {
+    if (ev) ev.stopPropagation();
+    const wrap = optEl ? optEl.closest(".gcp-custom-select") : null;
+    if (!wrap) return;
+    const val = optEl.getAttribute("data-value") || "";
+    const valSpan = wrap.querySelector(".gcp-custom-select-val");
+    if (valSpan) valSpan.textContent = val;
+    wrap.querySelectorAll(".gcp-custom-select-opt").forEach((el) => {
+      const isSel = el === optEl;
+      el.classList.toggle("selected", isSel);
+      const chk = el.querySelector(".gcp-opt-check");
+      if (chk) chk.style.opacity = isSel ? "1" : "0";
+    });
+    wrap.classList.remove("open");
+    onMgmtFmChange(fieldKey, val);
+  };
+
+  if (!window.__GCP_CUSTOM_SELECT_BOUND__) {
+    window.__GCP_CUSTOM_SELECT_BOUND__ = true;
+    document.addEventListener("click", () => closeAllGcpCustomSelects(null));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeAllGcpCustomSelects(null);
+    });
+  }
+
+  function buildLiveYamlPreviewHtml(fm, sha) {
+    const tagLines = String(fm.tags || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => `- ${escapeHtml(s)}`)
+      .join("\n");
+    const lines = [
+      `<span class="yaml-delim">---</span>`,
+      `<span class="yaml-key">type:</span> ${escapeHtml(fm.type)}`,
+      `<span class="yaml-key">title:</span> ${escapeHtml(fm.title)}`,
+      `<span class="yaml-key">description:</span> ${escapeHtml((fm.description || "").slice(0, 110))}`,
+      `<span class="yaml-key">version:</span> '${escapeHtml(fm.version)}'`,
+      `<span class="yaml-key">tags:</span>`,
+      tagLines,
+      `<span class="yaml-key">language:</span> en`,
+      `<span class="yaml-key">sources:</span>`,
+      `- <span class="yaml-key">id:</span> origin_pdf`,
+      `  <span class="yaml-key">resource:</span> ${escapeHtml(fm.source_resource)}`,
+      `  <span class="yaml-key">kind:</span> origin_document`,
+      `  <span class="yaml-key">sha256:</span> ${escapeHtml(sha)}`,
+      `<span class="yaml-key">generated:</span>`,
+      `  <span class="yaml-key">by:</span> ${escapeHtml(fm.generated_by)}`,
+      `  <span class="yaml-key">at:</span> '${escapeHtml(fm.generated_at)}'`,
+      `<span class="yaml-key">status:</span> ${escapeHtml(fm.status)}`,
+      `<span class="yaml-key">part_of:</span> ${escapeHtml(fm.part_of)}`,
+      `<span class="yaml-key">sequence:</span> ${escapeHtml(String(fm.sequence))}`,
+      `<span class="yaml-key">treatment:</span> ${escapeHtml(fm.treatment)}`,
+      `<span class="yaml-key">license:</span> ${escapeHtml(fm.license)}`,
+      `<span class="yaml-key">content_class:</span> ${escapeHtml(fm.content_class)}`,
+      `<span class="yaml-key">section_number:</span> ${escapeHtml(fm.section_number)}`,
+      `<span class="yaml-key">source_page:</span> ${escapeHtml(String(fm.source_page))}`,
+      `<span class="yaml-key">verified:</span>`,
+      `- <span class="yaml-key">by:</span> ${escapeHtml(fm.verified_by)}`,
+      `  <span class="yaml-key">at:</span> '${escapeHtml(fm.verified_at)}'`,
+      `  <span class="yaml-key">method:</span> ${escapeHtml(fm.verified_method)}`,
+      `  <span class="yaml-key">checks:</span> [P1_body, P2_heading, P3_page, P4_digest]`
+    ];
+    if (fm.contacts) {
+      lines.push(`<span class="yaml-key">contacts:</span> ${escapeHtml(fm.contacts)}`);
+    }
+    lines.push(`<span class="yaml-delim">---</span>`);
+    return lines.join("\n");
+  }
+
+  function formatMgmtPreviewBody(raw) {
+    if (window.marked && typeof window.marked.parse === "function") {
+      return highlightOkfTerms(window.marked.parse(raw || ""));
+    }
+    return highlightOkfTerms(escapeHtml(raw || ""));
+  }
+
+  function renderLastPublishBannerHtml(res) {
     return `
-      <div class="mgmt-card" style="padding:12px 14px; border-left:3px solid var(--gcp-green); background:var(--surface-elevated);">
+      <div class="mgmt-card" style="background:var(--gcp-green-bg); border-color:var(--gcp-green); padding:13px 15px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-          <span style="font-size:11.5px; font-weight:600; color:var(--gcp-green);">
-            ${
-              k
-                ? `Git 커밋(${lp.commitHash}) & Knowledge Catalog 배포 완료 (${lp.count}건)`
-                : `Git Commit (${lp.commitHash}) & Knowledge Catalog Published (${lp.count})`
-            }
+          <span style="font-size:12.5px; font-weight:700; color:var(--gcp-green); display:flex; align-items:center; gap:5px;">
+            <span class="material-symbols-outlined" style="font-size:16px;">check_circle</span>
+            GCP 실시간 반영 완료 (${escapeHtml(res.bump_level)} · v${escapeHtml(res.old_version)} ➔ v${escapeHtml(
+      res.new_version
+    )})
           </span>
-          <button type="button" class="mgmt-chip-btn active" onclick="openKcEntryForPublished(${lp.idx})">
-            ${k ? "Knowledge Catalog에서 확인 ➔" : "Inspect in Knowledge Catalog ➔"}
-          </button>
+          <span style="font-family:var(--mono); font-size:11px; color:var(--text-sub);">${escapeHtml(
+            res.updated_at
+          )}</span>
         </div>
         <div style="font-size:11.5px; color:var(--text); line-height:1.55;">
-          <div>• <strong>${k ? "버전 승격" : "Version Lineage"}:</strong> <code>v${escapeHtml(
-            lp.oldVer
-          )} (DEPRECATED)</code> ➔ <strong style="color:var(--gcp-blue);">v${escapeHtml(
-      lp.newVer
-    )} (VERIFIED)</strong></div>
-          <div>• <strong>${k ? "개정 사유" : "Change Note"}:</strong> ${escapeHtml(lp.changeNote)}</div>
+          • <strong>구버전 스냅샷 보존 &amp; 만료:</strong> <code>${escapeHtml(
+            res.snapshot_gcs_uri
+          )}</code> ➔ KC <code>DEPRECATED</code><br>
+          • <strong>최신본 덮어쓰기 &amp; 활성 등록:</strong> <code>${escapeHtml(
+            res.canonical_gcs_uri
+          )}</code> ➔ KC <code>VERIFIED (v${escapeHtml(res.new_version)})</code>
         </div>
       </div>
     `;
   }
 
-  function buildMgmtDiffHtml(st, newVer) {
-    const diffs = [];
-    const oldFm = st.savedFm;
-    const newFm = st.fm;
+  function buildMgmtTreeItemsHtml(searchQuery) {
+    const q = String(searchQuery || "").trim().toLowerCase();
+    const k = isKo();
 
-    diffs.push({
-      field: "version",
-      oldVal: `version: "${oldFm.version}" (status: deprecated -> versions/ archive)`,
-      newVal: `version: "${newVer}" (status: verified -> okf_hp_dragonfly active)`
-    });
-
-    const compareKeys = [
-      "type",
-      "status",
-      "title",
-      "description",
-      "content_class",
-      "treatment",
-      "generated_by",
-      "verified_by",
-      "verified_method",
-      "contacts",
-      "license",
-      "stale_after",
-      "tags"
-    ];
-    compareKeys.forEach((k) => {
-      const a = String(oldFm[k] || "");
-      const b = String(newFm[k] || "");
-      if (a !== b) {
-        diffs.push({
-          field: k,
-          oldVal: `${k}: ${a}`,
-          newVal: `${k}: ${b}`
-        });
-      }
-    });
-
-    if (st.body !== st.savedBody) {
-      const oldLines = String(st.savedBody || "").split("\n");
-      const newLines = String(st.body || "").split("\n");
-      const maxLen = Math.max(oldLines.length, newLines.length);
-      for (let i = 0; i < maxLen; i++) {
-        if (oldLines[i] !== newLines[i]) {
-          if (oldLines[i] !== undefined) {
-            diffs.push({ field: `body:L${i + 1}`, oldVal: oldLines[i], newVal: null });
-          }
-          if (newLines[i] !== undefined) {
-            diffs.push({ field: `body:L${i + 1}`, oldVal: null, newVal: newLines[i] });
-          }
+    const groups = OKF_DOC_ROOTS.map((d) => {
+      const docKey = `DOC:${d.doc_id}`;
+      const docSt = MGMT_DOC_STATE[d.doc_id];
+      const items = [];
+      MGMT_STATE.forEach((st) => {
+        if (st.doc_id !== d.doc_id) return;
+        if (MGMT_TREE_FILTER === "MODIFIED" && !st.isModified) return;
+        if (q) {
+          const hay = `${d.doc_short_ko} ${d.doc_short_en} ${st.section_number} ${st.section_number_en} ${st.fm.title} ${st.rel}`.toLowerCase();
+          if (!hay.includes(q)) return;
         }
+        items.push(st);
+      });
+      return {
+        doc: d,
+        docKey,
+        docSt,
+        items
+      };
+    }).filter((g) => {
+      if (MGMT_TREE_FILTER === "MODIFIED") {
+        return (g.docSt && g.docSt.isModified) || g.items.length > 0;
       }
+      if (q) {
+        const docHay = `${g.doc.doc_short_ko} ${g.doc.doc_short_en} ${g.docSt.fm.title} doc.md`.toLowerCase();
+        return docHay.includes(q) || g.items.length > 0;
+      }
+      return true;
+    });
+
+    if (groups.length === 0) {
+      return `<div style="padding:18px; text-align:center; font-size:12px; color:var(--text-sub);">${
+        k ? "조건에 맞는 비정형 OKF 조항이 없습니다." : "No matching unstructured OKF clauses."
+      }</div>`;
     }
 
-    return diffs
-      .map((d) => {
-        let out = "";
-        if (d.oldVal !== null) out += `<div class="diff-line-del">- ${escapeHtml(d.oldVal)}</div>`;
-        if (d.newVal !== null) out += `<div class="diff-line-add">+ ${escapeHtml(d.newVal)}</div>`;
-        return out;
+    return groups
+      .map(({ doc, docKey, items }) => {
+        const isDocActive = MGMT_ACTIVE_KEY === docKey;
+        const allChecked =
+          MGMT_SELECTED_SET.has(docKey) &&
+          (items.length === 0 || items.every((it) => MGMT_SELECTED_SET.has(it.idx)));
+        const isOpen = q ? true : Boolean(MGMT_OPEN_DOCS[doc.doc_id]);
+        const shortDocTitle = k ? doc.doc_short_ko : doc.doc_short_en;
+        return `
+          <div class="doc-section">
+            <div class="doc-group-title ${
+              isDocActive ? "active-doc" : ""
+            }" style="gap:6px;" onclick="toggleMgmtDocAccordion('${
+          doc.doc_id
+        }')" title="클릭 시 조문 목록 펼치기/접기 및 상위 문서([${doc.doc_num}] doc.md) 열람·편집">
+              <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">
+                <input type="checkbox" class="mgmt-tree-cb" ${
+                  allChecked ? "checked" : ""
+                } onclick="event.stopPropagation(); toggleMgmtDocGroupSelect('${doc.doc_id}', this.checked)" />
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">[${escapeHtml(
+                  doc.doc_num
+                )}] ${escapeHtml(shortDocTitle)}</span>
+              </div>
+              <span class="badge-pill badge-blue" style="flex-shrink:0;">${items.length}</span>
+            </div>
+            <div class="doc-items ${isOpen ? "" : "collapsed"}">
+              ${items
+                .map((st) => {
+                  const isChecked = MGMT_SELECTED_SET.has(st.idx);
+                  const isRowActive = MGMT_ACTIVE_KEY === st.idx;
+                  const isDep = st.fm.status === "deprecated";
+                  const pillClass = st.isModified
+                    ? "modified"
+                    : isDep
+                    ? "deprecated"
+                    : st.historyCount > 0
+                    ? "versioned"
+                    : "synced";
+                  const pillLabel = st.isModified
+                    ? "MODIFIED"
+                    : isDep
+                    ? `DEPRECATED · v${st.fm.version}`
+                    : st.historyCount > 0
+                    ? `v${st.fm.version} · 이력${st.historyCount}`
+                    : `v${st.fm.version}`;
+                  const secNum = k ? st.section_number : st.section_number_en || st.section_number;
+                  return `
+                    <div class="mgmt-tree-row ${isRowActive ? "active" : ""}" onclick="selectMgmtFileItem(${st.idx})">
+                      <input type="checkbox" class="mgmt-tree-cb" ${
+                        isChecked ? "checked" : ""
+                      } onclick="event.stopPropagation(); toggleMgmtSingleSelect(${st.idx}, this.checked)" />
+                      <div style="flex:1; min-width:0;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:4px;">
+                          <span style="font-size:12px; font-weight:${
+                            isRowActive ? "600" : "500"
+                          }; color:${isRowActive ? "var(--gcp-blue)" : "var(--text)"};">
+                            ${escapeHtml(secNum)}
+                          </span>
+                          <span class="mgmt-status-pill ${pillClass}">${escapeHtml(pillLabel)}</span>
+                        </div>
+                        <div style="font-size:11px; color:var(--text-sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;">
+                          ${escapeHtml(st.fm.title)}
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                })
+                .join("")}
+            </div>
+          </div>
+        `;
       })
       .join("");
   }
 
-  function renderPublishConfirmModalHtml() {
-    if (!MGMT_MODAL_OPEN) return `<div id="mgmt-publish-modal" class="mgmt-modal-overlay"></div>`;
-    const k = isKo();
-    const targets =
-      MGMT_MODAL_MODE === "BATCH" && MGMT_SELECTED.size > 0
-        ? Array.from(MGMT_SELECTED)
-        : [MGMT_ACTIVE_IDX];
-    const primarySt = MGMT_STATE[targets[0]] || MGMT_STATE[0];
-    const oldVer = primarySt.savedFm.version;
-    const newVer = bumpSemver(oldVer, MGMT_MODAL_BUMP);
-    const slugVer = oldVer.replace(/\./g, "-");
-    const baseSlug = primarySt.relPath.replace(/\.md$/, "").replace(/[\/_]/g, "-");
+  window.refreshMgmtTreeList = function () {
+    const searchEl = document.getElementById("mgmt-tree-search");
+    const listEl = document.getElementById("mgmt-tree-list");
+    const snackWrap = document.getElementById("mgmt-floating-snackbar-wrap");
+    const modBtn = document.getElementById("mgmt-filter-modified-btn");
+    if (listEl) {
+      const prevTop = listEl.scrollTop;
+      listEl.innerHTML = buildMgmtTreeItemsHtml(searchEl ? searchEl.value : "");
+      listEl.scrollTop = prevTop;
+    }
+    if (snackWrap) {
+      snackWrap.innerHTML = renderMgmtFloatingSnackbarHtml();
+    }
+    if (modBtn) {
+      modBtn.textContent = `${isKo() ? "수정중" : "Modified"}(${getModifiedCount()})`;
+    }
+  };
 
-    const notePresets = k
-      ? [
-          "LPDDR5 온보드 메모리 수리 정책 및 시스템 보드 FRU 매핑 보완",
-          "배터리(M90788-005) 분리 선행 DAG 안전 수칙 강화",
-          "HP Sure Start (Win+B) 복구 절차 및 감사 로그 검증 기준 반영",
-          "BigQuery 정형 테이블 스키마 및 GQL 엣지 설명 동기화"
-        ]
-      : [
-          "Clarified soldered LPDDR5 memory policy & System Board FRU mapping",
-          "Reinforced mandatory Battery (M90788-005) isolation DAG prerequisite",
-          "Updated HP Sure Start (Win+B) recovery SOP & audit log criteria",
-          "Synchronized BigQuery table schema & GQL edge descriptions"
-        ];
+  window.setMgmtTreeFilter = function (filter) {
+    if (MGMT_TREE_FILTER === filter && filter !== "ALL") {
+      MGMT_TREE_FILTER = "ALL";
+    } else {
+      MGMT_TREE_FILTER = filter;
+    }
+    renderManagementModule();
+  };
 
+  window.selectMgmtFileItem = function (idxOrKey) {
+    if (typeof idxOrKey === "string" && idxOrKey.startsWith("DOC:")) {
+      MGMT_ACTIVE_KEY = idxOrKey;
+      const docId = idxOrKey.slice(4);
+      MGMT_OPEN_DOCS[docId] = true;
+    } else {
+      MGMT_ACTIVE_KEY = idxOrKey;
+    }
+    renderManagementModule();
+  };
+
+  window.toggleMgmtSingleSelect = function (idxOrKey, checked) {
+    if (checked) MGMT_SELECTED_SET.add(idxOrKey);
+    else MGMT_SELECTED_SET.delete(idxOrKey);
+    refreshMgmtTreeList();
+  };
+
+  window.toggleMgmtDocGroupSelect = function (docId, checked) {
+    const docKey = `DOC:${docId}`;
+    if (checked) MGMT_SELECTED_SET.add(docKey);
+    else MGMT_SELECTED_SET.delete(docKey);
+    MGMT_STATE.forEach((st) => {
+      if (st.doc_id === docId) {
+        if (checked) MGMT_SELECTED_SET.add(st.idx);
+        else MGMT_SELECTED_SET.delete(st.idx);
+      }
+    });
+    refreshMgmtTreeList();
+  };
+
+  window.mgmtSelectAllVisible = function (checked) {
+    if (!checked) {
+      MGMT_SELECTED_SET.clear();
+    } else {
+      OKF_DOC_ROOTS.forEach((d) => {
+        const docKey = `DOC:${d.doc_id}`;
+        const docSt = MGMT_DOC_STATE[d.doc_id];
+        if (MGMT_TREE_FILTER === "MODIFIED" && (!docSt || !docSt.isModified)) return;
+        MGMT_SELECTED_SET.add(docKey);
+      });
+      MGMT_STATE.forEach((st) => {
+        if (MGMT_TREE_FILTER === "MODIFIED" && !st.isModified) return;
+        MGMT_SELECTED_SET.add(st.idx);
+      });
+    }
+    refreshMgmtTreeList();
+  };
+
+  window.onMgmtFmChange = function (fieldKey, value) {
+    const st = getEffectiveItemState(MGMT_ACTIVE_KEY);
+    if (!st) return;
+    st.fm[fieldKey] = value;
+    st.isModified =
+      st.body !== st.baseBody || JSON.stringify(st.fm) !== JSON.stringify(st.baseFm);
+    st.sha256 = simpleSha256Hex64(st.body, st.baseFm.sha256);
+    updateLiveMgmtPreview();
+  };
+
+  window.onMgmtBodyChange = function (value) {
+    const st = getEffectiveItemState(MGMT_ACTIVE_KEY);
+    if (!st) return;
+    st.body = value;
+    st.isModified =
+      st.body !== st.baseBody || JSON.stringify(st.fm) !== JSON.stringify(st.baseFm);
+    st.sha256 = simpleSha256Hex64(st.body, st.baseFm.sha256);
+    updateLiveMgmtPreview();
+  };
+
+  window.resetCurrentMgmtEdits = function () {
+    const st = getEffectiveItemState(MGMT_ACTIVE_KEY);
+    if (!st) return;
+    st.fm = JSON.parse(JSON.stringify(st.baseFm));
+    st.body = st.baseBody;
+    st.isModified = false;
+    st.sha256 = st.baseFm.sha256;
+    renderManagementModule();
+  };
+
+  function updateLiveMgmtPreview() {
+    const st = getEffectiveItemState(MGMT_ACTIVE_KEY);
+    if (!st) return;
+    const yamlEl = document.getElementById("mgmt-live-yaml-preview");
+    const titleEl = document.getElementById("mgmt-live-title-preview");
+    const bodyEl = document.getElementById("mgmt-live-body-preview");
+    const shaEl = document.getElementById("mgmt-live-sha");
+    const pillEl = document.getElementById("mgmt-editor-status-pill");
+    const resetBtn = document.getElementById("mgmt-reset-btn");
+    if (yamlEl) yamlEl.innerHTML = buildLiveYamlPreviewHtml(st.fm, st.sha256);
+    if (titleEl) titleEl.textContent = st.fm.title;
+    if (bodyEl) bodyEl.innerHTML = formatMgmtPreviewBody(st.body);
+    if (shaEl) shaEl.textContent = "SHA-256: " + st.sha256.slice(0, 16) + "…";
+    if (pillEl) {
+      pillEl.className = `mgmt-status-pill ${
+        st.isModified
+          ? "modified"
+          : st.fm.status === "deprecated"
+          ? "deprecated"
+          : st.historyCount > 0
+          ? "versioned"
+          : "synced"
+      }`;
+      pillEl.textContent = st.isModified
+        ? isKo()
+          ? "MODIFIED (미배포)"
+          : "MODIFIED (Unsaved)"
+        : `v${st.fm.version} · ${st.fm.status.toUpperCase()}`;
+    }
+    if (resetBtn) {
+      resetBtn.disabled = !st.isModified;
+      resetBtn.style.opacity = st.isModified ? "1" : "0.45";
+      resetBtn.style.cursor = st.isModified ? "pointer" : "default";
+    }
+    refreshMgmtTreeList();
+  }
+
+  // =========================================================================
+  // Confirm Modal Popup (`PATCH / MINOR / MAJOR` + Contacts + Change Note + Diff)
+  // =========================================================================
+  window.openPublishConfirmModal = function (mode) {
+    MODAL_MODE = mode || "SINGLE";
+    MODAL_BUMP_LEVEL = "PATCH";
+    MODAL_PRESET_NOTE_VAL = CHANGE_NOTE_PRESETS[0];
+    MODAL_CHANGE_NOTE_TEXT = CHANGE_NOTE_PRESETS[0];
+    const st = getEffectiveItemState(MGMT_ACTIVE_KEY);
+    MODAL_CONTACTS_VALUE =
+      MODAL_MODE === "SINGLE" && st && st.fm ? st.fm.contacts || "" : "";
+    const overlay = document.getElementById("mgmt-publish-modal");
+    if (!overlay) return;
+    overlay.classList.add("open");
+    renderPublishModalDialogContent();
+  };
+
+  window.closePublishConfirmModal = function () {
+    const overlay = document.getElementById("mgmt-publish-modal");
+    if (overlay) overlay.classList.remove("open");
+  };
+
+  function renderModalCustomSelect(id, options, currentVal, onSelectType, wrapStyle = "", btnStyle = "") {
+    const curObj =
+      options.find((o) => String(o.value) === String(currentVal)) ||
+      options[0] || { value: "", label: "" };
     return `
-      <div id="mgmt-publish-modal" class="mgmt-modal-overlay open" onclick="if(event.target===this) closePublishConfirmModal()">
-        <div class="mgmt-modal-dialog">
-          <div class="mgmt-modal-header">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span class="material-symbols-outlined" style="color:var(--gcp-blue); font-size:20px;">published_with_changes</span>
-              <span style="font-size:14.5px; font-weight:600; color:var(--text);">
-                ${
-                  k
-                    ? `OKF 버전 업데이트 및 Knowledge Catalog 배포 확인 (${targets.length}건)`
-                    : `Confirm OKF Semantic Version Bump & Knowledge Catalog Publish (${targets.length})`
-                }
-              </span>
-            </div>
-            <button type="button" class="drawer-close" onclick="closePublishConfirmModal()">✕</button>
-          </div>
-
-          <div class="mgmt-modal-body">
-            <!-- Step 1: Semantic Versioning Selector -->
-            <div class="mgmt-card" style="padding:14px 16px;">
-              <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:8px;">
-                ${k ? "1. 시맨틱 버전 업데이트 (Semantic Versioning)" : "1. Select Semantic Version Bump"}
-              </div>
-              <div style="display:flex; gap:8px; margin-bottom:10px;">
-                <button type="button" class="preset-btn ${MGMT_MODAL_BUMP === "PATCH" ? "active" : ""}" style="flex:1; padding:8px;" onclick="setModalBumpType('PATCH')">
-                  <strong>PATCH (+0.0.1)</strong> · v${escapeHtml(bumpSemver(oldVer, "PATCH"))}
-                </button>
-                <button type="button" class="preset-btn ${MGMT_MODAL_BUMP === "MINOR" ? "active" : ""}" style="flex:1; padding:8px;" onclick="setModalBumpType('MINOR')">
-                  <strong>MINOR (+0.1.0)</strong> · v${escapeHtml(bumpSemver(oldVer, "MINOR"))}
-                </button>
-                <button type="button" class="preset-btn ${MGMT_MODAL_BUMP === "MAJOR" ? "active" : ""}" style="flex:1; padding:8px;" onclick="setModalBumpType('MAJOR')">
-                  <strong>MAJOR (+1.0.0)</strong> · v${escapeHtml(bumpSemver(oldVer, "MAJOR"))}
-                </button>
-              </div>
-              <div style="font-size:12px; color:var(--text-sub); display:flex; align-items:center; justify-content:space-between; background:var(--bg); padding:8px 12px; border-radius:6px; border:1px solid var(--border-subtle);">
-                <span>${k ? "대상 파일" : "Target"}: <strong>${escapeHtml(primarySt.relPath)}</strong> ${
-      targets.length > 1 ? `(+${targets.length - 1})` : ""
-    }</span>
-                <span>
-                  <span class="mgmt-status-pill deprecated">v${escapeHtml(oldVer)} (DEPRECATED)</span>
-                  <span style="margin:0 6px; color:var(--text-muted);">➔</span>
-                  <span class="mgmt-status-pill synced">v${escapeHtml(newVer)} (VERIFIED)</span>
-                </span>
-              </div>
-            </div>
-
-            <!-- Step 2: Contacts & Change Note -->
-            <div class="mgmt-card" style="padding:14px 16px;">
-              <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:8px;">
-                ${
-                  k
-                    ? "2. 담당자(Contacts Aspect) 및 개정 사유 (Git Commit & KC Lineage)"
-                    : "2. Contacts Aspect & Revision Note (Git Commit & KC Lineage)"
-                }
-              </div>
-              <div style="margin-bottom:10px;">
-                <select class="gcp-select" onchange="onModalContactsChange(this.value)">
-                  ${MGMT_FM_OPTIONS.contacts
-                    .map(
-                      (o) =>
-                        `<option value="${escapeHtml(o.val)}" ${
-                          MGMT_MODAL_CONTACTS === o.val ? "selected" : ""
-                        }>${escapeHtml(k ? o.ko : o.en)}</option>`
-                    )
-                    .join("")}
-                </select>
-              </div>
-              <input type="text" id="mgmt-modal-note-input" class="gcp-input" placeholder="${
-                k ? "개정 사유를 입력하세요..." : "Enter revision note..."
-              }" value="${escapeHtml(MGMT_MODAL_NOTE)}" oninput="onModalNoteInput(this.value)" />
-              <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
-                ${notePresets
-                  .map(
-                    (p) =>
-                      `<button type="button" class="mgmt-chip-btn" onclick="setModalNotePreset('${escapeHtml(
-                        p
-                      )}')">${escapeHtml(p)}</button>`
-                  )
-                  .join("")}
-              </div>
-            </div>
-
-            <!-- Step 3: 4-Stage Git + kcmd + Dataplex KC Transaction Plan -->
-            <div class="mgmt-card" style="padding:14px 16px;">
-              <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:8px;">
-                ${
-                  k
-                    ? "3. Metadata-as-Code (Git) & Dataplex kcmd 실행 트랜잭션"
-                    : "3. Metadata-as-Code (Git) & Dataplex kcmd Execution Plan"
-                }
-              </div>
-              <div style="font-size:11.5px; color:var(--text-sub); line-height:1.7;">
-                <div>1) <strong>[Archive]</strong> <code>bundles/hp_dragonfly/versions/${escapeHtml(
-                  baseSlug
-                )}-v${escapeHtml(slugVer)}.md</code> 스냅샷 생성 및 <code>status: deprecated</code> 마킹</div>
-                <div>2) <strong>[Git Commit]</strong> <code>bundles/hp_dragonfly/${escapeHtml(
-                  primarySt.relPath
-                )}</code> 본문·SHA-256 갱신 및 <code>main</code> 브랜치 커밋</div>
-                <div>3) <strong>[kcmd Push]</strong> <code>./bin/kcmd push ./catalog_okf</code> 실행 ➔ <code>okf_hp_dragonfly/${escapeHtml(
-                  primarySt.entryId
-                )}</code> 동기화</div>
-                <div>4) <strong>[Dataplex Aspects]</strong> <code>dataplex-types.global.overview</code>, <code>contacts</code>, <code>hp-dragonfly.us-central1.okf</code> Aspect 즉시 반영</div>
-              </div>
-            </div>
-
-            <!-- Step 4: Live Before <-> After Diff -->
-            <div>
-              <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:6px;">
-                ${
-                  k
-                    ? "4. 변경 사항 Diff 프리뷰 (Before DEPRECATED ↔ After VERIFIED)"
-                    : "4. Live Unified Diff Preview (Before DEPRECATED ↔ After VERIFIED)"
-                }
-              </div>
-              <div class="mgmt-diff-box">${buildMgmtDiffHtml(primarySt, newVer)}</div>
-            </div>
-          </div>
-
-          <div class="mgmt-modal-footer">
-            <button type="button" class="gcp-action-btn" onclick="closePublishConfirmModal()">
-              ${k ? "취소 (Cancel)" : "Cancel"}
-            </button>
-            <button type="button" class="bq-run-btn" style="width:auto;" onclick="executeMgmtPublish()">
-              <span class="material-symbols-outlined" style="font-size:15px;">check_circle</span>
-              ${k ? "확인 및 배포 실행 (Git Commit & kcmd Push)" : "Confirm & Execute (Git Commit & kcmd Push)"}
-            </button>
-          </div>
+      <div class="gcp-custom-select" id="${escapeHtml(id)}" data-value="${escapeHtml(
+      curObj.value
+    )}" ${wrapStyle ? `style="${wrapStyle}"` : ""}>
+        <button type="button" class="gcp-select gcp-custom-select-btn" ${
+          btnStyle ? `style="${btnStyle}"` : ""
+        } onclick="toggleGcpCustomSelect(event, this)">
+          <span class="gcp-custom-select-val">${escapeHtml(curObj.label)}</span>
+        </button>
+        <div class="gcp-custom-select-menu">
+          ${options
+            .map((o) => {
+              const isSel = String(o.value) === String(curObj.value);
+              return `
+                <div class="gcp-custom-select-opt ${
+                  isSel ? "selected" : ""
+                }" data-value="${escapeHtml(o.value)}" data-label="${escapeHtml(
+                o.label
+              )}" onclick="selectModalCustomOption(event, '${onSelectType}', this)">
+                  <span>${escapeHtml(o.label)}</span>
+                  <span class="material-symbols-outlined gcp-opt-check" style="opacity:${
+                    isSel ? "1" : "0"
+                  };">check</span>
+                </div>
+              `;
+            })
+            .join("")}
         </div>
       </div>
     `;
   }
 
-  function buildAllKcExplorerEntries() {
-    initMgmtStateIfNeeded();
+  window.selectModalCustomOption = function (ev, onSelectType, optEl) {
+    if (ev) ev.stopPropagation();
+    const wrap = optEl ? optEl.closest(".gcp-custom-select") : null;
+    if (!wrap) return;
+    const val = optEl.getAttribute("data-value") || "";
+    const label = optEl.getAttribute("data-label") || val;
+    wrap.setAttribute("data-value", val);
+    const valSpan = wrap.querySelector(".gcp-custom-select-val");
+    if (valSpan) valSpan.textContent = label;
+    wrap.querySelectorAll(".gcp-custom-select-opt").forEach((el) => {
+      const isSel = el === optEl;
+      el.classList.toggle("selected", isSel);
+      const chk = el.querySelector(".gcp-opt-check");
+      if (chk) chk.style.opacity = isSel ? "1" : "0";
+    });
+    wrap.classList.remove("open");
+
+    if (onSelectType === "BUMP_LEVEL") {
+      const input = document.getElementById("modal-change-note-input");
+      if (input) MODAL_CHANGE_NOTE_TEXT = input.value;
+      MODAL_BUMP_LEVEL = val;
+      renderPublishModalDialogContent();
+    } else if (onSelectType === "CONTACTS") {
+      const input = document.getElementById("modal-change-note-input");
+      if (input) MODAL_CHANGE_NOTE_TEXT = input.value;
+      MODAL_CONTACTS_VALUE = val;
+      renderPublishModalDialogContent();
+    } else if (onSelectType === "PRESET_NOTE") {
+      MODAL_PRESET_NOTE_VAL = val;
+      MODAL_CHANGE_NOTE_TEXT = val;
+      const input = document.getElementById("modal-change-note-input");
+      if (input && val) input.value = val;
+    }
+  };
+
+  function getModalSelectValue(id, fallbackVal = "") {
+    const el = document.getElementById(id);
+    if (!el) return fallbackVal;
+    if (el.hasAttribute("data-value")) return el.getAttribute("data-value") || "";
+    return el.value !== undefined ? el.value : fallbackVal;
+  }
+
+  function buildDiffLinesHtml(st, nextVer, nowTs, effectiveContacts) {
+    const lines = [];
+    const oldFm = st.baseFm;
+    const newFm = Object.assign({}, st.fm);
+    if (effectiveContacts !== undefined && effectiveContacts !== null) {
+      newFm.contacts = effectiveContacts;
+    }
+    const shortSlug = st.kc_entry_id || "clause";
+    lines.push(
+      `<div class="diff-line-ctx">--- a/gs://hp-dragonfly-okf/okf/versions/${escapeHtml(
+        shortSlug
+      )}_v${escapeHtml(oldFm.version)}.md (DEPRECATED 만료 전환)</div>`
+    );
+    lines.push(
+      `<div class="diff-line-ctx">+++ b/${escapeHtml(
+        newFm.source_uri
+      )} (VERIFIED 신규 등록)</div>`
+    );
+
+    lines.push(`<div class="diff-line-del">- version: '${escapeHtml(oldFm.version)}'</div>`);
+    lines.push(`<div class="diff-line-add">+ version: '${escapeHtml(nextVer)}'</div>`);
+    lines.push(`<div class="diff-line-del">- verified.at: '${escapeHtml(oldFm.verified_at)}'</div>`);
+    lines.push(`<div class="diff-line-add">+ verified.at: '${escapeHtml(nowTs)}'</div>`);
+
+    const keys = [
+      "type",
+      "title",
+      "description",
+      "tags",
+      "status",
+      "content_class",
+      "treatment",
+      "license",
+      "generated_by",
+      "verified_by",
+      "verified_method",
+      "contacts"
+    ];
+    keys.forEach((k) => {
+      const oldVal = String(oldFm[k] || "");
+      const newVal = String(newFm[k] || "");
+      if (oldVal !== newVal) {
+        lines.push(`<div class="diff-line-del">- ${k}: ${escapeHtml(oldVal || "(미지정)")}</div>`);
+        lines.push(`<div class="diff-line-add">+ ${k}: ${escapeHtml(newVal || "(미지정)")}</div>`);
+      }
+    });
+
+    if (st.baseBody.trim() !== st.body.trim()) {
+      const oldLines = st.baseBody.trim().split("\n");
+      const newLines = st.body.trim().split("\n");
+      oldLines.forEach((l) => {
+        if (!newLines.includes(l)) lines.push(`<div class="diff-line-del">- ${escapeHtml(l)}</div>`);
+      });
+      newLines.forEach((l) => {
+        if (!oldLines.includes(l)) lines.push(`<div class="diff-line-add">+ ${escapeHtml(l)}</div>`);
+      });
+    } else {
+      lines.push(
+        `<div class="diff-line-ctx">  (마크다운 원문 본문 동일 · SHA-256 ${escapeHtml(
+          st.sha256.slice(0, 16)
+        )}… 유지)</div>`
+      );
+    }
+
+    return lines.join("");
+  }
+
+  function renderPublishModalDialogContent() {
+    const dialog = document.getElementById("mgmt-modal-dialog-content");
+    if (!dialog) return;
+
+    const nowTs = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+    const isBatch = MODAL_MODE === "BATCH";
+    const batchIndices = isBatch ? Array.from(MGMT_SELECTED_SET) : [MGMT_ACTIVE_KEY];
+    const primarySt = getEffectiveItemState(batchIndices[0] ?? MGMT_ACTIVE_KEY);
+    const oldVer = primarySt.baseFm.version || "0.2.0";
+    const nextVer = bumpSemverJs(oldVer, MODAL_BUMP_LEVEL);
+    const shortSlug = primarySt.kc_entry_id || "clause";
+    const currentContacts =
+      MODAL_CONTACTS_VALUE !== null && MODAL_CONTACTS_VALUE !== undefined
+        ? MODAL_CONTACTS_VALUE
+        : primarySt.fm.contacts || "";
+
+    const patchPreview = bumpSemverJs(oldVer, "PATCH");
+    const minorPreview = bumpSemverJs(oldVer, "MINOR");
+    const majorPreview = bumpSemverJs(oldVer, "MAJOR");
+
+    const bumpOptions = [
+      {
+        value: "PATCH",
+        label: `PATCH 업데이트 (v${oldVer} ➔ v${patchPreview}) — 오탈자 수정 · 프론트매터 거버넌스 속성 현행화`
+      },
+      {
+        value: "MINOR",
+        label: `MINOR 업데이트 (v${oldVer} ➔ v${minorPreview}) — 분해 선행(DAG)·단서(Caveat) 조항 보완 · 적용 맥락 추가`
+      },
+      {
+        value: "MAJOR",
+        label: `MAJOR 업데이트 (v${oldVer} ➔ v${majorPreview}) — 서비스 매뉴얼·정비내규 전면 개정 · 기존 조항 폐기(Deprecated)`
+      }
+    ];
+
+    const singleContactsOptions = [
+      { value: "", label: "-- 미지정 (Contacts 미반영) --" },
+      ...OKF_V02_DROPDOWN_OPTIONS.contacts.map((c) => ({ value: c, label: c }))
+    ];
+    if (currentContacts && !singleContactsOptions.some((o) => o.value === currentContacts)) {
+      singleContactsOptions.splice(1, 0, { value: currentContacts, label: currentContacts });
+    }
+
+    const batchContactsOptions = [
+      { value: "", label: "-- 기존 값 유지 --" },
+      ...OKF_V02_DROPDOWN_OPTIONS.contacts.map((c) => ({ value: c, label: c })),
+      { value: "__CLEAR__", label: "-- 미지정으로 초기화 (Contacts 제거) --" }
+    ];
+
+    const batchVerifiedByOptions = [
+      { value: "", label: "-- 기존 값 유지 --" },
+      ...OKF_V02_DROPDOWN_OPTIONS.verified_by.map((v) => ({ value: v, label: v }))
+    ];
+
+    const batchStatusOptions = [
+      { value: "", label: "-- 기존 값 유지 --" },
+      ...OKF_V02_DROPDOWN_OPTIONS.status.map((v) => ({ value: v, label: v }))
+    ];
+
+    const batchContentClassOptions = [
+      { value: "", label: "-- 기존 값 유지 --" },
+      ...OKF_V02_DROPDOWN_OPTIONS.content_class.map((v) => ({ value: v, label: v }))
+    ];
+
+    const batchVerifiedMethodOptions = [
+      { value: "", label: "-- 기존 값 유지 --" },
+      ...OKF_V02_DROPDOWN_OPTIONS.verified_method.map((v) => ({ value: v, label: v }))
+    ];
+
+    const presetNoteOptions = CHANGE_NOTE_PRESETS.map((n, i) => ({
+      value: n,
+      label: `프리셋 ${i + 1}: ${n.slice(0, 18)}...`
+    }));
+
+    const currentPresetVal = MODAL_PRESET_NOTE_VAL || CHANGE_NOTE_PRESETS[0];
+    const currentNoteText = MODAL_CHANGE_NOTE_TEXT || CHANGE_NOTE_PRESETS[0];
+
+    dialog.innerHTML = `
+      <div class="mgmt-modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="material-symbols-outlined" style="color:var(--gcp-blue);">published_with_changes</span>
+          <span style="font-size:14.5px; font-weight:600; color:var(--text);">
+            ${
+              isBatch
+                ? `다중 선택 일괄 버전 업데이트 및 Knowledge Catalog 배포 (${batchIndices.length}건)`
+                : `OKF 편집 완료 — 버전 업데이트 수준 · 담당자(Contacts) 선택 및 배포 확인`
+            }
+          </span>
+        </div>
+        <button class="icon-close-btn" onclick="closePublishConfirmModal()"><span class="material-symbols-outlined">close</span></button>
+      </div>
+
+      <div class="mgmt-modal-body">
+        <div class="ctrl-group">
+          <label>1. 버전 업데이트 수준 선택 (Semantic Version Bump Level)</label>
+          ${renderModalCustomSelect(
+            "modal-bump-level",
+            bumpOptions,
+            MODAL_BUMP_LEVEL,
+            "BUMP_LEVEL",
+            "",
+            "font-weight:600; color:var(--gcp-blue);"
+          )}
+        </div>
+
+        ${
+          !isBatch
+            ? `
+          <div class="ctrl-group">
+            <label>2. Knowledge Catalog 담당자 (Contacts) 지정 (<code>dataplex-types.global.contacts</code>)</label>
+            ${renderModalCustomSelect(
+              "modal-contacts-select",
+              singleContactsOptions,
+              currentContacts,
+              "CONTACTS"
+            )}
+          </div>
+        `
+            : `
+          <div class="mgmt-card" style="padding:12px 14px; background:var(--bg); overflow:visible;">
+            <div class="section-label" style="margin-bottom:8px;">
+              <span>선택된 ${batchIndices.length}개 파일 프론트매터 일괄 변경 (선택 사항)</span>
+              <span style="font-size:11px; color:var(--text-sub);">'기존 값 유지' 선택 시 개별 파일 설정 유지</span>
+            </div>
+            <div class="mgmt-fm-grid">
+              <div class="mgmt-fm-field span-2">
+                <label><span>Knowledge Catalog 담당자 (Contacts) 일괄 지정</span></label>
+                ${renderModalCustomSelect(
+                  "batch-override-contacts",
+                  batchContactsOptions,
+                  "",
+                  "BATCH_OVERRIDE"
+                )}
+              </div>
+              <div class="mgmt-fm-field">
+                <label><span>Verified By 일괄 지정</span></label>
+                ${renderModalCustomSelect(
+                  "batch-override-verified-by",
+                  batchVerifiedByOptions,
+                  "",
+                  "BATCH_OVERRIDE"
+                )}
+              </div>
+              <div class="mgmt-fm-field">
+                <label><span>Status 일괄 지정</span></label>
+                ${renderModalCustomSelect(
+                  "batch-override-status",
+                  batchStatusOptions,
+                  "",
+                  "BATCH_OVERRIDE"
+                )}
+              </div>
+              <div class="mgmt-fm-field">
+                <label><span>Content Class 일괄 지정</span></label>
+                ${renderModalCustomSelect(
+                  "batch-override-content-class",
+                  batchContentClassOptions,
+                  "",
+                  "BATCH_OVERRIDE"
+                )}
+              </div>
+              <div class="mgmt-fm-field">
+                <label><span>Verified Method 일괄 지정</span></label>
+                ${renderModalCustomSelect(
+                  "batch-override-verified-method",
+                  batchVerifiedMethodOptions,
+                  "",
+                  "BATCH_OVERRIDE"
+                )}
+              </div>
+            </div>
+          </div>
+        `
+        }
+
+        <div class="ctrl-group">
+          <label>3. 개정 사유 (Knowledge Catalog 버전 계보 기록)</label>
+          <div style="display:flex; gap:6px; margin-bottom:5px;">
+            ${renderModalCustomSelect(
+              "modal-preset-note-select",
+              presetNoteOptions,
+              currentPresetVal,
+              "PRESET_NOTE",
+              "width:240px; flex-shrink:0;"
+            )}
+            <input type="text" id="modal-change-note-input" class="gcp-input" value="${escapeHtml(
+              currentNoteText
+            )}" oninput="MODAL_CHANGE_NOTE_TEXT = this.value" placeholder="개정 사유를 입력하세요..." />
+          </div>
+        </div>
+
+        <div class="mgmt-card" style="padding:12px 14px; background:var(--bg); overflow:hidden;">
+          <div class="section-label" style="margin-bottom:6px;">
+            <span>4. 실행될 GCP 라이프사이클 트랜잭션 (GCS + Knowledge Catalog <code>okf_hp_dragonfly</code>)</span>
+            <span class="badge-pill badge-blue">v${escapeHtml(oldVer)} ➔ v${escapeHtml(nextVer)}</span>
+          </div>
+          <div style="font-size:12px; color:var(--text); line-height:1.7; word-break:break-all; overflow-wrap:anywhere;">
+            1. <strong>프론트매터 타임스탬프 갱신:</strong> <code>verified.at = "${nowTs}"</code>, <code>version = "${nextVer}"</code>${
+      !isBatch && currentContacts ? `, <code>contacts = "${escapeHtml(currentContacts)}"</code>` : ""
+    }<br>
+            2. <strong>구버전 스냅샷 보존 &amp; KC 만료:</strong> <code>gs://hp-dragonfly-okf/okf/versions/${escapeHtml(
+              shortSlug
+            )}_v${escapeHtml(oldVer)}.md</code> 생성 및 기존 KC 엔트리 <strong><code>DEPRECATED</code></strong> 전환<br>
+            3. <strong>신규 버전 GCS 덮어쓰기 &amp; KC 활성 등록:</strong> <code>gs://hp-dragonfly-okf/okf/${escapeHtml(
+              primarySt.rel
+            )}</code> 덮어쓰기 및 신규 KC 엔트리 <strong><code>VERIFIED (v${escapeHtml(
+      nextVer
+    )})</code></strong> 등록
+          </div>
+        </div>
+
+        <div class="ctrl-group">
+          <label>5. 구버전(v${escapeHtml(oldVer)} DEPRECATED) ↔ 신버전(v${escapeHtml(
+      nextVer
+    )} VERIFIED) 변경점 비교 (Diff)</label>
+          <div class="mgmt-diff-box">${buildDiffLinesHtml(
+            primarySt,
+            nextVer,
+            nowTs,
+            isBatch ? primarySt.fm.contacts : currentContacts
+          )}</div>
+        </div>
+      </div>
+
+      <div class="mgmt-modal-footer">
+        <button class="gcp-action-btn" style="flex:0 0 auto; height:34px; padding:0 18px; font-size:12px;" onclick="closePublishConfirmModal()">취소 (Cancel)</button>
+        <button class="bq-run-btn" id="modal-confirm-exec-btn" style="flex:0 0 auto; height:34px; padding:0 18px; font-size:12px;" onclick="executeConfirmedPublish()">
+          확인 및 배포 실행 (${isBatch ? `${batchIndices.length}건 일괄 반영` : `v${oldVer} ➔ v${nextVer}`})
+        </button>
+      </div>
+    `;
+  }
+
+  window.executeConfirmedPublish = function () {
+    const noteInput = document.getElementById("modal-change-note-input");
+    const changeNote = noteInput ? noteInput.value.trim() : CHANGE_NOTE_PRESETS[0];
+    const nowTs = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+    const isBatch = MODAL_MODE === "BATCH";
+    const batchIndices = isBatch ? Array.from(MGMT_SELECTED_SET) : [MGMT_ACTIVE_KEY];
+
+    const ovContacts = isBatch ? getModalSelectValue("batch-override-contacts", "") : null;
+    const ovVerifiedBy = isBatch ? getModalSelectValue("batch-override-verified-by", "") : null;
+    const ovStatus = isBatch ? getModalSelectValue("batch-override-status", "") : null;
+    const ovContentClass = isBatch ? getModalSelectValue("batch-override-content-class", "") : null;
+    const ovMethod = isBatch ? getModalSelectValue("batch-override-verified-method", "") : null;
+
+    let firstResult = null;
+
+    batchIndices.forEach((key) => {
+      const st = getEffectiveItemState(key);
+      if (!st) return;
+      const oldVer = st.baseFm.version || "0.2.0";
+      const nextVer = bumpSemverJs(oldVer, MODAL_BUMP_LEVEL);
+
+      if (!isBatch) {
+        const chosenContacts = getModalSelectValue(
+          "modal-contacts-select",
+          MODAL_CONTACTS_VALUE ?? st.fm.contacts ?? ""
+        );
+        st.fm.contacts = chosenContacts;
+      } else {
+        if (ovContacts === "__CLEAR__") st.fm.contacts = "";
+        else if (ovContacts) st.fm.contacts = ovContacts;
+        if (ovVerifiedBy) st.fm.verified_by = ovVerifiedBy;
+        if (ovStatus) st.fm.status = ovStatus;
+        if (ovContentClass) st.fm.content_class = ovContentClass;
+        if (ovMethod) st.fm.verified_method = ovMethod;
+      }
+
+      st.fm.version = nextVer;
+      st.fm.verified_at = nowTs;
+      if (!st.isDocRoot) {
+        st.fm.source_uri = st.fm.source_uri.replace(/\/v\d+\.\d+\.\d+\.md$/, `/v${nextVer}.md`);
+      }
+      st.baseFm = JSON.parse(JSON.stringify(st.fm));
+      st.baseBody = st.body;
+      st.isModified = false;
+      st.historyCount = (st.historyCount || 0) + 1;
+      st.changeNote = changeNote;
+
+      if (!st.isDocRoot && OKF_FILES[st.idx]) {
+        OKF_FILES[st.idx].version = `v${nextVer}`;
+        OKF_FILES[st.idx].status = st.fm.status;
+        OKF_FILES[st.idx].body = st.body;
+        OKF_FILES[st.idx].gcs_uri = st.fm.source_uri;
+      }
+
+      if (!firstResult) {
+        firstResult = {
+          bump_level: MODAL_BUMP_LEVEL,
+          old_version: oldVer,
+          new_version: nextVer,
+          updated_at: nowTs,
+          snapshot_gcs_uri: `gs://hp-dragonfly-okf/okf/versions/${st.kc_entry_id}_v${oldVer}.md`,
+          canonical_gcs_uri: st.fm.source_uri
+        };
+      }
+    });
+
+    MGMT_LAST_PUBLISH_RESULT = firstResult;
+    if (isBatch) MGMT_SELECTED_SET.clear();
+    closePublishConfirmModal();
+    renderManagementModule();
+  };
+
+  // =========================================================================
+  // Tab B — GCP Dataplex Knowledge Catalog Explorer (100% Unstructured OKF)
+  // =========================================================================
+  function getAllCatalogEntriesList() {
+    initManagementState(false);
     const list = [];
 
-    // 1. All 28 Active OKF Bundle Entries + their Deprecated Version Snapshots in `okf_hp_dragonfly`
-    Object.values(MGMT_STATE).forEach((st) => {
+    OKF_DOC_ROOTS.forEach((d) => {
+      const docKey = `DOC:${d.doc_id}`;
+      const st = MGMT_DOC_STATE[d.doc_id];
+      if (!st) return;
       list.push({
-        key: `ACTIVE:${st.idx}`,
-        idx: st.idx,
-        scope: "OKF",
-        entryGroup: "okf_hp_dragonfly",
-        entryType: "projects/hp-dragonfly/locations/us-central1/entryTypes/okf-bundle",
-        system: "Open Knowledge Format",
-        platform: "OKF",
+        key: `ACTIVE:${docKey}`,
         isDeprecated: false,
-        title: st.fm.title,
+        provIdx: docKey,
+        entryId: st.rel.replace(/\.md$/, ""),
+        title: `[${d.doc_num} 문서 총괄] ${st.fm.title}`,
+        sectionNumber: st.section_number,
+        docTitle: isKo() ? d.title_ko : d.title_en,
         version: st.fm.version,
         status: st.fm.status,
-        entryId: st.entryId,
-        entryFqn: st.entryFqn,
-        gcsUri: st.gcsUri,
-        catalogYamlPath: st.catalogYamlPath,
-        pdfPage: st.pdfPage,
-        updatedAt: st.updatedAt,
-        changeNote: st.lastChangeNote,
+        updatedAt: st.fm.verified_at,
+        gcsUri: st.fm.source_uri,
+        canonicalRelPath: st.rel,
+        changeNote: st.changeNote,
         fm: st.fm,
         body: st.body,
-        hasDeprecatedHistory: st.versions.length > 0
-      });
-
-      st.versions.forEach((v, vIdx) => {
-        list.push({
-          key: `DEP:${st.idx}:${vIdx}`,
-          idx: st.idx,
-          scope: "OKF",
-          entryGroup: "okf_hp_dragonfly",
-          entryType: "projects/hp-dragonfly/locations/us-central1/entryTypes/okf-bundle",
-          system: "Open Knowledge Format",
-          platform: "OKF",
-          isDeprecated: true,
-          supersededByVer: st.fm.version,
-          title: v.fm.title,
-          version: v.version,
-          status: "deprecated",
-          entryId: v.entryId,
-          entryFqn: `projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/${v.entryId}`,
-          gcsUri: v.gcsUri,
-          catalogYamlPath: `catalog_okf/kb_hp-dragonfly_us-central1_okf_hp_dragonfly/${v.entryId}.yaml`,
-          pdfPage: st.pdfPage,
-          updatedAt: v.archivedAt,
-          changeNote: v.changeNote,
-          fm: v.fm,
-          body: v.body,
-          hasDeprecatedHistory: false
-        });
+        sha256: st.sha256
       });
     });
 
-    // 2. Also include the 9 `@bigquery` catalog entries pushed via `./bin/kcmd push ./catalog`
-    CATALOG_SNAPS.filter((s) => s.scope && s.scope.startsWith("bq-dataset")).forEach((snap, sIdx) => {
-      const isDataset = snap.rel_path.includes("/dataset.yaml");
-      const tblName = isDataset
-        ? "prj_ontology_hp_dragonfly"
-        : snap.rel_path.split("/").pop().replace(/\.yaml$/, "");
-      const matchedOkfIdx = OKF_FILES.findIndex(
-        (f) => f.rel_path === (isDataset ? "datasets/hp_dragonfly.md" : `tables/${tblName}.md`)
-      );
-      const refSt = matchedOkfIdx >= 0 ? MGMT_STATE[matchedOkfIdx] : MGMT_STATE[0];
-
+    MGMT_STATE.forEach((st) => {
+      const isDep = String(st.fm.status || "").toLowerCase() === "deprecated";
       list.push({
-        key: `BQ:${sIdx}`,
-        idx: matchedOkfIdx >= 0 ? matchedOkfIdx : 0,
-        scope: "BQ",
-        entryGroup: "@bigquery",
-        entryType: isDataset
-          ? "projects/dataplex-types/locations/global/entryTypes/bigquery-dataset"
-          : "projects/dataplex-types/locations/global/entryTypes/bigquery-table",
-        system: "BigQuery",
-        platform: "Google Cloud BigQuery",
-        isDeprecated: false,
-        title: `[BigQuery] ${tblName}`,
-        version: refSt ? refSt.fm.version : "1.0.0",
-        status: "verified",
-        entryId: `bigquery.googleapis.com/projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly${
-          isDataset ? "" : `/tables/${tblName}`
-        }`,
-        entryFqn: `projects/hp-dragonfly/locations/us-central1/entryGroups/@bigquery/entries/bigquery.googleapis.com/projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly${
-          isDataset ? "" : `/tables/${tblName}`
-        }`,
-        gcsUri: `bigquery://hp-dragonfly/prj_ontology_hp_dragonfly/${isDataset ? "" : tblName}`,
-        catalogYamlPath: snap.rel_path,
-        rawSnapYaml: snap.content,
-        pdfPage: refSt ? refSt.pdfPage : 1,
-        updatedAt: "2026-10-25T02:20:00Z",
-        changeNote: "Synced BigQuery Overview Aspect via ./bin/kcmd push ./catalog",
-        fm: refSt ? refSt.fm : MGMT_STATE[0].fm,
-        body: refSt ? refSt.body : snap.content,
-        hasDeprecatedHistory: false
+        key: isDep ? `DEP:INLINE:${st.idx}` : `ACTIVE:${st.idx}`,
+        isDeprecated: isDep,
+        provIdx: st.idx,
+        entryId: st.rel.replace(/\.md$/, ""),
+        title: `[${st.doc_num}] ${st.section_number} · ${st.fm.title}`,
+        sectionNumber: st.section_number,
+        docTitle: isKo() ? st.doc_short_ko : st.doc_short_en,
+        version: st.fm.version,
+        supersededBy: st.supersededBy,
+        supersededByVer: st.supersededByVer,
+        status: st.fm.status,
+        updatedAt: st.fm.verified_at,
+        gcsUri: st.fm.source_uri,
+        canonicalRelPath: st.rel,
+        changeNote: st.changeNote,
+        fm: st.fm,
+        body: st.body,
+        sha256: st.sha256
       });
     });
 
@@ -3303,77 +3220,73 @@
   }
 
   function renderKcExplorerSplitHtml() {
+    const allEntries = getAllCatalogEntriesList();
+    const activeCount = allEntries.filter((e) => !e.isDeprecated).length;
+    const depCount = allEntries.filter((e) => e.isDeprecated).length;
+    const q = KC_SEARCH_QUERY.trim().toLowerCase();
     const k = isKo();
-    const allEntries = buildAllKcExplorerEntries();
-    const scopedEntries = allEntries.filter((e) => {
-      if (KC_FILTER_SCOPE === "OKF") return e.scope === "OKF";
-      if (KC_FILTER_SCOPE === "BQ") return e.scope === "BQ";
+
+    const filtered = allEntries.filter((e) => {
+      if (KC_FILTER_STATUS === "VERIFIED" && e.isDeprecated) return false;
+      if (KC_FILTER_STATUS === "DEPRECATED" && !e.isDeprecated) return false;
+      if (q) {
+        const hay = `${e.entryId} ${e.title} ${e.gcsUri} ${e.version} ${e.sectionNumber}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     });
 
-    const activeCount = scopedEntries.filter((e) => !e.isDeprecated).length;
-    const depCount = scopedEntries.filter((e) => e.isDeprecated).length;
-
-    const q = (KC_SEARCH_QUERY || "").trim().toLowerCase();
-    const filtered = scopedEntries.filter((e) => {
-      if (KC_FILTER_STATUS === "VERIFIED" && e.isDeprecated) return false;
-      if (KC_FILTER_STATUS === "DEPRECATED" && !e.isDeprecated) return false;
-      if (!q) return true;
-      return (
-        e.title.toLowerCase().includes(q) ||
-        e.entryId.toLowerCase().includes(q) ||
-        e.gcsUri.toLowerCase().includes(q) ||
-        (e.body || "").toLowerCase().includes(q)
-      );
-    });
-
-    if (!KC_SELECTED_KEY || !filtered.some((e) => e.key === KC_SELECTED_KEY)) {
-      const def = filtered.find((e) => e.key === `ACTIVE:${MGMT_ACTIVE_IDX}`) || filtered[0];
-      KC_SELECTED_KEY = def ? def.key : null;
+    if (!KC_SELECTED_KEY || !allEntries.some((e) => e.key === KC_SELECTED_KEY)) {
+      const preferredKey = `ACTIVE:${MGMT_ACTIVE_KEY}`;
+      KC_SELECTED_KEY = filtered.some((e) => e.key === preferredKey)
+        ? preferredKey
+        : filtered.length > 0
+        ? filtered[0].key
+        : preferredKey;
     }
+    const sel =
+      allEntries.find((e) => e.key === KC_SELECTED_KEY) || filtered[0] || allEntries[0];
 
-    const sel = filtered.find((e) => e.key === KC_SELECTED_KEY) || filtered[0] || null;
     let counterpart = null;
-    if (sel && sel.scope === "OKF") {
+    if (sel) {
       if (sel.isDeprecated) {
-        counterpart = allEntries.find((e) => e.key === `ACTIVE:${sel.idx}`);
+        counterpart = allEntries.find(
+          (e) => !e.isDeprecated && sel.supersededBy && e.entryId === sel.supersededBy
+        );
       } else {
-        counterpart = allEntries.find((e) => e.key === `DEP:${sel.idx}:0`);
+        counterpart = allEntries.find(
+          (e) => e.isDeprecated && e.supersededBy === sel.entryId
+        );
       }
     }
+
+    const kcSearchPh = k
+      ? "KC 엔트리 검색 (제1장, 별표 3-1, §5.1, 3.2, 내규, doc.md)..."
+      : "Search KC entry (Ch.1, Table 3-1, §5.1, 3.2, SOP, doc.md)...";
 
     return `
       <div class="mgmt-body-split">
         <!-- Left Dataplex Knowledge Catalog Entry List -->
-        <aside class="mgmt-sidebar ${MGMT_SIDEBAR_COLLAPSED ? "collapsed" : ""}" style="width:350px;">
-          <div class="search-wrap" style="display:flex; flex-direction:column; gap:7px;">
-            <input type="text" id="kc-explorer-search" class="search-input" placeholder="${
-              k
-                ? "KC 엔트리 검색 (disassembly, M90788, blink, Sure Start)..."
-                : "Search KC Entry (disassembly, M90788, blink, Sure Start)..."
-            }" value="${escapeHtml(KC_SEARCH_QUERY)}" oninput="onKcSearchInput(this.value)" />
-
+        <aside class="mgmt-sidebar" style="width:345px;">
+          <div class="search-wrap" style="display:flex; flex-direction:column; gap:8px;">
+            <input type="text" class="search-input" placeholder="${escapeHtml(
+              kcSearchPh
+            )}" value="${escapeHtml(KC_SEARCH_QUERY)}" oninput="onKcSearchInput(this.value)" />
             <div style="display:flex; gap:5px;">
-              <button type="button" class="mgmt-chip-btn ${KC_FILTER_STATUS === "ALL" ? "active" : ""}" style="flex:1;" onclick="setKcStatusFilter('ALL')">
-                ${k ? `전체 (${scopedEntries.length})` : `All (${scopedEntries.length})`}
+              <button class="mgmt-chip-btn ${
+                KC_FILTER_STATUS === "ALL" ? "active" : ""
+              }" style="flex:1;" onclick="setKcStatusFilter('ALL')">
+                ${k ? "전체" : "All"} (${allEntries.length})
               </button>
-              <button type="button" class="mgmt-chip-btn ${KC_FILTER_STATUS === "VERIFIED" ? "active" : ""}" style="flex:1;" onclick="setKcStatusFilter('VERIFIED')">
-                ${k ? `활성 (${activeCount})` : `Active (${activeCount})`}
+              <button class="mgmt-chip-btn ${
+                KC_FILTER_STATUS === "VERIFIED" ? "active" : ""
+              }" style="flex:1;" onclick="setKcStatusFilter('VERIFIED')">
+                ${k ? "활성" : "Active"} (${activeCount})
               </button>
-              <button type="button" class="mgmt-chip-btn ${KC_FILTER_STATUS === "DEPRECATED" ? "active" : ""}" style="flex:1;" onclick="setKcStatusFilter('DEPRECATED')">
-                ${k ? `만료 (${depCount})` : `Deprecated (${depCount})`}
-              </button>
-            </div>
-
-            <div style="display:flex; gap:5px;">
-              <button type="button" class="mgmt-chip-btn ${KC_FILTER_SCOPE === "ALL" ? "active" : ""}" style="flex:1; font-size:10.5px;" onclick="setKcScopeFilter('ALL')">
-                All (${allEntries.length})
-              </button>
-              <button type="button" class="mgmt-chip-btn ${KC_FILTER_SCOPE === "OKF" ? "active" : ""}" style="flex:1.2; font-size:10.5px;" onclick="setKcScopeFilter('OKF')">
-                okf_hp_dragonfly
-              </button>
-              <button type="button" class="mgmt-chip-btn ${KC_FILTER_SCOPE === "BQ" ? "active" : ""}" style="flex:1; font-size:10.5px;" onclick="setKcScopeFilter('BQ')">
-                @bigquery (9)
+              <button class="mgmt-chip-btn ${
+                KC_FILTER_STATUS === "DEPRECATED" ? "active" : ""
+              }" style="flex:1;" onclick="setKcStatusFilter('DEPRECATED')">
+                ${k ? "만료" : "Deprecated"} (${depCount})
               </button>
             </div>
           </div>
@@ -3382,41 +3295,41 @@
             ${
               filtered.length === 0
                 ? `<div style="padding:20px; text-align:center; font-size:12px; color:var(--text-sub);">${
-                    k ? "해당 조건의 Knowledge Catalog 엔트리가 없습니다." : "No matching Knowledge Catalog entries."
+                    k
+                      ? "해당 상태의 Knowledge Catalog 엔트리가 없습니다."
+                      : "No Knowledge Catalog entries match the current filter."
                   }</div>`
                 : filtered
                     .map(
                       (e) => `
-                  <div class="mgmt-tree-row ${e.key === KC_SELECTED_KEY ? "active" : ""}" onclick="selectKcExplorerEntry('${
-                        e.key
-                      }')">
-                    <div style="flex:1; min-width:0;">
-                      <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
-                        <span style="font-size:12px; font-weight:600; color:${
-                          e.isDeprecated
-                            ? "var(--gcp-red)"
-                            : e.key === KC_SELECTED_KEY
-                            ? "var(--gcp-blue)"
-                            : "var(--text)"
-                        }; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                          ${escapeHtml(e.title)}
-                        </span>
-                        <span class="mgmt-status-pill ${
-                          e.isDeprecated ? "deprecated" : e.scope === "BQ" ? "versioned" : "synced"
-                        }">
-                          ${
-                            e.isDeprecated
-                              ? `DEPRECATED · v${escapeHtml(e.version)}`
-                              : `${escapeHtml(e.status.toUpperCase())} · v${escapeHtml(e.version)}`
-                          }
-                        </span>
-                      </div>
-                      <div style="font-family:var(--mono); font-size:10.5px; color:var(--text-sub); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                        ${escapeHtml(e.gcsUri)}
-                      </div>
-                    </div>
+              <div class="mgmt-tree-row ${
+                e.key === KC_SELECTED_KEY ? "active" : ""
+              }" onclick="selectKcExplorerEntry('${e.key}')">
+                <div style="flex:1; min-width:0;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                    <span style="font-size:12px; font-weight:600; color:${
+                      e.isDeprecated
+                        ? "var(--gcp-red)"
+                        : e.key === KC_SELECTED_KEY
+                        ? "var(--gcp-blue)"
+                        : "var(--text)"
+                    }; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                      ${escapeHtml(e.title)}
+                    </span>
+                    <span class="mgmt-status-pill ${e.isDeprecated ? "deprecated" : "synced"}">
+                      ${
+                        e.isDeprecated
+                          ? `DEPRECATED · v${escapeHtml(e.version)}`
+                          : `${escapeHtml(e.status.toUpperCase())} · v${escapeHtml(e.version)}`
+                      }
+                    </span>
                   </div>
-                `
+                  <div style="font-family:var(--mono); font-size:10.5px; color:var(--text-sub); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    ${escapeHtml(e.gcsUri)}
+                  </div>
+                </div>
+              </div>
+            `
                     )
                     .join("")
             }
@@ -3431,39 +3344,48 @@
     `;
   }
 
+  function formatGcpConsoleTimestamp(isoStr, fallbackFormatted) {
+    if (!isoStr) return fallbackFormatted || "Oct 25, 2026, 1:00:00 PM";
+    try {
+      const d = new Date(isoStr);
+      if (isNaN(d.getTime())) return fallbackFormatted || isoStr;
+      return d.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true
+      });
+    } catch (_) {
+      return fallbackFormatted || isoStr;
+    }
+  }
+
   function renderKcDetailInspectorHtml(sel, counterpart) {
+    const fm = sel.fm;
+    const creationTimeStr = "Oct 25, 2026, 4:00:00 AM";
+    const lastModTimeStr = formatGcpConsoleTimestamp(sel.updatedAt, "Oct 25, 2026, 4:00:00 AM");
+    const genTimeStr = formatGcpConsoleTimestamp(fm.generated_at, "Oct 25, 2026, 4:00:00 AM");
+    const verTimeStr = formatGcpConsoleTimestamp(sel.updatedAt, "Oct 25, 2026, 4:00:00 AM");
+    const openArg = typeof sel.provIdx === "string" ? `'${escapeHtml(sel.provIdx)}'` : sel.provIdx;
     const k = isKo();
-    const fm = sel.fm || {};
-    const rawC = String(fm.contacts || "HP Field Service Ontology Lead <dhmoon@google.com>").trim();
-    const m = rawC.match(/^(.+?)\s*<([^>]+)>$/);
-    const cName = m ? m[1].trim() : rawC;
-    const cEmail = m ? m[2].trim() : "dhmoon@google.com";
-    const cRole = isContactOwnerRole(cName) ? "owner" : "steward";
 
     return `
       <div class="pane-subbar">
         <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:0; overflow:hidden;">
           <span style="font-weight:600; color:var(--text); flex-shrink:0;">Knowledge Catalog</span>
           <span style="color:var(--text-muted); flex-shrink:0;">/</span>
-          <span class="badge-pill ${sel.scope === "BQ" ? "badge-blue" : "badge-green"}" style="flex-shrink:0;">${escapeHtml(
-            sel.entryGroup
-          )}</span>
           <code style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;" title="${escapeHtml(
-            sel.entryFqn
+            sel.entryId
           )}">${escapeHtml(sel.entryId)}</code>
         </div>
         <div style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
-          <button type="button" class="gcp-action-btn" style="padding:4px 10px; font-size:11.5px; white-space:nowrap;" onclick="switchModule('okf-validation'); selectItem(${
-            sel.idx
-          });">
-            <span class="material-symbols-outlined" style="font-size:14px;">find_in_page</span>
-            ${k ? `02 · 원본 PDF (p.${sel.pdfPage})` : `02 · Source PDF (p.${sel.pdfPage})`}
-          </button>
           ${
-            !sel.isDeprecated
+            sel.provIdx !== undefined
               ? `
-            <button type="button" class="bq-run-btn" style="width:auto; padding:4px 12px; font-size:11.5px; white-space:nowrap;" onclick="selectMgmtFileItem(${sel.idx}); toggleMgmtSubView('EDITOR');">
-              <span class="material-symbols-outlined" style="font-size:14px;">edit_note</span>
+            <button class="gcp-action-btn" style="padding:4px 12px; font-size:11.5px; white-space:nowrap; flex-shrink:0;" onclick="selectMgmtFileItem(${openArg}); toggleMgmtSubView('EDITOR');">
               ${k ? "OKF Editor로 열기" : "Open in OKF Editor"}
             </button>
           `
@@ -3473,11 +3395,11 @@
       </div>
 
       <div class="mgmt-editor-scroll">
-        <!-- 1. TOP: Entry Details Card (Authentic GCP Dataplex Knowledge Catalog Layout) -->
+        <!-- Top Title Banner & Version Lineage Notice -->
         <div class="mgmt-card">
           <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border-subtle);">
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <span style="font-size:17px; font-weight:600; color:var(--text);">${escapeHtml(sel.title)}</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:18px; font-weight:600; color:var(--text);">${escapeHtml(sel.title)}</span>
               <span class="mgmt-status-pill ${sel.isDeprecated ? "deprecated" : "synced"}">${escapeHtml(
       sel.status.toUpperCase()
     )}</span>
@@ -3491,100 +3413,89 @@
           ${
             sel.isDeprecated
               ? `
-            <div style="margin-bottom:16px; padding:10px 12px; border-radius:6px; background:var(--gcp-red-bg); border:1px solid var(--gcp-red); display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+            <div style="margin-bottom:16px; padding:10px 12px; border-radius:6px; background:var(--gcp-red-bg); border:1px solid var(--gcp-red); display:flex; align-items:center; justify-content:space-between; gap:8px;">
               <span style="font-size:12px; color:var(--gcp-red);">
-                <strong>${k ? "[만료 이력]" : "[Deprecation Notice]"}</strong>
-                ${
-                  k
-                    ? `이 엔트리는 신규 버전 <strong>v${escapeHtml(
-                        sel.supersededByVer
-                      )}</strong> 배포에 의해 만료(<code>status: deprecated</code>)되었으며 스냅샷이 <code>versions/</code>에 보존되어 있습니다. (사유: ${escapeHtml(
-                        sel.changeNote
-                      )})`
-                    : `This entry was superseded by <strong>v${escapeHtml(
-                        sel.supersededByVer
-                      )}</strong> (<code>status: deprecated</code>) and archived under <code>versions/</code>. (Reason: ${escapeHtml(
-                        sel.changeNote
-                      )})`
-                }
+                <strong>[만료 이력]</strong> 이 엔트리는 신규 버전 <strong>v${escapeHtml(
+                  sel.supersededByVer || "0.2.0"
+                )}</strong> 배포에 의해 만료(<code>status: deprecated</code>)되었으며 에이전트 인용이 차단됩니다. (사유: ${escapeHtml(
+                  sel.changeNote
+                )})
               </span>
-              ${
-                counterpart
-                  ? `<button type="button" class="mgmt-chip-btn active" onclick="selectKcExplorerEntry('${counterpart.key}')">${
-                      k ? `현행 v${counterpart.version} 보기 ➔` : `View Active v${counterpart.version} ➔`
-                    }</button>`
-                  : ""
-              }
             </div>
           `
               : counterpart
               ? `
-            <div style="margin-bottom:16px; padding:10px 12px; border-radius:6px; background:var(--gcp-blue-bg); border:1px solid var(--gcp-blue); display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+            <div style="margin-bottom:16px; padding:10px 12px; border-radius:6px; background:var(--gcp-blue-bg); border:1px solid var(--gcp-blue); display:flex; align-items:center; justify-content:space-between; gap:8px;">
               <span style="font-size:12px; color:var(--gcp-blue);">
-                <strong>${k ? "[버전 계보]" : "[Version Lineage]"}</strong>
-                ${
-                  k
-                    ? `구버전(<strong>v${escapeHtml(
-                        counterpart.version
-                      )}</strong>)을 만료시키고 승격된 최신 활성 엔트리입니다. (개정 사유: ${escapeHtml(sel.changeNote)})`
-                    : `Active entry promoted after deprecating <strong>v${escapeHtml(
-                        counterpart.version
-                      )}</strong>. (Note: ${escapeHtml(sel.changeNote)})`
-                }
+                <strong>[버전 계보]</strong> 구버전(<strong>v${escapeHtml(
+                  counterpart.version
+                )}</strong>)을 만료시키고 승격된 최신 활성 엔트리입니다. (개정 사유: ${escapeHtml(sel.changeNote)})
               </span>
-              <button type="button" class="mgmt-chip-btn" onclick="selectKcExplorerEntry('${counterpart.key}')">${
-                  k
-                    ? `구버전 v${counterpart.version} (DEPRECATED) 보기`
-                    : `Inspect Deprecated v${counterpart.version}`
-                }</button>
             </div>
           `
               : ""
           }
 
+          <!-- 1. Entry details (Exact GCP Dataplex Knowledge Catalog Layout) -->
           <div class="gcp-kc-section-title">Entry details</div>
           <div class="gcp-kc-details-grid">
             <div>
               <div class="gcp-kc-field-label">System</div>
-              <div class="gcp-kc-field-val">${escapeHtml(sel.system)}</div>
+              <div class="gcp-kc-field-val">Open Knowledge Format</div>
             </div>
             <div>
               <div class="gcp-kc-field-label">Platform</div>
-              <div class="gcp-kc-field-val">${escapeHtml(sel.platform)}</div>
+              <div class="gcp-kc-field-val">OKF</div>
             </div>
             <div>
-              <div class="gcp-kc-field-label">EntryGroup</div>
-              <div class="gcp-kc-field-val"><code>projects/hp-dragonfly/locations/us-central1/entryGroups/${escapeHtml(
-                sel.entryGroup
-              )}</code></div>
+              <div class="gcp-kc-field-label">Creation time</div>
+              <div class="gcp-kc-field-val">${escapeHtml(creationTimeStr)}</div>
             </div>
             <div>
               <div class="gcp-kc-field-label">Last modification time</div>
-              <div class="gcp-kc-field-val">${escapeHtml(sel.updatedAt)}</div>
+              <div class="gcp-kc-field-val">${escapeHtml(lastModTimeStr)}</div>
             </div>
             <div>
               <div class="gcp-kc-field-label">Entry type</div>
-              <div class="gcp-kc-field-val"><code>${escapeHtml(sel.entryType)}</code></div>
+              <div class="gcp-kc-field-val">OKF Document</div>
             </div>
             <div>
-              <div class="gcp-kc-field-label">Identifiers (Resource)</div>
-              <div class="gcp-kc-field-val"><code style="color:var(--gcp-blue);">${escapeHtml(sel.gcsUri)}</code></div>
+              <div class="gcp-kc-field-label">Domain</div>
+              <div class="gcp-kc-field-val">HP Dragonfly Hardware &amp; Field Service</div>
             </div>
-            <div style="grid-column: 1 / -1;">
-              <div class="gcp-kc-field-label">Dataplex Entry FQN</div>
-              <div class="gcp-kc-field-val"><code>${escapeHtml(sel.entryFqn)}</code></div>
+            <div>
+              <div class="gcp-kc-field-label">Identifiers</div>
+              <div class="gcp-kc-field-val">
+                <span style="color:var(--text-sub); font-size:12px;">Resource:</span>
+                <code style="font-family:var(--mono); font-size:12px; color:var(--gcp-blue); margin-left:4px;">${escapeHtml(
+                  sel.gcsUri
+                )}</code>
+              </div>
+            </div>
+            <div>
+              <div class="gcp-kc-field-label">Labels</div>
+              <div class="gcp-kc-field-val">${escapeHtml(fm.tags || "-")}</div>
             </div>
             <div style="grid-column: 1 / -1;">
               <div class="gcp-kc-field-label">Description</div>
-              <div class="gcp-kc-field-val">${escapeHtml(fm.description || sel.title)}</div>
+              <div class="gcp-kc-field-val">${escapeHtml(fm.description || sel.docTitle)}</div>
             </div>
             <div style="grid-column: 1 / -1;">
               <div class="gcp-kc-field-label">Contacts</div>
               <div class="gcp-kc-field-val">
-                <span class="badge-pill ${cRole === "owner" ? "badge-blue" : "badge-green"}" style="margin-right:6px; font-size:11px;">${
-                  cRole === "owner" ? "Owner" : "Steward"
-                }</span>
-                <span>${escapeHtml(rawC)}</span>
+                ${
+                  fm.contacts
+                    ? (() => {
+                        const isOwner = isContactOwnerRole(fm.contacts);
+                        const roleLabel = isOwner ? "Owner" : "Steward";
+                        return `<span class="badge-pill ${
+                          isOwner ? "badge-blue" : "badge-green"
+                        }" style="margin-right:6px; font-size:11px;">${roleLabel}</span><span>${escapeHtml(
+                          fm.contacts
+                        )}</span>`;
+                      })()
+                    : "-"
+                }
               </div>
             </div>
           </div>
@@ -3593,53 +3504,66 @@
         <!-- 2. MIDDLE: Overview (dataplex-types.global.overview) -->
         <div class="mgmt-card">
           <div class="gcp-kc-section-title" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-            <span>Overview (<code>dataplex-types.global.overview</code>)</span>
-            <span class="badge-pill badge-green" style="font-size:11px;">MARKDOWN SYNCED</span>
+            <span>Overview</span>
+            <span class="badge-pill badge-green" style="font-size:11px;">MARKDOWN</span>
           </div>
           <div class="okf-title" style="font-size:15px;">${escapeHtml(sel.title)}</div>
           <div class="okf-body-box okf-md-content">${formatMgmtPreviewBody(sel.body)}</div>
         </div>
 
-        <!-- 3. BOTTOM: Aspects (contacts + okf + kcmd YAML Snapshot) -->
+        <!-- 3. BOTTOM: Aspects (Clean Structured Name / Value Table) -->
         <div class="mgmt-card">
           <div class="gcp-kc-section-title">Aspects</div>
 
-          <div class="gcp-kc-aspect-box" style="margin-bottom:14px;">
-            <div class="gcp-kc-aspect-header">
-              <span>contacts</span>
-              <span style="font-family:var(--mono); font-size:11px; color:var(--text-sub);">dataplex-types.global.contacts</span>
-            </div>
-            <table class="kc-aspect-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="kc-group-row">
-                  <th colspan="2">Identities</th>
-                </tr>
-                <tr class="kc-nested-row">
-                  <th>Role</th>
-                  <td><code>${escapeHtml(cRole)}</code></td>
-                </tr>
-                <tr class="kc-nested-row">
-                  <th>Name</th>
-                  <td>${escapeHtml(cName)}</td>
-                </tr>
-                <tr class="kc-nested-row">
-                  <th>ID (Email)</th>
-                  <td><code>${escapeHtml(cEmail)}</code></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          ${
+            fm.contacts
+              ? (() => {
+                  const rawC = String(fm.contacts).trim();
+                  const m = rawC.match(/^(.+?)\s*<([^>]+)>$/);
+                  const cName = m ? m[1].trim() : rawC;
+                  const cEmail = m ? m[2].trim() : "";
+                  const cRole = isContactOwnerRole(cName) ? "owner" : "steward";
+                  return `
+              <div class="gcp-kc-aspect-box" style="margin-bottom:12px;">
+                <div class="gcp-kc-aspect-header">
+                  <span>contacts</span>
+                  <span style="font-family:var(--mono); font-size:11px; color:var(--text-sub);">dataplex-types.global.contacts</span>
+                </div>
+                <table class="kc-aspect-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="kc-group-row">
+                      <th colspan="2">Identities</th>
+                    </tr>
+                    <tr class="kc-nested-row">
+                      <th>Role</th>
+                      <td><code>${escapeHtml(cRole)}</code></td>
+                    </tr>
+                    <tr class="kc-nested-row">
+                      <th>Name</th>
+                      <td>${escapeHtml(cName)}</td>
+                    </tr>
+                    <tr class="kc-nested-row">
+                      <th>ID (Email)</th>
+                      <td><code>${escapeHtml(cEmail || cName)}</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            `;
+                })()
+              : ""
+          }
 
-          <div class="gcp-kc-aspect-box" style="margin-bottom:14px;">
+          <div class="gcp-kc-aspect-box">
             <div class="gcp-kc-aspect-header">
               <span>okf</span>
-              <span style="font-family:var(--mono); font-size:11px; color:var(--text-sub);">projects/hp-dragonfly/locations/us-central1/aspectTypes/okf · v${escapeHtml(
+              <span style="font-family:var(--mono); font-size:11px; color:var(--text-sub);">OKF Signal · v${escapeHtml(
                 sel.version
               )}</span>
             </div>
@@ -3653,21 +3577,17 @@
               <tbody>
                 <tr>
                   <th>OKF Type</th>
-                  <td><code>${escapeHtml(fm.type || "Table")}</code></td>
+                  <td>${escapeHtml(fm.type || "Provision")}</td>
                 </tr>
                 <tr>
                   <th>Version</th>
-                  <td><code>${escapeHtml(sel.version)}</code></td>
+                  <td><code>${escapeHtml(sel.version || "0.2.0")}</code></td>
                 </tr>
                 <tr>
                   <th>Status</th>
                   <td><span class="mgmt-status-pill ${sel.isDeprecated ? "deprecated" : "synced"}">${escapeHtml(
       sel.status
     )}</span></td>
-                </tr>
-                <tr>
-                  <th>Stale After</th>
-                  <td><code>${escapeHtml(fm.stale_after || "2027-10-25")}</code></td>
                 </tr>
                 <tr class="kc-group-row">
                   <th colspan="2">Generated</th>
@@ -3678,7 +3598,7 @@
                 </tr>
                 <tr class="kc-nested-row">
                   <th>Generated At</th>
-                  <td><code>${escapeHtml(fm.generated_at)}</code></td>
+                  <td>${escapeHtml(genTimeStr)}</td>
                 </tr>
                 <tr class="kc-group-row">
                   <th colspan="2">Verified</th>
@@ -3689,11 +3609,11 @@
                 </tr>
                 <tr class="kc-nested-row">
                   <th>Verified At</th>
-                  <td><code>${escapeHtml(fm.verified_at)}</code></td>
+                  <td>${escapeHtml(verTimeStr)}</td>
                 </tr>
                 <tr class="kc-nested-row">
                   <th>Verification Method</th>
-                  <td><code>${escapeHtml(fm.verified_method)}</code></td>
+                  <td><code>${escapeHtml(fm.verified_method || "source_text_match")}</code></td>
                 </tr>
                 <tr class="kc-nested-row">
                   <th>Checks</th>
@@ -3702,32 +3622,35 @@
                 <tr class="kc-group-row">
                   <th colspan="2">Sources</th>
                 </tr>
+                <tr class="kc-nested-row">
+                  <th colspan="2" style="font-weight:600; color:var(--text);">source</th>
+                </tr>
                 <tr class="kc-nested-row-2">
                   <th>Source ID</th>
-                  <td><code>hp_service_guide_pdf</code></td>
+                  <td><code>origin_pdf</code></td>
                 </tr>
                 <tr class="kc-nested-row-2">
                   <th>Resource</th>
-                  <td><code>${escapeHtml(fm.source_resource || "docs/pdf_6290467_en-US-1.pdf")}</code></td>
+                  <td><code>${escapeHtml(fm.source_resource)}</code></td>
                 </tr>
                 <tr class="kc-nested-row-2">
-                  <th>Source Page</th>
-                  <td><code>p.${escapeHtml(String(fm.source_pages_span || fm.source_page || sel.pdfPage))}</code></td>
+                  <th>Kind</th>
+                  <td><code>origin_document</code></td>
                 </tr>
                 <tr class="kc-nested-row-2">
                   <th>SHA-256</th>
-                  <td><code style="font-size:11px;">${escapeHtml(fm.sha256)}</code></td>
+                  <td><code style="font-size:11.5px;">${escapeHtml(fm.sha256)}</code></td>
                 </tr>
                 <tr class="kc-group-row">
-                  <th colspan="2">Governance & Provenance</th>
+                  <th colspan="2">Governance &amp; Provenance</th>
                 </tr>
                 <tr class="kc-nested-row">
                   <th>Content Class</th>
-                  <td><code>${escapeHtml(fm.content_class)}</code></td>
+                  <td><code>${escapeHtml(fm.content_class || "verbatim")}</code></td>
                 </tr>
                 <tr class="kc-nested-row">
                   <th>Treatment</th>
-                  <td><code>${escapeHtml(fm.treatment)}</code></td>
+                  <td><code>${escapeHtml(fm.treatment || "normative")}</code></td>
                 </tr>
                 <tr class="kc-nested-row">
                   <th>Language</th>
@@ -3742,8 +3665,12 @@
                   <td><code>${escapeHtml(fm.part_of)}</code></td>
                 </tr>
                 <tr class="kc-nested-row">
-                  <th>Tags</th>
-                  <td><code>${escapeHtml(fm.tags)}</code></td>
+                  <th>Section Number</th>
+                  <td>${escapeHtml(fm.section_number || sel.sectionNumber)}</td>
+                </tr>
+                <tr class="kc-nested-row">
+                  <th>Source Page</th>
+                  <td><code>p.${escapeHtml(String(fm.source_pages_span || fm.source_page || 1))}</code></td>
                 </tr>
                 ${
                   sel.changeNote
@@ -3758,23 +3685,37 @@
               </tbody>
             </table>
           </div>
-
-          <details class="fm-accordion">
-            <summary>
-              <span class="fm-summary-left">
-                <span>kcmd Metadata-as-Code YAML Snapshot</span>
-                <span class="fm-summary-meta">${escapeHtml(sel.catalogYamlPath)}</span>
-              </span>
-              <span class="material-symbols-outlined fm-chevron">expand_more</span>
-            </summary>
-            <div class="frontmatter-block">${colorizeYaml(
-              sel.rawSnapYaml || buildKcmdYamlForState(MGMT_STATE[sel.idx] || MGMT_STATE[0])
-            )}</div>
-          </details>
         </div>
       </div>
     `;
   }
+
+  window.onKcSearchInput = function (val) {
+    KC_SEARCH_QUERY = val || "";
+    renderManagementModule();
+  };
+
+  window.setKcStatusFilter = function (status) {
+    KC_FILTER_STATUS = status;
+    KC_SELECTED_KEY = null;
+    renderManagementModule();
+  };
+
+  window.selectKcExplorerEntry = function (key) {
+    KC_SELECTED_KEY = key;
+    if (typeof key === "string" && key.startsWith("ACTIVE:")) {
+      const sub = key.slice(7);
+      if (sub.startsWith("DOC:")) {
+        MGMT_ACTIVE_KEY = sub;
+      } else {
+        const idx = parseInt(sub, 10);
+        if (!isNaN(idx) && idx >= 0 && idx < MGMT_STATE.length) {
+          MGMT_ACTIVE_KEY = idx;
+        }
+      }
+    }
+    renderManagementModule();
+  };
 
   // =========================================================================
   // 6. MODULE 04: BigQuery Property Graph (`#module-bq-graph`)
@@ -6481,7 +6422,14 @@
   };
 
   window.jumpToOkfValidationFromAgent = function (okfRelPath) {
-    const fIdx = OKF_FILES.findIndex((f) => f.rel_path === okfRelPath);
+    const clean = String(okfRelPath || "").replace(/\.md$/, "");
+    const fIdx = OKF_FILES.findIndex(
+      (f) =>
+        f.rel_path === okfRelPath ||
+        f.id === clean ||
+        (Array.isArray(f.legacy_aliases) &&
+          (f.legacy_aliases.includes(okfRelPath) || f.legacy_aliases.includes(clean + ".md")))
+    );
     if (fIdx >= 0) {
       CURRENT_OKF_IDX = fIdx;
     }
