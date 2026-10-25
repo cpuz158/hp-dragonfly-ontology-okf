@@ -1098,8 +1098,8 @@
       id: "CLS_HW_COMP",
       layer: "ONT",
       label: "HardwareComponent",
-      ko: "하드웨어 스페어 부품 허브 (25 rows)",
-      enSub: "Hardware Spare Parts Hub (25 rows)",
+      ko: "하드웨어 스페어 부품 허브 (38 rows)",
+      enSub: "Hardware Spare Parts Hub (38 rows)",
       x: 0,
       z: -12,
       radius: 18.5,
@@ -1110,9 +1110,9 @@
       table: "hp-dragonfly.prj_ontology_hp_dragonfly.hardware_components_catalog",
       tableName: "hardware_components_catalog",
       desc_ko:
-        "HP Dragonfly G3 및 Folio G3의 교체 가능 하드웨어 부품(FRU/CRU 25종: 온보드 LPDDR5 시스템 보드 6종, 배터리, OLED/IPS 디스플레이, 열전도 모듈, 하판 커버 등)을 정의하는 핵심 허브 클래스입니다. 부품 간 선행 분해 의존성(REQUIRES_REMOVAL_OF DAG 18건) 및 고장 사례(AFFECTS_COMPONENT)의 중심 엔티티입니다.",
+        "HP Dragonfly G3 및 Folio G3의 교체 가능 하드웨어 부품(FRU/CRU 38종: 온보드 LPDDR5 시스템 보드, 배터리, OLED/IPS 디스플레이, 열전도 모듈, 하판 커버 등)을 정의하는 핵심 허브 클래스입니다. 부품 간 선행 분해 의존성(REQUIRES_REMOVAL_OF DAG 15건) 및 고장 사례(AFFECTS_COMPONENT)의 중심 엔티티입니다.",
       desc_en:
-        "Central ontology hub class representing 25 field-replaceable and customer-replaceable hardware spare parts (6 soldered LPDDR5 system boards, batteries, OLED/IPS displays, thermal modules, bottom covers) and anchoring the 18-edge prerequisite disassembly DAG (REQUIRES_REMOVAL_OF).",
+        "Central ontology hub class representing 38 field-replaceable and customer-replaceable hardware spare parts (soldered LPDDR5 system boards, batteries, OLED/IPS displays, thermal modules, bottom covers) and anchoring the 15-edge prerequisite disassembly DAG (REQUIRES_REMOVAL_OF).",
       anchor: {
         anchor_type: "CENTRAL_HUB_CLASS",
         alias_group: "HardwareComponent, SparePart, FRU, SystemBoard, Battery, ThermalModule",
@@ -1138,8 +1138,8 @@
       id: "CLS_SKU",
       layer: "ONT",
       label: "ProductSKU",
-      ko: "노트북 세부 SKU 구성 (15 rows)",
-      enSub: "Configured Laptop SKUs (15 rows)",
+      ko: "노트북 세부 SKU 구성 (12 rows)",
+      enSub: "Configured Laptop SKUs (12 rows)",
       x: -185,
       z: -48,
       radius: 16,
@@ -1150,9 +1150,9 @@
       table: "hp-dragonfly.prj_ontology_hp_dragonfly.product_skus_and_configs",
       tableName: "product_skus_and_configs",
       desc_ko:
-        "CPU(Intel i5-1235U ~ i7-1265U vPro), 온보드 납땜 LPDDR5 메모리 용량(16GB/32GB), 3K2K OLED / WUXGA+ IPS 디스플레이, 5G/LTE WWAN 조합별 15개 세부 SKU 및 장착 시스템 보드 파트 번호(USES_SYSTEM_BOARD)를 정의합니다.",
+        "CPU(Intel i5-1235U ~ i7-1265U vPro), 온보드 납땜 LPDDR5 메모리 용량(16GB/32GB), 3K2K OLED / WUXGA+ IPS 디스플레이, 5G/LTE WWAN 조합별 12개 세부 SKU 및 장착 시스템 보드 파트 번호(USES_SYSTEM_BOARD)를 정의합니다.",
       desc_en:
-        "Defines 15 factory-configured HP Dragonfly G3 and Folio G3 SKUs by processor, soldered LPDDR5 memory capacity (16GB/32GB), display panel, WWAN modem, and exact system board spare part number (USES_SYSTEM_BOARD).",
+        "Defines 12 factory-configured HP Dragonfly G3 and Folio G3 SKUs by processor, soldered LPDDR5 memory capacity (16GB/32GB), display panel, WWAN modem, and exact system board spare part number (USES_SYSTEM_BOARD).",
       anchor: {
         anchor_type: "CONFIGURATION_ANCHOR",
         alias_group: "ProductSKU, LaptopConfig, SKU, SolderedLPDDR5Config",
@@ -1255,8 +1255,8 @@
       id: "CLS_DIAG",
       layer: "ONT",
       label: "DiagnosticCode",
-      ko: "LED 점멸 · POST 진단코드 (11 rows)",
-      enSub: "LED Blink & POST Codes (11 rows)",
+      ko: "LED 점멸 · POST 진단코드 (8 rows)",
+      enSub: "LED Blink & POST Codes (8 rows)",
       x: 255,
       z: 68,
       radius: 14,
@@ -1269,7 +1269,7 @@
       desc_ko:
         "Caps Lock / 전원 LED 점멸 패턴(3.2 온보드 메모리 불량, 2.2 BIOS 손상, 5.2 시스템 보드 불량, 3.4 스토리지 오류 등) 및 POST 오류 코드별 결함 서브시스템과 공식 복구 절차를 정의합니다.",
       desc_en:
-        "Reference dictionary of 11 Caps Lock / Power LED blink patterns (e.g., 3.2 Memory error, 2.2 BIOS corruption, 5.2 System board failure) and POST codes with subsystem mapping and recovery actions.",
+        "Reference dictionary of 8 Caps Lock / Power LED blink patterns (e.g., 3.2 Memory error, 2.2 BIOS corruption, 5.2 System board failure) and POST codes with subsystem mapping and recovery actions.",
       anchor: {
         anchor_type: "SIGNAL_CLASS",
         alias_group: "DiagnosticCode, BlinkCode, POSTCode, CapsLockLED",
@@ -1293,8 +1293,8 @@
       id: "CLS_FW",
       layer: "ONT",
       label: "FirmwareBiosNvm",
-      ko: "BIOS · SoftPaq · NVM 보안 (10 rows)",
-      enSub: "BIOS, SoftPaq & NVM Chips (10 rows)",
+      ko: "BIOS · SoftPaq · NVM 보안 (8 rows)",
+      enSub: "BIOS, SoftPaq & NVM Chips (8 rows)",
       x: -88,
       z: 92,
       radius: 13.5,
@@ -1307,7 +1307,7 @@
       desc_ko:
         "HP U95 시스템 BIOS, Thunderbolt 4 Retimer 펌웨어, Intel ISH 센서 허브 펌웨어 및 매뉴얼 Appendix B(p.96)에 정의된 비휘발성 메모리(SPI Flash 32MB, EC Flash, HP Sure Start Gen7 자가 치유 보안 정책)를 정의합니다.",
       desc_en:
-        "Tracks 10 firmware releases (U95 System BIOS, Thunderbolt 4 retimer, ISH sensor hub) and Appendix B Non-Volatile Memory (NVM) chips protected by HP Sure Start Gen7.",
+        "Tracks 8 firmware releases (U95 System BIOS, Thunderbolt 4 retimer, ISH sensor hub) and Appendix B Non-Volatile Memory (NVM) chips protected by HP Sure Start Gen7.",
       anchor: {
         anchor_type: "FIRMWARE_SECURITY_CLASS",
         alias_group: "FirmwareBiosNvm, SureStart, BIOS, SoftPaq, NVM",
@@ -1330,8 +1330,8 @@
       id: "CLS_PORT",
       layer: "ONT",
       label: "PortSensorDock",
-      ko: "I/O 포트 · 센서 · TB4 독 (12 rows)",
-      enSub: "I/O Ports, Sensors & Docks (12 rows)",
+      ko: "I/O 포트 · 센서 · TB4 독 (10 rows)",
+      enSub: "I/O Ports, Sensors & Docks (10 rows)",
       x: 88,
       z: 92,
       radius: 13.5,
@@ -1344,7 +1344,7 @@
       desc_ko:
         "Thunderbolt 4 USB4(40Gbps, 100W PD), 홀 센서(자석 폴리오 태블릿 모드 전환 감지), 인체 근접 센서, MPP 2.0 마그네틱 펜 무선 충전 및 HP Thunderbolt Dock G4 멀티 모니터 호환성 매트릭스를 정의합니다.",
       desc_en:
-        "Specifies 12 external I/O ports (Thunderbolt 4 40Gbps), hall/proximity sensors, magnetic stylus charging, and HP Thunderbolt Dock G4 display/power matrices.",
+        "Specifies 10 external I/O ports (Thunderbolt 4 40Gbps), hall/proximity sensors, magnetic stylus charging, and HP Thunderbolt Dock G4 display/power matrices.",
       anchor: {
         anchor_type: "IO_SPEC_CLASS",
         alias_group: "PortSensorDock, Thunderbolt4, HallSensor, StylusCharger, DockMatrix",
@@ -1483,16 +1483,16 @@
       source: "CLS_HW_COMP",
       target: "CLS_HW_COMP",
       rel: "REQUIRES_REMOVAL_OF",
-      badgeLabel: "REQUIRES_REMOVAL_OF (DAG · 18)",
+      badgeLabel: "REQUIRES_REMOVAL_OF (DAG · 15)",
       isSelfLoop: true,
       loopIdx: 0,
       color: 0xa85c56,
-      view: "component_disassembly_deps (18 rows)",
+      view: "component_disassembly_deps (15 rows)",
       joinKeys: "target_part_number ➔ prerequisite_part_number",
       desc_ko:
-        "[선행 분해 의존성 DAG · 18건] 특정 하드웨어 부품(target_part_number, 예: 시스템 보드 M90788-601)을 분리하기 전에 반드시 먼저 제거해야 하는 선행 부품(prerequisite_part_number: 하판 커버 N22918-001 → 배터리 M90788-005 → 방열판 M90790-001), 작업 순서(step_order), 나사 규격(Torx T5 / Phillips PH0), ZIF 케이블 주의사항을 정의하는 자기참조 그래프 엣지입니다.",
+        "[선행 분해 의존성 DAG · 15건] 특정 하드웨어 부품(target_part_number, 예: 시스템 보드 M90788-601)을 분리하기 전에 반드시 먼저 제거해야 하는 선행 부품(prerequisite_part_number: 하판 커버 N22918-001 → 배터리 M90788-005 → 방열판 M90790-001), 작업 순서(step_order), 나사 규격(Torx T5 / Phillips PH0), ZIF 케이블 주의사항을 정의하는 자기참조 그래프 엣지입니다.",
       desc_en:
-        "[Prerequisite Disassembly DAG · 18 rows] Self-referential directed edge on HardwareComponent (backed by component_disassembly_deps) specifying which prerequisite spare part must be removed prior to the target component, along with step_order, screw spec, and ZIF cable cautions.",
+        "[Prerequisite Disassembly DAG · 15 rows] Self-referential directed edge on HardwareComponent (backed by component_disassembly_deps) specifying which prerequisite spare part must be removed prior to the target component, along with step_order, screw spec, and ZIF cable cautions.",
       ddl: `EDGE TABLES (\n  \`hp-dragonfly.prj_ontology_hp_dragonfly.component_disassembly_deps\`\n    KEY (dependency_id)\n    SOURCE KEY (target_part_number) REFERENCES HardwareComponent (part_number)\n    DESTINATION KEY (prerequisite_part_number) REFERENCES HardwareComponent (part_number)\n    LABEL REQUIRES_REMOVAL_OF\n    PROPERTIES (dependency_id, step_order, relationship_type, fastener_spec, cable_disconnect_note, safety_warning, manual_section_ref, manual_page_ref)\n)`
     },
     {
@@ -1500,15 +1500,15 @@
       source: "CLS_SKU",
       target: "CLS_HW_COMP",
       rel: "USES_SYSTEM_BOARD",
-      badgeLabel: "USES_SYSTEM_BOARD (15)",
+      badgeLabel: "USES_SYSTEM_BOARD (12)",
       color: 0x3b6ea5,
       badgeOffsetY: 12,
-      view: "product_skus_and_configs (15 rows)",
+      view: "product_skus_and_configs (12 rows)",
       joinKeys: "ProductSKU.system_board_part_number ➔ HardwareComponent.part_number",
       desc_ko:
-        "[SKU별 전용 시스템 보드 매핑 · 15건] HP Dragonfly G3 / Folio G3는 CPU와 LPDDR5(16GB/32GB) 메모리가 마더보드에 온보드 납땜(Soldered)되어 있으므로, 각 노트북 SKU가 사용하는 정확한 시스템 보드 스페어 파트 번호를 1:1로 연결하는 핵심 정형 엣지입니다.",
+        "[SKU별 전용 시스템 보드 매핑 · 12건] HP Dragonfly G3 / Folio G3는 CPU와 LPDDR5(16GB/32GB) 메모리가 마더보드에 온보드 납땜(Soldered)되어 있으므로, 각 노트북 SKU가 사용하는 정확한 시스템 보드 스페어 파트 번호를 1:1로 연결하는 핵심 정형 엣지입니다.",
       desc_en:
-        "[SKU-to-Motherboard Binding · 15 rows] Links each configured ProductSKU to its exact soldered CPU + LPDDR5 System Board spare part in HardwareComponent via system_board_part_number.",
+        "[SKU-to-Motherboard Binding · 12 rows] Links each configured ProductSKU to its exact soldered CPU + LPDDR5 System Board spare part in HardwareComponent via system_board_part_number.",
       ddl: `EDGE TABLES (\n  \`hp-dragonfly.prj_ontology_hp_dragonfly.product_skus_and_configs\` AS sku_uses_system_board\n    KEY (sku_id)\n    SOURCE KEY (sku_id) REFERENCES ProductSKU (sku_id)\n    DESTINATION KEY (system_board_part_number) REFERENCES HardwareComponent (part_number)\n    LABEL USES_SYSTEM_BOARD\n    PROPERTIES (cpu_model, ram_gb, ram_type, wwan_module)\n)`
     },
     {
@@ -1516,15 +1516,15 @@
       source: "CLS_SKU",
       target: "CLS_MODEL",
       rel: "BELONGS_TO_MODEL",
-      badgeLabel: "BELONGS_TO_MODEL (15)",
+      badgeLabel: "BELONGS_TO_MODEL (12)",
       color: 0x567ba8,
       badgeOffsetY: 10,
-      view: "product_skus_and_configs (15 rows)",
+      view: "product_skus_and_configs (12 rows)",
       joinKeys: "ProductSKU.model_id ➔ ProductModel.model_id",
       desc_ko:
-        "[세부 SKU → 마스터 모델 소속 · 15건] 15개 세부 노트북 구성 SKU(sku_id)가 속한 상위 제품군 마스터 모델(HP Dragonfly Folio G3 2-in-1 또는 Dragonfly G3 Clamshell)을 연결합니다.",
+        "[세부 SKU → 마스터 모델 소속 · 12건] 12개 세부 노트북 구성 SKU(sku_id)가 속한 상위 제품군 마스터 모델(HP Dragonfly Folio G3 2-in-1 또는 Dragonfly G3 Clamshell)을 연결합니다.",
       desc_en:
-        "[SKU-to-Series Hierarchy · 15 rows] Associates each ProductSKU configuration with its parent ProductModel series via model_id.",
+        "[SKU-to-Series Hierarchy · 12 rows] Associates each ProductSKU configuration with its parent ProductModel series via model_id.",
       ddl: `EDGE TABLES (\n  \`hp-dragonfly.prj_ontology_hp_dragonfly.product_skus_and_configs\` AS sku_belongs_to_model\n    KEY (sku_id)\n    SOURCE KEY (sku_id) REFERENCES ProductSKU (sku_id)\n    DESTINATION KEY (model_id) REFERENCES ProductModel (model_id)\n    LABEL BELONGS_TO_MODEL\n    PROPERTIES (sku_name, price_usd_msrp)\n)`
     },
     {
