@@ -8003,26 +8003,41 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     const wrongPhrases = (k ? armObj.wrong_phrases : armObj.wrong_phrases_en || armObj.wrong_phrases) || [];
     const bodyHtml = renderBenchMarkdownWithWrongHighlights(rawAns, wrongPhrases);
     const liveMeta = item.adk_live_meta || null;
+    const sessId = liveMeta
+      ? isGraphArm
+        ? liveMeta.graph_session_id || "adk_live"
+        : liveMeta.rag_session_id || "adk_live"
+      : "";
+    const fcalls = liveMeta
+      ? (isGraphArm ? liveMeta.graph_function_calls : liveMeta.rag_function_calls) || []
+      : [];
     const liveBadgeHtml = liveMeta
       ? `
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; padding:6px 10px; margin-bottom:10px; border-radius:6px; background:${
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; padding:7px 11px; margin-bottom:10px; border-radius:6px; background:${
           isGraphArm ? "rgba(19,115,51,0.08)" : "rgba(26,115,232,0.07)"
         }; border:1px solid ${
           isGraphArm ? "rgba(19,115,51,0.25)" : "rgba(26,115,232,0.22)"
         }; font-size:11.5px; color:var(--text);">
-          <span style="display:inline-flex; align-items:center; gap:5px; font-weight:600; color:${
+          <span style="display:inline-flex; align-items:center; gap:6px; font-weight:600; color:${
             isGraphArm ? "#137333" : "var(--gcp-blue)"
-          };">
+          }; flex-wrap:wrap;">
             <span class="material-symbols-outlined" style="font-size:15px;">bolt</span>
             <span>${
               k
-                ? `Google ADK (${escapeHtml(liveMeta.model || "gemini-3.8-flash")}) 에이전트 실시간 추론 생성 완료`
-                : `Live Google ADK (${escapeHtml(liveMeta.model || "gemini-3.8-flash")}) Agent Inference Complete`
+                ? `Google ADK Runner (${escapeHtml(liveMeta.model || "gemini-3.8-flash")}) 실시간 추론`
+                : `Live Google ADK Runner (${escapeHtml(liveMeta.model || "gemini-3.8-flash")})`
             }</span>
+            ${
+              fcalls.length
+                ? `<code style="font-size:10.5px; padding:1px 6px; border-radius:4px; background:rgba(0,0,0,0.06); color:var(--text);">Tools: ${escapeHtml(
+                    fcalls.join(" + ")
+                  )}</code>`
+                : ""
+            }
           </span>
           <span style="font-size:11px; color:var(--text-sub); font-family:var(--font-mono, monospace);">
-            ${escapeHtml(liveMeta.executed_at || "")}${
-              liveMeta.elapsed_ms ? ` · ${liveMeta.elapsed_ms} ms` : ""
+            ${sessId ? `${escapeHtml(sessId)} · ` : ""}${escapeHtml(liveMeta.executed_at || "")}${
+              armObj.latency_ms ? ` · ${armObj.latency_ms} ms` : liveMeta.elapsed_ms ? ` · ${liveMeta.elapsed_ms} ms` : ""
             }
           </span>
         </div>
@@ -8962,7 +8977,7 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     }, 100);
 
     try {
-      let liveItem = null;
+      let liveError = null;
       const fetchPromise = (async () => {
         try {
           const resp = await fetch("/api/benchmark/ask", {
@@ -8979,31 +8994,33 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
           if (data && data.ok && data.item) {
             return data.item;
           }
-        } catch (_) {}
+          liveError = (data && data.error) || "ADK live endpoint returned empty response";
+        } catch (err) {
+          liveError = String(err || "Network error");
+        }
         return null;
       })();
 
-      const minAnimPromise = new Promise((resolve) =>
-        setTimeout(resolve, strictMatchedItem ? 860 : 400)
-      );
-
-      const [fetchedItem] = await Promise.all([fetchPromise, minAnimPromise]);
-      liveItem = fetchedItem;
-
+      const [liveItem] = await Promise.all([fetchPromise]);
       const totalElapsedMs = Math.round(performance.now() - t0);
-      let finalItem = liveItem || strictMatchedItem;
-      if (!finalItem) {
-        finalItem = buildClientFallbackLiveBenchItem(questionText, totalElapsedMs);
-      } else {
-        finalItem = JSON.parse(JSON.stringify(finalItem));
-        finalItem.adk_live_meta = Object.assign({}, finalItem.adk_live_meta || {}, {
-          executed_at:
-            (finalItem.adk_live_meta && finalItem.adk_live_meta.executed_at) ||
-            new Date().toISOString().replace(/\.\d+Z$/, "Z"),
-          model: "gemini-3.8-flash",
-          elapsed_ms: (finalItem.adk_live_meta && finalItem.adk_live_meta.elapsed_ms) || totalElapsedMs
-        });
+
+      if (!liveItem) {
+        const errHtml = `<div class="msg-agent-bubble blocked-bubble" style="padding:14px 16px; color:#c5221f; font-size:12.5px;">
+          <strong>Google ADK Live Runner Error:</strong> ${escapeHtml(liveError || "Unknown error")}
+        </div>`;
+        ragLoadingRow.innerHTML = errHtml;
+        graphLoadingRow.innerHTML = errHtml;
+        return;
       }
+
+      const finalItem = JSON.parse(JSON.stringify(liveItem));
+      finalItem.adk_live_meta = Object.assign({}, finalItem.adk_live_meta || {}, {
+        executed_at:
+          (finalItem.adk_live_meta && finalItem.adk_live_meta.executed_at) ||
+          new Date().toISOString().replace(/\.\d+Z$/, "Z"),
+        model: "gemini-3.8-flash",
+        elapsed_ms: (finalItem.adk_live_meta && finalItem.adk_live_meta.elapsed_ms) || totalElapsedMs
+      });
 
       ragLoadingRow.innerHTML = buildBenchArmTurnBubbleHtml(finalItem, "rag");
       graphLoadingRow.innerHTML = buildBenchArmTurnBubbleHtml(finalItem, "graphrag");
