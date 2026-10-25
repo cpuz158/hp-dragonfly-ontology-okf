@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <title>HP Dragonfly 온톨로지 &amp; OKF v0.2 스튜디오 (한국어 버전)</title>
+  <script>
+    window.INITIAL_STUDIO_LANG = "ko";
+    try { localStorage.setItem("hp_studio_lang", "ko"); } catch (e) {}
+  </script>
+
+  <!-- Google Fonts & Material Symbols -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+
+  <!-- Core Visualization Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+  <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+  <script>
+    if (window.mermaid) {
+      window.mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "loose" });
+    }
+  </script>
+
+  <!-- Google Cloud Console Enterprise Stylesheet -->
+  <link rel="stylesheet" href="css/gcp-console.css" />
+</head>
+<body>
+  <header class="gcp-header">
+    <div class="gcp-header-brand">
+      <div class="gcp-header-logo" title="Google Cloud Dataplex &amp; BigQuery Ontology">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
+          <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" stroke="#1a73e8" stroke-width="1.8" fill="rgba(26,115,232,0.1)"/>
+          <circle cx="12" cy="12" r="3" fill="#1a73e8"/>
+        </svg>
+      </div>
+      <span id="studio-app-title" class="gcp-header-title">HP Dragonfly 온톨로지 &amp; OKF v0.2 스튜디오</span>
+      <span id="studio-header-badge" class="gcp-header-badge">OKF v0.2 · 영문 데이터셋 (KO/EN UI)</span>
+    </div>
+
+    <div class="gcp-project-selector" title="GCP Project: hp-dragonfly / Dataset: prj_ontology_hp_dragonfly">
+      <span class="material-symbols-outlined">database</span>
+      <span>hp-dragonfly · prj-ontology-hp-dragonfly</span>
+    </div>
+
+    <div class="gcp-header-spacer"></div>
+
+    <div class="gcp-header-actions" style="display:flex; align-items:center; gap:10px;">
+      <div class="lang-switch-group" role="group" aria-label="Language Switcher">
+        <button id="btn-lang-ko" class="lang-btn active" onclick="setStudioLang('ko')">
+          <span>🇰🇷 한국어</span>
+        </button>
+        <button id="btn-lang-en" class="lang-btn" onclick="setStudioLang('en')">
+          <span>🇺🇸 English</span>
+        </button>
+      </div>
+
+      <a href="index-ko.html" class="gcp-btn gcp-btn-primary gcp-btn-sm" style="text-decoration:none; font-size:11px;">/ko</a>
+      <a href="index-en.html" class="gcp-btn gcp-btn-default gcp-btn-sm" style="text-decoration:none; font-size:11px;">/en</a>
+
+      <button class="gcp-icon-btn" onclick="toggleStudioTheme()" title="Toggle Light / Dark Mode">
+        <span id="theme-toggle-icon" class="material-symbols-outlined">dark_mode</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="gcp-shell">
+    <nav class="gcp-icon-rail" aria-label="Ontology Studio Modules">
+      <button id="rail-btn-mod01" class="gcp-rail-btn active" onclick="selectModule('mod01')" data-tip="01 · Intro">
+        <span class="material-symbols-outlined">architecture</span>
+        <span class="rail-num">01</span>
+      </button>
+      <button id="rail-btn-mod02" class="gcp-rail-btn" onclick="selectModule('mod02')" data-tip="02 · OKF Validation">
+        <span class="material-symbols-outlined">verified</span>
+        <span class="rail-num">02</span>
+      </button>
+      <button id="rail-btn-mod03" class="gcp-rail-btn" onclick="selectModule('mod03')" data-tip="03 · OKF &amp; kcmd">
+        <span class="material-symbols-outlined">cloud_sync</span>
+        <span class="rail-num">03</span>
+      </button>
+      <div class="gcp-rail-divider"></div>
+      <button id="rail-btn-mod04" class="gcp-rail-btn" onclick="selectModule('mod04')" data-tip="04 · BigQuery &amp; GQL">
+        <span class="material-symbols-outlined">hub</span>
+        <span class="rail-num">04</span>
+      </button>
+      <button id="rail-btn-mod05" class="gcp-rail-btn" onclick="selectModule('mod05')" data-tip="05 · Roadmap">
+        <span class="material-symbols-outlined">rocket_launch</span>
+        <span class="rail-num">05</span>
+      </button>
+    </nav>
+
+    <div class="gcp-main">
+      <div class="gcp-sub-bar">
+        <div id="sub-bar-title" class="gcp-sub-bar-title">01 · HP Dragonfly 온톨로지 레이어 아키텍처 &amp; 파이프라인</div>
+        <div id="sub-bar-tabs" class="gcp-sub-tabs"></div>
+      </div>
+      <main id="studio-viewport" class="gcp-viewport"></main>
+    </div>
+  </div>
+
+  <script src="data/studio_bundle.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
