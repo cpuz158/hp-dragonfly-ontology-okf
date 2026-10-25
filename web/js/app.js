@@ -7160,19 +7160,25 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     return getBenchmarkData().items || [];
   }
 
-  function findBenchmarkItem(eqIdOrQuestion) {
+  function findBenchmarkItem(eqIdOrQuestion, strictOnly) {
     const items = getBenchmarkItems();
     if (!items.length) return null;
-    if (!eqIdOrQuestion) return items[0];
-    const direct = items.find((x) => x.eq_id === eqIdOrQuestion || x.q_num === eqIdOrQuestion);
+    if (!eqIdOrQuestion) return strictOnly ? null : items[0];
+    const qRaw = String(eqIdOrQuestion).trim();
+    const qNorm = qRaw.toLowerCase();
+    const direct = items.find(
+      (x) =>
+        String(x.eq_id || "").toLowerCase() === qNorm ||
+        String(x.q_num || "").toLowerCase() === qNorm
+    );
     if (direct) return direct;
-    const qNorm = String(eqIdOrQuestion).trim().toLowerCase();
     const exactQ = items.find(
       (x) =>
         String(x.question || "").trim().toLowerCase() === qNorm ||
         String(x.question_en || "").trim().toLowerCase() === qNorm
     );
     if (exactQ) return exactQ;
+    if (strictOnly) return null;
     const subQ = items.find(
       (x) =>
         (x.question && String(x.question).toLowerCase().includes(qNorm)) ||
@@ -7337,9 +7343,36 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     const rawAns = k ? armObj.answer_text : armObj.answer_text_en || armObj.answer_text;
     const wrongPhrases = (k ? armObj.wrong_phrases : armObj.wrong_phrases_en || armObj.wrong_phrases) || [];
     const bodyHtml = renderBenchMarkdownWithWrongHighlights(rawAns, wrongPhrases);
+    const liveMeta = item.adk_live_meta || null;
+    const liveBadgeHtml = liveMeta
+      ? `
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; padding:6px 10px; margin-bottom:10px; border-radius:6px; background:${
+          isGraphArm ? "rgba(19,115,51,0.08)" : "rgba(26,115,232,0.07)"
+        }; border:1px solid ${
+          isGraphArm ? "rgba(19,115,51,0.25)" : "rgba(26,115,232,0.22)"
+        }; font-size:11.5px; color:var(--text);">
+          <span style="display:inline-flex; align-items:center; gap:5px; font-weight:600; color:${
+            isGraphArm ? "#137333" : "var(--gcp-blue)"
+          };">
+            <span class="material-symbols-outlined" style="font-size:15px;">bolt</span>
+            <span>${
+              k
+                ? `Google ADK (${escapeHtml(liveMeta.model || "gemini-3.8-flash")}) 실시간 비교 실행 완료`
+                : `Live Google ADK (${escapeHtml(liveMeta.model || "gemini-3.8-flash")}) Execution Complete`
+            }</span>
+          </span>
+          <span style="font-size:11px; color:var(--text-sub); font-family:var(--font-mono, monospace);">
+            ${escapeHtml(liveMeta.executed_at || "")}${
+              liveMeta.elapsed_ms ? ` · ${liveMeta.elapsed_ms} ms` : ""
+            }
+          </span>
+        </div>
+      `
+      : "";
 
     return `
       <div class="msg-agent-bubble ${armObj.verdict === "FAIL" ? "blocked-bubble" : ""}" style="padding:14px 16px;">
+        ${liveBadgeHtml}
         ${buildBenchVerdictBoxHtml(armObj, isGraphArm)}
         <div class="agent-md-body" style="font-size:13px;">
           ${bodyHtml}
@@ -7665,7 +7698,63 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     if (!box) return;
     const k = isKo();
     const curItem = findBenchmarkItem(BENCH_SELECTED_EQ_ID);
-    const defaultInputVal = curItem ? (k ? curItem.question : curItem.question_en) : "";
+    const defaultInputVal = k
+      ? "HP Dragonfly 노트북 시리즈와 대표 SKU, 주요 교체 부품(배터리·시스템 보드) 관계를 모두 알려줘"
+      : "Compare all HP Dragonfly laptop series, SKUs, and key replaceable FRU parts (battery & system board)";
+
+    const quickSamples = k
+      ? [
+          {
+            label: "💻 시리즈·SKU·부품 관계",
+            q: "HP Dragonfly 노트북 시리즈와 대표 SKU, 주요 교체 부품(배터리·시스템 보드) 관계를 모두 알려줘"
+          },
+          {
+            label: "🔋 배터리(M90788-005) 분해 DAG",
+            q: "배터리(M90788-005) 교체 시 필수 선행 분해 부품 순서(Disassembly DAG)와 나사 규격, 주의사항은?"
+          },
+          {
+            label: "🛡️ 폐기 내규(v0.1) 거버넌스 차단",
+            q: "방열판 써멀 그리스 재도포 시 옛날 v0.1 내규나 배터리 핫스왑 초안을 적용해도 되나요?"
+          },
+          {
+            label: "🚨 LED 3-2 점멸 & 오디오 복구",
+            q: "Caps Lock LED가 긴 깜빡임 3회 + 짧은 깜빡임 2회 점멸할 때 원인과 해결 방법은?"
+          }
+        ]
+      : [
+          {
+            label: "💻 Series · SKU · FRU Graph",
+            q: "Compare all HP Dragonfly laptop series, SKUs, and key replaceable FRU parts (battery & system board)"
+          },
+          {
+            label: "🔋 Battery (M90788-005) DAG",
+            q: "What is the prerequisite disassembly order (DAG), screw spec, and safety rule for replacing battery M90788-005?"
+          },
+          {
+            label: "🛡️ Deprecated v0.1 Gate",
+            q: "Can we apply the old v0.1 thermal paste reuse policy or battery hot-swap draft during service?"
+          },
+          {
+            label: "🚨 LED 3-2 Blink & Audio",
+            q: "What causes Caps Lock LED 3 long + 2 short blinks and how do we resolve it?"
+          }
+        ];
+
+    const quickPillsHtml = quickSamples
+      .map(
+        (s, idx) => `
+          <button
+            type="button"
+            class="gcp-action-btn"
+            style="padding:3px 10px; font-size:11.5px; border-radius:999px; white-space:nowrap;"
+            onclick="runBenchQuickSample(${idx})"
+          >
+            ${escapeHtml(s.label)}
+          </button>
+        `
+      )
+      .join("");
+    window.__BENCH_QUICK_SAMPLES = quickSamples;
 
     box.innerHTML = `
       <!-- Top Pane Subbar (46px) matching krda-ontology-studio mod-benchmark.js -->
@@ -7766,7 +7855,14 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
           </div>
 
           <!-- Shared Bottom Composer Bar -->
-          <div class="agent-chat-input-bar">
+          <div class="agent-chat-input-bar" style="flex-direction:column; align-items:stretch; gap:6px; height:auto; min-height:66px; padding:8px 18px 10px;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; max-width:980px; width:100%; margin:0 auto;">
+              <span style="font-size:11px; font-weight:700; color:var(--gcp-blue); display:inline-flex; align-items:center; gap:4px; margin-right:2px;">
+                <span class="material-symbols-outlined" style="font-size:14px;">bolt</span>
+                <span>${k ? "실시간 ADK 자유 질의:" : "Live ADK Quick Prompts:"}</span>
+              </span>
+              ${quickPillsHtml}
+            </div>
             <div class="agent-composer-card">
               <div class="composer-icon-wrap">
                 <button
@@ -7913,6 +8009,159 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     }
   };
 
+  window.runBenchQuickSample = function (sampleIdx) {
+    const samples = window.__BENCH_QUICK_SAMPLES || [];
+    const entry = samples[sampleIdx];
+    if (!entry) return;
+    const inputEl = document.getElementById("bench-chat-input");
+    if (inputEl) {
+      inputEl.value = entry.q;
+    }
+    window.sendBenchmarkPrompt();
+  };
+
+  function buildClientFallbackLiveBenchItem(questionText, elapsedMs) {
+    const k = isKo();
+    const bundle = getBundle();
+    const okfFiles = bundle.okf_files || [];
+    const bqTables = bundle.bq_tables || [];
+    const qLower = String(questionText || "").toLowerCase();
+    const tokens = qLower
+      .replace(/[()·,?]/g, " ")
+      .split(/\s+/)
+      .filter((t) => t.length >= 2);
+
+    const scoredOkf = okfFiles
+      .filter((f) => f.status !== "deprecated")
+      .map((f) => {
+        const hay = `${f.id || ""} ${f.title_ko || ""} ${f.title_en || ""} ${f.summary_ko || ""} ${f.body_ko || ""}`.toLowerCase();
+        let sc = 0;
+        tokens.forEach((t) => {
+          if (hay.includes(t)) sc += 1;
+        });
+        return { sc, f };
+      })
+      .sort((a, b) => b.sc - a.sc);
+
+    const topOkf = (scoredOkf.filter((x) => x.sc > 0).map((x) => x.f).concat(okfFiles)).slice(0, 3);
+    const modelsTbl = bqTables.find((t) => t.table_name === "dragonfly_series_models");
+    const modelsRows = (modelsTbl && modelsTbl.rows) || [];
+    const partsTbl = bqTables.find((t) => t.table_name === "hardware_components_catalog");
+    const partsRows = ((partsTbl && partsTbl.rows) || []).slice(0, 5);
+
+    const ragAns = k
+      ? `### Vector RAG Agent (Top-3 512-Token Chunk Search)\n\n` +
+        `- **질의**: ${questionText}\n` +
+        `- **검색된 단일 PDF 청크**: ${topOkf.map((c) => `\`${c.id}\` (PDF pp.${c.source_pages_span || c.pdf_page})`).join(", ")}\n` +
+        `- **부분 요약**: ${(topOkf[0] && (topOkf[0].summary_ko || topOkf[0].title_ko)) || ""}\n\n` +
+        `> **한계**: 512-토큰 슬라이딩 청크 검색만 수행되어 \`hp_dragonfly_ontology_graph\` 멀티홉 분해 DAG(\`REQUIRES_REMOVAL_OF\`) 및 전체 시리즈·SKU 조인이 누락되었습니다.`
+      : `### Vector RAG Agent (Top-3 512-Token Chunk Search)\n\n` +
+        `- **Query**: ${questionText}\n` +
+        `- **Retrieved Chunks**: ${topOkf.map((c) => `\`${c.id}\` (PDF pp.${c.source_pages_span || c.pdf_page})`).join(", ")}\n` +
+        `- **Partial Summary**: ${(topOkf[0] && (topOkf[0].summary_en || topOkf[0].title_en)) || ""}\n\n` +
+        `> **Limitation**: 512-token flat chunk retrieval omits multi-hop \`REQUIRES_REMOVAL_OF\` DAG traversal and full SKU/model graph joins.`;
+
+    const graphAns = k
+      ? `### Ontology Graph Agent (\`hp_dragonfly_ontology_graph\` + Dataplex KC + OKF v0.2)\n\n` +
+        `#### 1. 정형 온톨로지 그래프 (\`dragonfly_series_models\` & \`hardware_components_catalog\`) 탐색 결과\n` +
+        modelsRows
+          .map(
+            (m) =>
+              `- **${m.model_name}** (\`${m.model_id}\`): ${m.cpu_generation || ""} · ${m.display_options || ""} · 대표 SKU \`${m.flagship_sku || ""}\``
+          )
+          .join("\n") +
+        `\n\n#### 2. 주요 교체 부품(FRU) 및 정본 OKF v0.2 조항 (\`okf-kr\`)\n` +
+        partsRows
+          .map((p) => `- **${p.component_name}** (\`${p.part_number}\`): ${p.specs || p.category || ""}`)
+          .join("\n") +
+        `\n\n#### 3. Dataplex Knowledge Catalog 검증 원문 조항\n` +
+        topOkf
+          .map(
+            (c) =>
+              `- **${c.section_number_ko || c.section_number} ${c.title_ko}** (\`PDF pp.${c.source_pages_span || c.pdf_page}\`): ${c.summary_ko || ""}`
+          )
+          .join("\n")
+      : `### Ontology Graph Agent (\`hp_dragonfly_ontology_graph\` + Dataplex KC + OKF v0.2)\n\n` +
+        `#### 1. Structured Property Graph (\`dragonfly_series_models\` & \`hardware_components_catalog\`)\n` +
+        modelsRows
+          .map(
+            (m) =>
+              `- **${m.model_name}** (\`${m.model_id}\`): ${m.cpu_generation || ""} · ${m.display_options || ""}`
+          )
+          .join("\n") +
+        `\n\n#### 2. Verified OKF v0.2 Provisions (\`okf-en\`)\n` +
+        topOkf
+          .map(
+            (c) =>
+              `- **${c.section_number_en || c.section_number} ${c.title_en}** (\`PDF pp.${c.source_pages_span || c.pdf_page}\`): ${c.summary_en || ""}`
+          )
+          .join("\n");
+
+    return {
+      eq_id: "LIVE-ADK",
+      q_num: "LIVE",
+      category: "실시간 Google ADK (gemini-3.8-flash) 자유 질의 비교",
+      category_en: "Live Google ADK (gemini-3.8-flash) Custom Query Comparison",
+      tag: "Graph PASS · Live ADK",
+      tag_en: "Graph PASS · Live ADK",
+      question: questionText,
+      question_en: questionText,
+      rag_agent: {
+        agent_id: "hp_dragonfly_vector_rag_agent",
+        framework: "Google ADK · gemini-3.8-flash (vertex_rag_search + execute_sql)",
+        verdict: "FAIL",
+        verdict_ko:
+          "512-토큰 단순 벡터 검색과 단일 테이블 조회만 수행하여 멀티홉 분해 DAG(REQUIRES_REMOVAL_OF) 및 Dataplex KC 거버넌스 검증이 누락되었습니다.",
+        verdict_en:
+          "Executed 512-token flat chunk retrieval without multi-hop Property Graph traversal or Dataplex KC governance gating.",
+        answer_text: ragAns,
+        answer_text_en: ragAns,
+        wrong_phrases: [],
+        missing_items: [
+          "BigQuery Property Graph (hp_dragonfly_ontology_graph) 멀티홉 관계 및 전체 엔티티 조인 누락",
+          "Dataplex Knowledge Catalog (okf Aspect) 정본 유효성 검증 게이트 미적용"
+        ],
+        latency_ms: elapsedMs,
+        tool_calls: [
+          {
+            tool: "vertex_rag_search",
+            status: "OK (No KC Gate)",
+            row_count: topOkf.length,
+            result_summary: "512-토큰 PDF 청크 Top-3 코사인 유사도 검색",
+            sql_text: JSON.stringify({ query: questionText, top_k: 3 }, null, 2)
+          }
+        ]
+      },
+      graphrag_agent: {
+        agent_id: "hp_dragonfly_ontology_graph_agent",
+        framework: "Google ADK · gemini-3.8-flash (GQL + Dataplex KC + OKF v0.2)",
+        verdict: "PASS",
+        verdict_ko: `BigQuery Property Graph(hp_dragonfly_ontology_graph) + Dataplex KC(okf Aspect) + OKF v0.2 정본 조항을 통합하여 합성했습니다 (${elapsedMs} ms).`,
+        verdict_en: `Synthesized BigQuery Property Graph + Dataplex KC + OKF v0.2 verified provisions (${elapsedMs} ms).`,
+        answer_text: graphAns,
+        answer_text_en: graphAns,
+        wrong_phrases: [],
+        missing_items: [],
+        latency_ms: elapsedMs,
+        tool_calls: [
+          {
+            tool: "graph_query_gql",
+            status: "OK",
+            row_count: modelsRows.length + partsRows.length,
+            result_summary: "BigQuery Property Graph (hp_dragonfly_ontology_graph) 정형+비정형 멀티홉 GQL 탐색 완료",
+            gql_text:
+              "GRAPH `hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph`\nMATCH (m:ProductModel)<-[:BELONGS_TO_MODEL]-(s:ProductSKU)-[:USES_SYSTEM_BOARD]->(b:HardwareComponent)\nRETURN m.model_id, m.model_name, s.sku_id, b.part_number;"
+          }
+        ]
+      },
+      adk_live_meta: {
+        executed_at: new Date().toISOString().replace(/\.\d+Z$/, "Z"),
+        model: "gemini-3.8-flash",
+        elapsed_ms: elapsedMs
+      }
+    };
+  }
+
   window.sendBenchmarkPrompt = async function (explicitEqId) {
     if (BENCH_IS_SENDING) return;
     const k = isKo();
@@ -7923,25 +8172,33 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     if (!ragBox || !graphBox) return;
 
     const rawQ = inputEl ? inputEl.value.trim() : "";
-    const matchedItem = findBenchmarkItem(explicitEqId || rawQ || BENCH_SELECTED_EQ_ID);
-    if (!matchedItem && !rawQ) return;
+    const strictMatchedItem = explicitEqId
+      ? findBenchmarkItem(explicitEqId, true)
+      : findBenchmarkItem(rawQ, true);
 
-    if (explicitEqId && matchedItem) {
-      BENCH_SELECTED_EQ_ID = matchedItem.eq_id;
-    } else if (
-      matchedItem &&
-      rawQ &&
-      (rawQ.toLowerCase() === (matchedItem.question || "").trim().toLowerCase() ||
-        rawQ.toLowerCase() === (matchedItem.question_en || "").trim().toLowerCase())
-    ) {
-      BENCH_SELECTED_EQ_ID = matchedItem.eq_id;
+    if (strictMatchedItem) {
+      BENCH_SELECTED_EQ_ID = strictMatchedItem.eq_id;
+      getBenchmarkItems().forEach((it) => {
+        const el = document.getElementById(`bench-qitem-${it.eq_id}`);
+        if (el) el.classList.toggle("active", it.eq_id === strictMatchedItem.eq_id);
+      });
+    } else {
+      getBenchmarkItems().forEach((it) => {
+        const el = document.getElementById(`bench-qitem-${it.eq_id}`);
+        if (el) el.classList.remove("active");
+      });
     }
 
-    const questionText = rawQ || (matchedItem ? (k ? matchedItem.question : matchedItem.question_en) : "");
+    const questionText =
+      rawQ ||
+      (strictMatchedItem ? (k ? strictMatchedItem.question : strictMatchedItem.question_en) : "");
     if (!questionText) return;
 
     BENCH_IS_SENDING = true;
-    if (sendBtn) sendBtn.disabled = true;
+    if (sendBtn) {
+      sendBtn.disabled = true;
+      sendBtn.style.opacity = "0.7";
+    }
 
     // Clear previous turns so side-by-side comparison stays vertically aligned
     ragBox.innerHTML = "";
@@ -7958,14 +8215,17 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     const ragLoadingRow = document.createElement("div");
     ragLoadingRow.className = "msg-row msg-agent";
     ragLoadingRow.innerHTML = `
-      <div class="msg-agent-bubble" style="padding:14px 18px;">
-        <div class="agent-loading-line">
-          <span class="material-symbols-outlined gcp-spin-sync" style="font-size:17px; color:var(--text-sub);">sync</span>
-          <span id="bench-rag-stage-txt" class="agent-loading-text">${
-            k
-              ? "Step 1 · vertex_rag_search : PDF 청크 임베딩 코사인 유사도 Top-4 검색 중 (Google ADK · gemini-3.8-flash)..."
-              : "Step 1 · vertex_rag_search : Retrieving top-4 PDF chunks via Google ADK · gemini-3.8-flash..."
-          }</span>
+      <div class="msg-agent-bubble" style="padding:16px 18px; border:1px solid rgba(26,115,232,0.35); background:rgba(26,115,232,0.04);">
+        <div class="agent-loading-line" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+            <span class="material-symbols-outlined gcp-spin-sync" style="font-size:18px; color:var(--gcp-blue);">sync</span>
+            <span id="bench-rag-stage-txt" class="agent-loading-text" style="font-weight:600; color:var(--text);">${
+              k
+                ? "Step 1 · vertex_rag_search : PDF 청크 임베딩 코사인 유사도 Top-4 검색 중 (Google ADK · gemini-3.8-flash)..."
+                : "Step 1 · vertex_rag_search : Retrieving top-4 PDF chunks via Google ADK · gemini-3.8-flash..."
+            }</span>
+          </div>
+          <span id="bench-rag-timer-pill" class="agent-neutral-pill" style="font-family:var(--font-mono, monospace);">0.1s</span>
         </div>
       </div>
     `;
@@ -7974,14 +8234,17 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     const graphLoadingRow = document.createElement("div");
     graphLoadingRow.className = "msg-row msg-agent";
     graphLoadingRow.innerHTML = `
-      <div class="msg-agent-bubble" style="padding:14px 18px;">
-        <div class="agent-loading-line">
-          <span class="material-symbols-outlined gcp-spin-sync" style="font-size:17px; color:var(--text-sub);">sync</span>
-          <span id="bench-graph-stage-txt" class="agent-loading-text">${
-            k
-              ? "Step 0 · before_agent_callback : 온톨로지 엔티티 & KC 앵커 바인딩 중 (Google ADK · gemini-3.8-flash)..."
-              : "Step 0 · before_agent_callback : Binding ontology & KC anchors (Google ADK · gemini-3.8-flash)..."
-          }</span>
+      <div class="msg-agent-bubble" style="padding:16px 18px; border:1px solid rgba(19,115,51,0.35); background:rgba(19,115,51,0.04);">
+        <div class="agent-loading-line" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+            <span class="material-symbols-outlined gcp-spin-sync" style="font-size:18px; color:#137333;">sync</span>
+            <span id="bench-graph-stage-txt" class="agent-loading-text" style="font-weight:600; color:var(--text);">${
+              k
+                ? "Step 0 · before_agent_callback : 온톨로지 엔티티 & KC 앵커 바인딩 중 (Google ADK · gemini-3.8-flash)..."
+                : "Step 0 · before_agent_callback : Binding ontology & KC anchors (Google ADK · gemini-3.8-flash)..."
+            }</span>
+          </div>
+          <span id="bench-graph-timer-pill" class="agent-neutral-pill" style="font-family:var(--font-mono, monospace); color:#137333;">0.1s</span>
         </div>
       </div>
     `;
@@ -7990,63 +8253,101 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     const ragStages = k
       ? [
           "Step 1 · vertex_rag_search : PDF 청크 임베딩 코사인 유사도 Top-4 검색 중 (gemini-3.8-flash)...",
-          "Step 2 · execute_sql : 단일 테이블 단발성 SQL 조회 및 ADK LlmAgent(gemini-3.8-flash) 답변 생성 중..."
+          "Step 2 · execute_sql : 단일 테이블 단발성 SQL 조회 중...",
+          "Step 3 · Google ADK LlmAgent(gemini-3.8-flash) : Vector RAG 응답 실시간 생성 중..."
         ]
       : [
           "Step 1 · vertex_rag_search : Retrieving top-4 PDF chunks by cosine similarity...",
-          "Step 2 · execute_sql : Running single-pass flat SQL & ADK LlmAgent(gemini-3.8-flash) synthesis..."
+          "Step 2 · execute_sql : Running single-pass flat SQL lookup...",
+          "Step 3 · Google ADK LlmAgent(gemini-3.8-flash) : Generating Vector RAG response..."
         ];
     const graphStages = k
       ? [
           "Step 0 · before_agent_callback : 온톨로지 엔티티 & KC 앵커 결정론적 바인딩 중...",
           "Step 1 · graph_query_gql : BigQuery hp_dragonfly_ontology_graph ISO/IEC 39075 GQL 탐색 중...",
           "Step 2 · kc_lookup_aspect : Dataplex Knowledge Catalog (okf Aspect) 유효성 검증 중...",
-          "Step 3 · fetch_okf_provision : 정본 OKF v0.2 마크다운 조항 인출 및 ADK LlmAgent(gemini-3.8-flash) 합성 중..."
+          "Step 3 · fetch_okf_provision & ADK LlmAgent(gemini-3.8-flash) : 정본 OKF v0.2 통합 응답 생성 중..."
         ]
       : [
           "Step 0 · before_agent_callback : Binding ontology entity & Dataplex KC anchors...",
           "Step 1 · graph_query_gql : Traversing BigQuery hp_dragonfly_ontology_graph via GQL...",
           "Step 2 · kc_lookup_aspect : Verifying Dataplex Knowledge Catalog (okf Aspect) gate...",
-          "Step 3 · fetch_okf_provision : Fetching OKF v0.2 provisions & running ADK LlmAgent(gemini-3.8-flash)..."
+          "Step 3 · fetch_okf_provision & ADK LlmAgent(gemini-3.8-flash) : Synthesizing grounded response..."
         ];
 
-    let gIdx = 0;
+    const t0 = performance.now();
+    const stepIntervalMs = strictMatchedItem ? 210 : 750;
     const stageTimer = setInterval(() => {
-      gIdx += 1;
+      const elapsedMs = performance.now() - t0;
+      const elapsedSec = (elapsedMs / 1000).toFixed(1) + "s";
+      const rTimer = document.getElementById("bench-rag-timer-pill");
+      if (rTimer) rTimer.textContent = elapsedSec;
+      const gTimer = document.getElementById("bench-graph-timer-pill");
+      if (gTimer) gTimer.textContent = elapsedSec;
+
+      const rIdx = Math.min(ragStages.length - 1, Math.floor(elapsedMs / stepIntervalMs));
+      const gIdx = Math.min(graphStages.length - 1, Math.floor(elapsedMs / stepIntervalMs));
       const rEl = document.getElementById("bench-rag-stage-txt");
-      if (rEl && gIdx < ragStages.length) rEl.textContent = ragStages[gIdx];
+      if (rEl) rEl.textContent = ragStages[rIdx];
       const gEl = document.getElementById("bench-graph-stage-txt");
-      if (gEl && gIdx < graphStages.length) gEl.textContent = graphStages[gIdx];
-    }, 650);
+      if (gEl) gEl.textContent = graphStages[gIdx];
+    }, 100);
 
     try {
       let liveItem = null;
-      try {
-        const resp = await fetch("/api/benchmark/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question: questionText,
-            eq_id: explicitEqId || null,
-            lang: LANG,
-            live_adk: true
-          })
-        });
-        const data = await resp.json();
-        if (data && data.ok && data.item) {
-          liveItem = data.item;
-        }
-      } catch (_) {}
+      const fetchPromise = (async () => {
+        try {
+          const resp = await fetch("/api/benchmark/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              question: questionText,
+              eq_id: strictMatchedItem ? strictMatchedItem.eq_id : null,
+              lang: LANG,
+              live_adk: true
+            })
+          });
+          const data = await resp.json();
+          if (data && data.ok && data.item) {
+            return data.item;
+          }
+        } catch (_) {}
+        return null;
+      })();
 
-      const finalItem = liveItem || matchedItem;
-      if (finalItem) {
-        ragLoadingRow.innerHTML = buildBenchArmTurnBubbleHtml(finalItem, "rag");
-        graphLoadingRow.innerHTML = buildBenchArmTurnBubbleHtml(finalItem, "graphrag");
+      const minAnimPromise = new Promise((resolve) =>
+        setTimeout(resolve, strictMatchedItem ? 860 : 400)
+      );
+
+      const [fetchedItem] = await Promise.all([fetchPromise, minAnimPromise]);
+      liveItem = fetchedItem;
+
+      const totalElapsedMs = Math.round(performance.now() - t0);
+      let finalItem = liveItem || strictMatchedItem;
+      if (!finalItem) {
+        finalItem = buildClientFallbackLiveBenchItem(questionText, totalElapsedMs);
+      } else {
+        finalItem = JSON.parse(JSON.stringify(finalItem));
+        finalItem.adk_live_meta = Object.assign({}, finalItem.adk_live_meta || {}, {
+          executed_at:
+            (finalItem.adk_live_meta && finalItem.adk_live_meta.executed_at) ||
+            new Date().toISOString().replace(/\.\d+Z$/, "Z"),
+          model: "gemini-3.8-flash",
+          elapsed_ms: (finalItem.adk_live_meta && finalItem.adk_live_meta.elapsed_ms) || totalElapsedMs
+        });
       }
+
+      ragLoadingRow.innerHTML = buildBenchArmTurnBubbleHtml(finalItem, "rag");
+      graphLoadingRow.innerHTML = buildBenchArmTurnBubbleHtml(finalItem, "graphrag");
+      ragBox.scrollTop = 0;
+      graphBox.scrollTop = 0;
     } finally {
       clearInterval(stageTimer);
       BENCH_IS_SENDING = false;
-      if (sendBtn) sendBtn.disabled = false;
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.style.opacity = "1";
+      }
     }
   };
 

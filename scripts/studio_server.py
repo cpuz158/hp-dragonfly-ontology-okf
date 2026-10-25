@@ -21,12 +21,25 @@ import json
 import mimetypes
 import os
 from pathlib import Path
+import socket
 from socketserver import ThreadingMixIn
 import time
 from typing import Any
 from urllib.parse import unquote, urlparse
 
 os.environ.setdefault("GOOGLE_API_USE_CLIENT_CERTIFICATE", "false")
+os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "true")
+os.environ.setdefault("GOOGLE_CLOUD_PROJECT", "hp-dragonfly")
+os.environ.setdefault("GOOGLE_CLOUD_LOCATION", "global")
+
+_orig_getaddrinfo = socket.getaddrinfo
+
+
+def _ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+  return _orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+
+
+socket.getaddrinfo = _ipv4_getaddrinfo
 
 from google.cloud import bigquery
 import sys
@@ -405,6 +418,12 @@ def main() -> None:
   parser.add_argument("--host", default="0.0.0.0")
   parser.add_argument("--port", type=int, default=8765)
   args = parser.parse_args()
+
+  try:
+    adk_live_runner._load_studio_data()
+    adk_live_runner._load_benchmark_data()
+  except Exception:
+    pass
 
   server = ThreadingHTTPServer((args.host, args.port), StudioRequestHandler)
   print(

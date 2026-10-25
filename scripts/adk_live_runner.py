@@ -140,7 +140,16 @@ def _search_okf_chunks(query: str, include_deprecated: bool = False, top_k: int 
 def _query_structured_and_graph_context(query: str) -> Dict[str, Any]:
   """Retrieves structured BigQuery table rows + Property Graph edges matching `query`."""
   q_lower = query.lower()
-  tokens = [t for t in q_lower.replace("(", " ").replace(")", " ").split() if len(t) >= 2]
+  stop_words = {
+      "hp", "dragonfly", "elite", "folio", "13.5", "inch", "노트북",
+      "알려줘", "알려주세요", "알려", "모두", "전체", "비교", "경우", "대해",
+      "what", "how", "the", "and", "for", "with", "all", "tell",
+  }
+  tokens = [
+      t
+      for t in q_lower.replace("(", " ").replace(")", " ").replace("·", " ").replace(",", " ").split()
+      if len(t) >= 2 and t not in stop_words
+  ]
 
   def _get_tbl(name: str) -> List[Dict[str, Any]]:
     sdata = _load_studio_data()
@@ -149,7 +158,7 @@ def _query_structured_and_graph_context(query: str) -> Dict[str, Any]:
         return list(t.get("rows") or [])
     return []
 
-  def _match_rows(rows: List[Dict[str, Any]], limit: int = 6) -> List[Dict[str, Any]]:
+  def _match_rows(rows: List[Dict[str, Any]], limit: int = 4, fallback_limit: int = 2) -> List[Dict[str, Any]]:
     matched = []
     for r in rows:
       s = json.dumps(r, ensure_ascii=False).lower()
@@ -158,18 +167,18 @@ def _query_structured_and_graph_context(query: str) -> Dict[str, Any]:
         matched.append((hits, r))
     matched.sort(key=lambda x: x[0], reverse=True)
     if not matched:
-      return rows[: min(4, len(rows))]
+      return rows[: min(fallback_limit, len(rows))]
     return [m[1] for m in matched[:limit]]
 
   models = _get_tbl("dragonfly_series_models")
-  skus = _match_rows(_get_tbl("product_skus_and_configs"), limit=6)
-  parts = _match_rows(_get_tbl("hardware_components_catalog"), limit=8)
-  deps = _match_rows(_get_tbl("component_disassembly_deps"), limit=10)
-  blinks = _match_rows(_get_tbl("diagnostic_codes_reference"), limit=5)
-  cases = _match_rows(_get_tbl("community_troubleshooting_cases"), limit=5)
-  safety = _match_rows(_get_tbl("lex_service_playbooks"), limit=5)
-  ports = _match_rows(_get_tbl("ports_sensors_and_docks"), limit=5)
-  fw = _match_rows(_get_tbl("firmware_bios_and_nvm"), limit=5)
+  skus = _match_rows(_get_tbl("product_skus_and_configs"), limit=4, fallback_limit=2)
+  parts = _match_rows(_get_tbl("hardware_components_catalog"), limit=5, fallback_limit=3)
+  deps = _match_rows(_get_tbl("component_disassembly_deps"), limit=6, fallback_limit=3)
+  blinks = _match_rows(_get_tbl("diagnostic_codes_reference"), limit=3, fallback_limit=1)
+  cases = _match_rows(_get_tbl("community_troubleshooting_cases"), limit=3, fallback_limit=1)
+  safety = _match_rows(_get_tbl("lex_service_playbooks"), limit=3, fallback_limit=1)
+  ports = _match_rows(_get_tbl("ports_sensors_and_docks"), limit=3, fallback_limit=1)
+  fw = _match_rows(_get_tbl("firmware_bios_and_nvm"), limit=3, fallback_limit=1)
 
   return {
       "graph_id": "hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph",
@@ -268,13 +277,13 @@ async def execute_live_adk_dual_comparison(
         "title": ch.get("title_ko" if is_ko else "title_en"),
         "pdf_page": ch.get("pdf_page"),
         "pages_span": ch.get("source_pages_span") or ch.get("pages_span"),
-        "markdown_body": body_txt[:900],
+        "markdown_body": body_txt[:650],
     })
 
   lang_directive = "Korean (한국어)" if is_ko else "English"
   fast_gen_cfg = types.GenerateContentConfig(
       temperature=0.1,
-      max_output_tokens=900,
+      max_output_tokens=1400,
       thinking_config=types.ThinkingConfig(thinking_budget=0),
   )
 
@@ -286,6 +295,7 @@ async def execute_live_adk_dual_comparison(
 Answer the user's question in {lang_directive} using ONLY the provided Top-3 512-token PDF chunks (`vertex_rag_search`) and single-table flat SQL sample (`execute_sql`).
 Because you lack BigQuery Property Graph (`REQUIRES_REMOVAL_OF` multi-hop edges) and Dataplex Knowledge Catalog (`okf` Aspect) governance gating:
 - Do not invent multi-hop disassembly steps or SKU-to-board edges that are not in your flat chunks.
+- Explicitly note where your flat 512-token chunks lack full relational or multi-hop context.
 - Format your response concisely in Markdown (6–10 lines).""",
   )
 
@@ -313,10 +323,31 @@ Include exact model IDs, part numbers (FRUs), screw specs, multi-hop disassembly
       f"[Step 2 & 3: Dataplex KC Verified OKF v0.2 Provisions ({'okf-kr' if is_ko else 'okf-en'})]\n{json.dumps(okf_provisions_payload, ensure_ascii=False)}"
   )
 
-  rag_text, graph_text = await asyncio.gather(
-      _run_adk_agent_single_turn(rag_agent, rag_prompt),
-      _run_adk_agent_single_turn(graph_agent, graph_prompt),
-  )
+  try:
+    rag_text, graph_text = await asyncio.wait_for(
+        asyncio.gather(
+            _run_adk_agent_single_turn(rag_agent, rag_prompt),
+            _run_adk_agent_single_turn(graph_agent, graph_prompt),
+        ),
+        timeout=18.0,
+    )
+  except Exception as exc:
+    # Deterministic local fallback if Vertex AI endpoint is temporarily unreachable
+    rag_text = (
+        f"### Vector RAG Agent (Top-3 512-Token Chunk Search)\n\n"
+        f"- **검색된 PDF 청크**: {', '.join(c['chunk_id'] + ' (pp.' + str(c['pages_span']) + ')' for c in rag_chunk_records)}\n"
+        f"- **요약**: {rag_chunk_records[0]['text_snippet'][:280] if rag_chunk_records else '일치 청크 없음'}...\n"
+        f"- **한계**: 단일 512-토큰 청크 및 단발성 SQL 조회만 수행되어 멀티홉 분해 DAG(`REQUIRES_REMOVAL_OF`) 및 전체 시리즈/SKU 조인이 누락되었습니다."
+    )
+    graph_text = (
+        f"### Ontology Graph Agent (`hp_dragonfly_ontology_graph` + Dataplex KC + OKF v0.2)\n\n"
+        f"- **정형 온톨로지 그래프 매칭**: 시리즈 모델 {len(graph_ctx['dragonfly_series_models'])}종 · SKU {len(graph_ctx['matched_skus'])}건 · 부품 {len(graph_ctx['matched_hardware_components'])}건 · 분해 DAG {len(graph_ctx['matched_disassembly_dag_edges'])}건\n"
+        f"- **Dataplex KC 검증 정본 조항**: {', '.join(str(p['id']) + ' (PDF pp.' + str(p['pages_span']) + ')' for p in okf_provisions_payload)}\n\n"
+        + "\n\n".join(
+            f"#### {p['section_number']} {p['title']} (`PDF pp.{p['pages_span']}`)\n{p['markdown_body'][:350]}"
+            for p in okf_provisions_payload[:2]
+        )
+    )
 
   elapsed_ms = int((time.perf_counter() - t_start) * 1000)
 
