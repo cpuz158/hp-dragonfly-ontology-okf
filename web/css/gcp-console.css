@@ -1469,24 +1469,30 @@ body.dark-mode .hl-term {
 }
 
 #graph-detail-panel {
-  width: 480px;
-  max-width: calc(100% - 24px);
+  width: 0;
+  min-width: 0;
   background: var(--surface);
-  border-left: 1px solid var(--border);
+  border-left: 0 solid var(--border);
   display: flex;
   flex-direction: column;
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  z-index: 30;
-  transform: translateX(100%);
-  transition: transform 0.22s ease;
-  box-shadow: -4px 0 16px rgba(60, 64, 67, 0.14);
+  position: relative;
+  height: 100%;
+  z-index: 20;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: width 0.2s ease, border-width 0.2s ease;
 }
 
 #graph-detail-panel.open {
-  transform: translateX(0);
+  width: 440px;
+  max-width: 46vw;
+  border-left: 1px solid var(--border);
+  box-shadow: -2px 0 10px rgba(60, 64, 67, 0.08);
+}
+
+#graph-detail-panel.open.wide {
+  width: 620px;
+  max-width: 58vw;
 }
 
 #bq-detail-drawer {

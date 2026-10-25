@@ -141,12 +141,35 @@
     setTxt("g-sidebar-title", "OKF 시맨틱 지식그래프", "OKF Knowledge Graph");
     setTxt(
       "g-sidebar-sub",
-      "노드를 클릭하면 우측 패널에 해당 OKF 문서의 YAML Frontmatter와 영문 마크다운 원문이 표시됩니다.",
-      "Click any concept node to inspect its YAML Frontmatter and English Markdown specification in the right panel."
+      "노드를 클릭하면 우측 패널에 시맨틱 엣지(Business Semantic Relations), YAML Frontmatter, 마크다운 원문이 표시됩니다.",
+      "Click any node to inspect its Business Semantic Relations, YAML Frontmatter, and English Markdown specification."
     );
+    setTxt("g-scope-label", "그래프 스코프 필터 (Graph Scope)", "Graph Scope Filter");
+    setTxt("g-search-label", "노드·부품·진단코드 검색", "Node & Entity Search");
+    setTxt("g-leg-1", "Source Document / Ontology Root (원본·데이터셋 루트)", "Source Document / Ontology Root");
+    setTxt("g-leg-2", "Chapter / Section Hub (매뉴얼 장·절 및 도메인 허브)", "Chapter / Section Hub");
+    setTxt("g-leg-3", "Standard OKF Concept & Chunk (정형 테이블·일반 조항)", "Standard OKF Concept & Rule Chunk");
+    setTxt("g-leg-4", "Safety DAG / Caveat / Playbook (분해 선행 DAG·안전 특례)", "Safety DAG / Caveat / Playbook");
+    setTxt("g-leg-5", "Core Hardware Entity & Metric (핵심 부품/코드 다이아몬드)", "Core Hardware Entity Diamond & Metric");
     setTxt("lbl-fit-graph", "화면 맞춤", "Fit Screen");
     setTxt("lbl-phys-graph", "물리엔진", "Physics");
+    setTxt("lbl-okf-g-sidebar", "좌측 패널 토글", "Toggle Left Panel");
+    setTxt("lbl-okf-g-fit2", "화면 맞춤", "Fit Screen");
+    setTxt("lbl-okf-g-phys2", "물리엔진", "Physics");
+    setTxt("lbl-okf-g-inspector", "선택 문서 인스펙터", "Document Inspector");
     setTxt("lbl-open-pdf-compare", "PDF 대조뷰로 열기", "Open 1:1 PDF View");
+    const gSearchInp = document.getElementById("graph-search-input");
+    if (gSearchInp) {
+      gSearchInp.placeholder = k
+        ? "노드·부품·점멸코드 검색 (M90788, 3.2, Sure Start, OLED)..."
+        : "Search node, part, or blink code (M90788, 3.2, Sure Start, OLED)...";
+    }
+    const gStatusR = document.getElementById("okf-graph-status-right");
+    if (gStatusR) {
+      gStatusR.textContent = k
+        ? "마우스 휠 줌 · 드래그 · 노드 클릭 시 시맨틱 엣지 및 OKF 원문 열람"
+        : "Scroll to zoom · Drag · Click any node to inspect semantic edges & OKF markdown";
+    }
 
     setTxt("bq-sidebar-title", "BigQuery Property Graph", "BigQuery Property Graph");
     const bqSub = document.getElementById("bq-sidebar-sub");
@@ -646,44 +669,792 @@
     }
   };
 
+  // =========================================================================
+  // 4.1 5-Tier OKF Constellation Graph Definitions (100% Parity with `krda-ontology-studio`)
+  //     Tier 1: Document / Ontology Roots (`#3b6ea5` / `#527a9a`, dot, size 34)
+  //     Tier 2: Major Chapters / Domain Hubs (`#6b88a8`, dot, size 22)
+  //     Tier 3: OKF Concept / Provision Nodes (`#3b735b` normal / `#a85c56` caveat-DAG / `#b88a44` governance, dot, size 15-17.5)
+  //     Tier 4: Fine-Grained Sub-Clause / Rule Chunks (`#3b735b` / `#a85c56`, dot, size 12.5)
+  //     Tier 5: Core Hardware & Diagnostic Entity Diamonds (`#b88a44`, diamond, size 12.5, dashed MENTIONS edges)
+  // =========================================================================
+  let okfGraphNodes = [];
+  let okfGraphEdges = [];
+
+  const HP_CAVEAT_CONCEPTS = new Set([
+    "tables/component_disassembly_deps",
+    "references/disassembly-prerequisite-graph-and-esd",
+    "playbooks/no-boot-bios-sure-start-recovery",
+    "playbooks/oled-camera-and-cable-replacement",
+    "computations/multi-hop-disassembly-critical-path",
+    "references/bios-nvm-and-hp-sure-start-security"
+  ]);
+
+  const HP_GOVERNANCE_CONCEPTS = new Set([
+    "tables/diagnostic_codes_reference",
+    "tables/community_troubleshooting_cases",
+    "tables/firmware_bios_and_nvm",
+    "references/post-led-blink-and-uefi-diagnostics",
+    "metrics/component-service-complexity-score",
+    "metrics/hardware-fru-replacement-rate",
+    "computations/fru-replacement-rate-by-category"
+  ]);
+
+  const HP_SEMANTIC_EDGES = [
+    {
+      fromId: "playbooks/no-boot-bios-sure-start-recovery",
+      toId: "tables/component_disassembly_deps",
+      rel: "OVERRULES_PREMATURE_FRU_SWAP",
+      color: "#a85c56",
+      reason_ko:
+        "Caps Lock 3.2/2.2 점멸 시 즉시 메인보드를 분해·교체하지 않고, 반드시 무분해 Win+B HP Sure Start 복구 및 15초 EC 리셋을 1차로 선행하도록 제어합니다.",
+      reason_en:
+        "Requires non-invasive Win+B HP Sure Start recovery and 15s EC reset prior to escalating to physical System Board disassembly."
+    },
+    {
+      fromId: "tables/component_disassembly_deps",
+      toId: "references/disassembly-prerequisite-graph-and-esd",
+      rel: "ENFORCES_700V_ESD_AND_BATTERY_DAG",
+      color: "#a85c56",
+      reason_ko:
+        "시스템 보드(M90788-601) 및 열전도 모듈 분리 전 하판 커버(N22918-001) ➔ 배터리(M90788-005) 절연 및 700V ESD 방전 절차를 강제합니다.",
+      reason_en:
+        "Enforces mandatory Bottom Cover (N22918-001) ➔ Battery (M90788-005) isolation and 700V ESD grounding before touching board components."
+    },
+    {
+      fromId: "computations/multi-hop-disassembly-critical-path",
+      toId: "tables/component_disassembly_deps",
+      rel: "TRAVERSES_PREREQ_DAG_EDGES",
+      color: "#a85c56",
+      reason_ko:
+        "BigQuery Property Graph의 REQUIRES_REMOVAL_OF 엣지(15건)를 다중 홉 탐색하여 목표 FRU 교체에 필요한 최소 분해 경로와 나사 규격(T5/PH0)을 도출합니다.",
+      reason_en:
+        "Traverses 15 REQUIRES_REMOVAL_OF edges in BigQuery Property Graph to compute deterministic multi-hop removal order and screw specs."
+    },
+    {
+      fromId: "playbooks/oled-camera-and-cable-replacement",
+      toId: "references/disassembly-prerequisite-graph-and-esd",
+      rel: "REQUIRES_STRETCH_RELEASE_PULL_TAB",
+      color: "#a85c56",
+      reason_ko:
+        "3K2K OLED 패널(N01291-001) 분리 시 지렛대 도구 사용을 금지하고 신축성 접착 풀탭(Stretch-Release Pull-Tab)을 수평 견인하도록 규정합니다.",
+      reason_en:
+        "Prohibits prying tools on 3K2K OLED panels (N01291-001); mandates horizontal traction on stretch-release adhesive pull-tabs."
+    },
+    {
+      fromId: "tables/product_skus_and_configs",
+      toId: "tables/hardware_components_catalog",
+      rel: "BINDS_SOLDERED_LPDDR5_SYSTEM_BOARD",
+      color: "#3b6ea5",
+      reason_ko:
+        "온보드 납땜(Soldered)된 LPDDR5(16GB/32GB) 및 CPU/vPro/5G 구성에 따라 12개 SKU 각각에 대응하는 단일 시스템 보드 FRU 파트 번호를 1:1 매핑합니다.",
+      reason_en:
+        "Maps each of the 12 ProductSKUs to its exact soldered CPU + LPDDR5 System Board FRU part number in HardwareComponent."
+    },
+    {
+      fromId: "tables/product_skus_and_configs",
+      toId: "tables/dragonfly_series_models",
+      rel: "BELONGS_TO_SERIES_MODEL",
+      color: "#3b6ea5",
+      reason_ko:
+        "12개 세부 노트북 SKU가 속한 상위 폼팩터 제품군(Clamshell G3 vs. Folio G3 2-in-1 Pull-Forward) 및 섀시 열설계(TDP) 규격을 연결합니다.",
+      reason_en:
+        "Links 12 configured SKUs to their parent ProductModel chassis architecture (Clamshell G3 vs. Folio G3 2-in-1)."
+    },
+    {
+      fromId: "tables/community_troubleshooting_cases",
+      toId: "tables/diagnostic_codes_reference",
+      rel: "EMITS_POST_BLINK_CODE",
+      color: "#b88a44",
+      reason_ko:
+        "현장 고장 사례(TS-DFG3-001~012)에서 관측되는 Caps Lock LED 점멸 패턴(3.2 메모리, 2.2 BIOS, 90B 팬 오류 등)을 공식 진단코드 테이블과 매핑합니다.",
+      reason_en:
+        "Connects field TroubleshootingCases (TS-DFG3-001..012) to official Caps Lock LED blink and POST diagnostic codes."
+    },
+    {
+      fromId: "tables/community_troubleshooting_cases",
+      toId: "tables/hardware_components_catalog",
+      rel: "IDENTIFIES_CULPRIT_FRU_PART",
+      color: "#3b6ea5",
+      reason_ko:
+        "각 고장 사례의 물리적 결함 원인 부품(related_part_number ➔ part_number)을 연결하여 증상에서 교체 대상 FRU까지 즉시 도달합니다.",
+      reason_en:
+        "Binds each field TroubleshootingCase to its root-cause HardwareComponent FRU via related_part_number."
+    },
+    {
+      fromId: "tables/community_troubleshooting_cases",
+      toId: "playbooks/no-boot-bios-sure-start-recovery",
+      rel: "GOVERNED_BY_RECOVERY_SOP",
+      color: "#3b735b",
+      reason_ko:
+        "부팅 불량 및 바이오스 손상 사례 해결 시 에이전트가 준수해야 할 표준 복구 플레이북(HP Sure Start Gen7)을 지정합니다.",
+      reason_en:
+        "Governs no-boot and BIOS corruption troubleshooting cases under the attested HP Sure Start Gen7 recovery playbook."
+    },
+    {
+      fromId: "tables/community_troubleshooting_cases",
+      toId: "playbooks/oled-camera-and-cable-replacement",
+      rel: "GOVERNED_BY_OLED_CAMERA_SOP",
+      color: "#3b735b",
+      reason_ko:
+        "5MP IR 카메라 프라이버시 셔터 불량 및 OLED 힌지 배선 간헐적 단선 사례에 대한 비파괴 트리아지 플레이북을 연결합니다.",
+      reason_en:
+        "Links camera shutter and OLED display cable cases to the non-destructive cable/shutter triage playbook."
+    },
+    {
+      fromId: "tables/diagnostic_codes_reference",
+      toId: "references/post-led-blink-and-uefi-diagnostics",
+      rel: "ATTESTED_IN_CH7_MANUAL",
+      color: "#b88a44",
+      reason_ko:
+        "BigQuery 진단코드 11건이 원본 서비스 매뉴얼 PDF(N17344-001 p.81~88)의 Chapter 7 표와 100% 일치함을 증명합니다.",
+      reason_en:
+        "Attests structured diagnostic_codes_reference rows against Chapter 7 (p.81-88) of the HP Service Guide PDF."
+    },
+    {
+      fromId: "tables/firmware_bios_and_nvm",
+      toId: "references/bios-nvm-and-hp-sure-start-security",
+      rel: "IMPLEMENTS_SURE_START_GEN7_NVM",
+      color: "#b88a44",
+      reason_ko:
+        "U95 시스템 BIOS와 32MB SPI Flash / 16MB 골든 이미지가 HP Sure Start Gen7 보안 감시 및 NIST SP 800-88 초기화 규격을 구현합니다.",
+      reason_en:
+        "Binds structured BIOS/NVM firmware records to HP Sure Start Gen7 hardware-enforced SPI flash protection and NIST SP 800-88 sanitization."
+    },
+    {
+      fromId: "tables/ports_sensors_and_docks",
+      toId: "references/thunderbolt-4-port-and-dock-architecture",
+      rel: "SPECIFIES_TB4_PD_AND_DSC_MATRIX",
+      color: "#3b735b",
+      reason_ko:
+        "듀얼 Thunderbolt 4 (40Gbps, 100W USB-PD 3.0) 포트와 HP Thunderbolt Dock G4 연결 시 최대 해상도(DSC 1.2 듀얼 4K@60Hz) 매트릭스를 정의합니다.",
+      reason_en:
+        "Links physical port/sensor specs to the Thunderbolt 4 100W PD charging and DisplayPort 1.4 DSC multi-monitor matrix."
+    },
+    {
+      fromId: "metrics/hardware-fru-replacement-rate",
+      toId: "computations/fru-replacement-rate-by-category",
+      rel: "CALCULATED_BY_GQL_AGGREGATION",
+      color: "#b88a44",
+      reason_ko:
+        "펌웨어·Sure Start 무출동 해결율 대비 실제 하드웨어 FRU 교체 비율 지표를 산출하는 공식 SQL/GQL 연산식을 연결합니다.",
+      reason_en:
+        "Links the Hardware FRU Replacement Rate SLA metric to its underlying BigQuery aggregation computation."
+    },
+    {
+      fromId: "metrics/component-service-complexity-score",
+      toId: "computations/multi-hop-disassembly-critical-path",
+      rel: "SCORED_BY_DAG_HOP_DEPTH",
+      color: "#b88a44",
+      reason_ko:
+        "선행 분해 단계 수(step_order 깊이), ZIF 리본 케이블 위험도, 열전도 그리스 재도포 여부를 종합하여 부품별 수리 복잡도 점수를 산출합니다.",
+      reason_en:
+        "Computes component service complexity score from prerequisite DAG hop depth, ZIF cable fragility, and thermal repaste requirements."
+    },
+    {
+      fromId: "datasets/prj_ontology_hp_dragonfly",
+      toId: "references/hp-folio-g3-service-manual-n17344",
+      rel: "BRIDGES_BQ_ONTOLOGY_TO_PDF_N17344",
+      color: "#3b6ea5",
+      reason_ko:
+        "BigQuery 정형 온톨로지 데이터셋(8개 테이블, 109행)과 109페이지 공식 영문 서비스 매뉴얼 PDF(N17344-001)를 2-Layer 하이브리드 온톨로지로 통합합니다.",
+      reason_en:
+        "Unites the 8 structured BigQuery ontology tables (109 rows) with the 109-page HP Maintenance & Service Guide PDF (N17344-001)."
+    }
+  ];
+
+  const HP_SEMANTIC_ENTITIES = [
+    {
+      id: "ENT::M90788_601",
+      name: "M90788-601\n(i7-1265U 32GB Board)",
+      matchIds: [
+        "tables/hardware_components_catalog",
+        "tables/product_skus_and_configs",
+        "tables/component_disassembly_deps",
+        "playbooks/no-boot-bios-sure-start-recovery"
+      ]
+    },
+    {
+      id: "ENT::M90788_005",
+      name: "M90788-005\n(68Wh Battery Isolation)",
+      matchIds: [
+        "tables/component_disassembly_deps",
+        "references/disassembly-prerequisite-graph-and-esd",
+        "computations/multi-hop-disassembly-critical-path"
+      ]
+    },
+    {
+      id: "ENT::N22918_001",
+      name: "N22918-001\n(Bottom Cover Torx T5)",
+      matchIds: [
+        "tables/component_disassembly_deps",
+        "tables/hardware_components_catalog",
+        "computations/multi-hop-disassembly-critical-path"
+      ]
+    },
+    {
+      id: "ENT::M90790_001",
+      name: "M90790-001\n(Vapor Chamber Heatsink)",
+      matchIds: [
+        "tables/component_disassembly_deps",
+        "tables/hardware_components_catalog",
+        "metrics/component-service-complexity-score"
+      ]
+    },
+    {
+      id: "ENT::N01291_001",
+      name: "N01291-001\n(3K2K OLED Pull-Tab)",
+      matchIds: [
+        "playbooks/oled-camera-and-cable-replacement",
+        "tables/hardware_components_catalog",
+        "references/disassembly-prerequisite-graph-and-esd"
+      ]
+    },
+    {
+      id: "ENT::N09033_001",
+      name: "N09033-001\n(Folio G3 32GB Board)",
+      matchIds: [
+        "tables/product_skus_and_configs",
+        "tables/dragonfly_series_models",
+        "references/hp-folio-g3-service-manual-n17344"
+      ]
+    },
+    {
+      id: "ENT::N08542_001",
+      name: "N08542-001\n(Intel XMM 7560R+ 5G)",
+      matchIds: [
+        "tables/product_skus_and_configs",
+        "tables/hardware_components_catalog",
+        "tables/firmware_bios_and_nvm"
+      ]
+    },
+    {
+      id: "ENT::LED_3_2",
+      name: "LED-CAPS-3-2\n(Soldered LPDDR5 Error)",
+      matchIds: [
+        "tables/diagnostic_codes_reference",
+        "references/post-led-blink-and-uefi-diagnostics",
+        "playbooks/no-boot-bios-sure-start-recovery",
+        "tables/community_troubleshooting_cases"
+      ]
+    },
+    {
+      id: "ENT::LED_2_2",
+      name: "LED-CAPS-2-2\n(Sure Start BIOS Corrupt)",
+      matchIds: [
+        "tables/diagnostic_codes_reference",
+        "references/bios-nvm-and-hp-sure-start-security",
+        "playbooks/no-boot-bios-sure-start-recovery"
+      ]
+    },
+    {
+      id: "ENT::POST_90B",
+      name: "POST-90B\n(Cooling Fan & Thermal)",
+      matchIds: [
+        "tables/diagnostic_codes_reference",
+        "tables/community_troubleshooting_cases",
+        "references/post-led-blink-and-uefi-diagnostics"
+      ]
+    },
+    {
+      id: "ENT::SURE_START_WIN_B",
+      name: "Win+B Recovery\n(HP Sure Start Gen7)",
+      matchIds: [
+        "playbooks/no-boot-bios-sure-start-recovery",
+        "references/bios-nvm-and-hp-sure-start-security",
+        "tables/firmware_bios_and_nvm",
+        "metrics/hardware-fru-replacement-rate"
+      ]
+    },
+    {
+      id: "ENT::ESD_700V_MYLAR",
+      name: "700V ESD & Mylar\n(Shielding Rule)",
+      matchIds: [
+        "references/disassembly-prerequisite-graph-and-esd",
+        "tables/component_disassembly_deps"
+      ]
+    },
+    {
+      id: "ENT::TB4_DOCK_G4",
+      name: "Thunderbolt 4\n(100W PD / DSC 1.2)",
+      matchIds: [
+        "tables/ports_sensors_and_docks",
+        "references/thunderbolt-4-port-and-dock-architecture"
+      ]
+    },
+    {
+      id: "ENT::DEP_HOTSWAP_V01",
+      name: "[DEPRECATED v0.1]\nHot-Swap Draft Blocked",
+      matchIds: [
+        "playbooks/no-boot-bios-sure-start-recovery",
+        "tables/component_disassembly_deps"
+      ]
+    }
+  ];
+
+  function getDocAndChapterHubForOkfFile(f) {
+    const id = f.id;
+    if (
+      id === "tables/component_disassembly_deps" ||
+      id === "references/disassembly-prerequisite-graph-and-esd" ||
+      id === "computations/multi-hop-disassembly-critical-path"
+    ) {
+      return {
+        docId: "DOC::N17344_001",
+        docLabel: "HP Service Guide PDF\n(N17344-001 · 109p)",
+        docColor: "#3b6ea5",
+        docProvIdx: 15,
+        partId: "PART::CH5_DAG",
+        partLabel: "Ch.5 Disassembly DAG & ESD\n(p.29~72)",
+        partProvIdx: 14
+      };
+    }
+    if (
+      id === "tables/diagnostic_codes_reference" ||
+      id === "tables/community_troubleshooting_cases" ||
+      id === "references/post-led-blink-and-uefi-diagnostics"
+    ) {
+      return {
+        docId: "DOC::N17344_001",
+        docLabel: "HP Service Guide PDF\n(N17344-001 · 109p)",
+        docColor: "#3b6ea5",
+        docProvIdx: 15,
+        partId: "PART::CH7_DIAG",
+        partLabel: "Ch.7 Blink/POST & Field Cases\n(p.63~88)",
+        partProvIdx: 17
+      };
+    }
+    if (
+      id === "tables/firmware_bios_and_nvm" ||
+      id === "references/bios-nvm-and-hp-sure-start-security"
+    ) {
+      return {
+        docId: "DOC::N17344_001",
+        docLabel: "HP Service Guide PDF\n(N17344-001 · 109p)",
+        docColor: "#3b6ea5",
+        docProvIdx: 15,
+        partId: "PART::CH6_BIOS",
+        partLabel: "Ch.6 BIOS, NVM & Sure Start\n(p.73~80)",
+        partProvIdx: 13
+      };
+    }
+    if (id.startsWith("playbooks/")) {
+      return {
+        docId: "DOC::OKF_PLAYBOOKS",
+        docLabel: "OKF v0.2 Agent Playbooks\n(SOP & Governance)",
+        docColor: "#527a9a",
+        docProvIdx: 26,
+        partId: "PART::SOP_PLAYBOOKS",
+        partLabel: "Standard Triage Playbooks\n(Sure Start & OLED SOP)",
+        partProvIdx: 26
+      };
+    }
+    if (id.startsWith("metrics/") || id.startsWith("computations/")) {
+      return {
+        docId: "DOC::OKF_PLAYBOOKS",
+        docLabel: "OKF v0.2 Agent Playbooks\n(SOP & Governance)",
+        docColor: "#527a9a",
+        docProvIdx: 26,
+        partId: "PART::METRICS_COMP",
+        partLabel: "Attested GQL & SLA Metrics\n(DAG Depth & FRU Rate)",
+        partProvIdx: 20
+      };
+    }
+    if (id === "tables/hardware_components_catalog") {
+      return {
+        docId: "DOC::BQ_ONTOLOGY",
+        docLabel: "HP Dragonfly BQ Ontology\n(prj_ontology · 8 Tables)",
+        docColor: "#3b6ea5",
+        docProvIdx: 3,
+        partId: "PART::CH3_PARTS",
+        partLabel: "Ch.3 Illustrated Spare Parts\n(38 FRU/CRU · p.17)",
+        partProvIdx: 9
+      };
+    }
+    return {
+      docId: "DOC::BQ_ONTOLOGY",
+      docLabel: "HP Dragonfly BQ Ontology\n(prj_ontology · 8 Tables)",
+      docColor: "#3b6ea5",
+      docProvIdx: 3,
+      partId: "PART::CH1_2_MODELS",
+      partLabel: "Ch.1~2 Models, SKUs & TB4\n(p.1~16)",
+      partProvIdx: 7
+    };
+  }
+
+  function buildVizStyleOkfGraphData(scope) {
+    const isDark = document.body.classList.contains("dark-mode");
+    const labelMainColor = isDark ? "#f8fafc" : "#202124";
+    const labelSubColor = isDark ? "#cbd5e1" : "#3c4043";
+    const edgeBgColor = isDark ? "#1f1f1f" : "#f8f9fa";
+    const structEdgeColor = isDark ? "#334155" : "#cbd5e1";
+
+    const nodes = [];
+    const edges = [];
+    const nodeSet = new Set();
+    const primarySet = new Set();
+    const hubSet = new Set();
+
+    const filteredFiles = OKF_FILES.filter((f) => {
+      const id = f.id;
+      if (!scope || scope === "ALL") return true;
+      if (scope === "DAG_SAFETY") {
+        return (
+          id === "tables/component_disassembly_deps" ||
+          id === "references/disassembly-prerequisite-graph-and-esd" ||
+          id === "computations/multi-hop-disassembly-critical-path" ||
+          id === "tables/hardware_components_catalog" ||
+          id === "metrics/component-service-complexity-score"
+        );
+      }
+      if (scope === "BIOS_BLINK") {
+        return (
+          id === "tables/diagnostic_codes_reference" ||
+          id === "references/post-led-blink-and-uefi-diagnostics" ||
+          id === "playbooks/no-boot-bios-sure-start-recovery" ||
+          id === "tables/firmware_bios_and_nvm" ||
+          id === "references/bios-nvm-and-hp-sure-start-security" ||
+          id === "tables/community_troubleshooting_cases"
+        );
+      }
+      if (scope === "SKU_PARTS") {
+        return (
+          id === "tables/dragonfly_series_models" ||
+          id === "tables/product_skus_and_configs" ||
+          id === "tables/hardware_components_catalog" ||
+          id === "datasets/prj_ontology_hp_dragonfly" ||
+          id === "references/hp-folio-g3-service-manual-n17344"
+        );
+      }
+      if (scope === "THERMAL_DISPLAY") {
+        return (
+          id === "playbooks/oled-camera-and-cable-replacement" ||
+          id === "tables/ports_sensors_and_docks" ||
+          id === "references/thunderbolt-4-port-and-dock-architecture" ||
+          id === "tables/community_troubleshooting_cases" ||
+          id === "metrics/hardware-fru-replacement-rate" ||
+          id === "computations/fru-replacement-rate-by-category"
+        );
+      }
+      if (scope === "CORE") {
+        return HP_CAVEAT_CONCEPTS.has(id) || HP_GOVERNANCE_CONCEPTS.has(id);
+      }
+      if (scope === "tables") return id.startsWith("tables/") || id.startsWith("datasets/");
+      if (scope === "references") return id.startsWith("references/") || id.startsWith("tables/");
+      if (scope === "playbooks") {
+        return id.startsWith("playbooks/") || id.startsWith("computations/") || id.startsWith("metrics/");
+      }
+      return true;
+    });
+
+    const idToFile = {};
+    OKF_FILES.forEach((f, idx) => {
+      idToFile[f.id] = { id: f.id, idx, f };
+    });
+
+    filteredFiles.forEach((f) => {
+      const provIdx = OKF_FILES.indexOf(f);
+      const hub = getDocAndChapterHubForOkfFile(f);
+      primarySet.add(f.id);
+
+      // 1. Tier 1: Source Document / Ontology Root Node (`#3b6ea5` / `#527a9a`, size 34)
+      if (!nodeSet.has(hub.docId)) {
+        nodeSet.add(hub.docId);
+        hubSet.add(hub.docId);
+        nodes.push({
+          id: hub.docId,
+          label: hub.docLabel,
+          title: hub.docLabel.replace(/\n/g, " · "),
+          shape: "dot",
+          size: 34,
+          color: {
+            background: hub.docColor,
+            border: isDark ? "#e2e8f0" : "#ffffff",
+            highlight: { background: "#1a73e8", border: labelMainColor }
+          },
+          borderWidth: 2.2,
+          font: { color: labelMainColor, size: 13, face: "Google Sans, Noto Sans KR" },
+          provIdx: hub.docProvIdx
+        });
+      }
+
+      // 2. Tier 2: Chapter / Domain Section Hub (`#6b88a8`, size 22)
+      if (!nodeSet.has(hub.partId)) {
+        nodeSet.add(hub.partId);
+        hubSet.add(hub.partId);
+        nodes.push({
+          id: hub.partId,
+          label: hub.partLabel,
+          title: hub.partLabel.replace(/\n/g, " · "),
+          shape: "dot",
+          size: 22,
+          color: {
+            background: "#6b88a8",
+            border: isDark ? "#cbd5e1" : "#ffffff",
+            highlight: { background: "#3b6ea5", border: labelMainColor }
+          },
+          borderWidth: 1.8,
+          font: { color: labelSubColor, size: 11.5, face: "Google Sans, Noto Sans KR" },
+          provIdx: hub.partProvIdx
+        });
+        edges.push({
+          from: hub.docId,
+          to: hub.partId,
+          color: { color: isDark ? "#475569" : "#94a3b8", highlight: "#6b88a8" },
+          width: 2.2,
+          arrows: "to"
+        });
+      }
+
+      // 3. Tier 3: OKF Concept / Provision Node (`#3b735b` / `#a85c56` / `#b88a44`, size 15-17.5)
+      const isCav = HP_CAVEAT_CONCEPTS.has(f.id);
+      const isGov = HP_GOVERNANCE_CONCEPTS.has(f.id);
+      const pColor = isCav ? "#a85c56" : isGov ? "#b88a44" : "#3b735b";
+      const shortName = f.id.split("/").pop();
+
+      if (!nodeSet.has(f.id)) {
+        nodeSet.add(f.id);
+        nodes.push({
+          id: f.id,
+          label: `${shortName}\n(p.${f.pdf_page})`,
+          title: `${(f.frontmatter && f.frontmatter.title) || f.filename} · bundles/hp_dragonfly/${f.rel_path}`,
+          shape: "dot",
+          size: isCav ? 17.5 : isGov ? 16 : 15,
+          color: {
+            background: pColor,
+            border: isDark ? "#cbd5e1" : "#ffffff",
+            highlight: { background: pColor, border: labelMainColor }
+          },
+          borderWidth: 1.6,
+          font: { color: labelSubColor, size: 10.5, face: "Google Sans, Noto Sans KR" },
+          provIdx
+        });
+        edges.push({
+          from: hub.partId,
+          to: f.id,
+          color: { color: structEdgeColor, highlight: "#6b88a8" },
+          width: 1.5,
+          arrows: "to"
+        });
+      }
+
+      // 4. Tier 4: Sub-Clause / Rule Chunks radiating around non-index OKF concept hubs
+      const isIndexFile = shortName === "index" || shortName === "log";
+      if (!isIndexFile && f.body) {
+        const rawLines = f.body
+          .split(/\n+/)
+          .map((l) => l.replace(/^#+\s*/, "").replace(/^[-*]\s*/, "").replace(/`/g, "").trim())
+          .filter((l) => l.length >= 16 && !l.startsWith("|") && !l.startsWith("---"));
+        const maxChunks = scope === "ALL" ? 2 : 3;
+        for (let i = 0; i < Math.min(rawLines.length, maxChunks); i++) {
+          const subId = `${f.id}::CHUNK_${i + 1}`;
+          if (!nodeSet.has(subId)) {
+            nodeSet.add(subId);
+            const lineText = rawLines[i];
+            const snippet = lineText.slice(0, 22) + (lineText.length > 22 ? "…" : "");
+            const isSafetyChunk =
+              /battery|M90788-005|ESD|700V|soldered|LPDDR5|Sure Start|Win\+B|pull-tab|OLED|mandatory|prerequisite|warning/i.test(
+                lineText
+              );
+            nodes.push({
+              id: subId,
+              label: snippet,
+              title: `${shortName} · ${lineText}`,
+              shape: "dot",
+              size: 11.5,
+              color: {
+                background: isSafetyChunk ? "#a85c56" : "#3b735b",
+                border: isDark ? "#334155" : "#ffffff",
+                highlight: { background: isSafetyChunk ? "#a85c56" : "#3b735b", border: labelMainColor }
+              },
+              borderWidth: 1.2,
+              font: { color: labelSubColor, size: 9.5, face: "Google Sans, Noto Sans KR" },
+              provIdx
+            });
+            edges.push({
+              from: f.id,
+              to: subId,
+              color: { color: structEdgeColor, highlight: "#6b88a8" },
+              width: 1.15,
+              arrows: "to"
+            });
+          }
+        }
+      }
+    });
+
+    // 5. Tier 5: Labeled Semantic Business Relation Edges (`HP_SEMANTIC_EDGES`)
+    let semEdgeCnt = 0;
+    HP_SEMANTIC_EDGES.forEach((se) => {
+      const s = idToFile[se.fromId];
+      const d = idToFile[se.toId];
+      if (!s || !d) return;
+      const sInPrimary = primarySet.has(s.id);
+      const dInPrimary = primarySet.has(d.id);
+      if (!sInPrimary && !dInPrimary) return;
+
+      [s, d].forEach((ep) => {
+        if (!nodeSet.has(ep.id)) {
+          nodeSet.add(ep.id);
+          const isCav = HP_CAVEAT_CONCEPTS.has(ep.id);
+          const epColor = isCav ? "#a85c56" : "#3b735b";
+          nodes.push({
+            id: ep.id,
+            label: `[연결 컨셉]\n${ep.id.split("/").pop()} (p.${ep.f.pdf_page})`,
+            title: ep.f.rel_path,
+            shape: "dot",
+            size: 14.5,
+            color: epColor,
+            font: { color: labelSubColor, size: 10, face: "Google Sans, Noto Sans KR" },
+            provIdx: ep.idx
+          });
+        }
+      });
+
+      semEdgeCnt++;
+      edges.push({
+        from: s.id,
+        to: d.id,
+        label: se.rel,
+        title: isKo() ? se.reason_ko : se.reason_en,
+        color: { color: se.color, highlight: labelMainColor },
+        width: 2.2,
+        arrows: "to",
+        font: {
+          color: labelMainColor,
+          size: 9,
+          background: edgeBgColor,
+          strokeWidth: 0,
+          face: "Google Sans"
+        }
+      });
+    });
+
+    // 6. Tier 6: Core Hardware & Diagnostic Entity Diamonds (`shape: 'diamond'`, `#b88a44`)
+    HP_SEMANTIC_ENTITIES.forEach((ent) => {
+      const refs = (ent.matchIds || []).map((id) => idToFile[id]).filter(Boolean);
+      const hasPrimary = refs.some((r) => primarySet.has(r.id));
+      const linked = refs.filter((r) => nodeSet.has(r.id));
+      if (hasPrimary && linked.length > 0) {
+        nodeSet.add(ent.id);
+        nodes.push({
+          id: ent.id,
+          label: ent.name,
+          title: `Domain Entity · ${ent.name.replace(/\n/g, " ")}`,
+          shape: "diamond",
+          size: 12.5,
+          color: {
+            background: "#b88a44",
+            border: isDark ? "#fde68a" : "#ffffff",
+            highlight: { background: "#d97706", border: labelMainColor }
+          },
+          borderWidth: 1.5,
+          font: {
+            color: isDark ? "#e2c07d" : "#7c581e",
+            size: 10,
+            face: "Google Sans, Noto Sans KR"
+          },
+          provIdx: linked[0].idx
+        });
+        linked.forEach((target) => {
+          edges.push({
+            from: target.id,
+            to: ent.id,
+            color: { color: isDark ? "#9a7338" : "#b88a44", highlight: "#b88a44" },
+            dashes: [2, 4],
+            width: 1.4,
+            arrows: "to"
+          });
+        });
+      }
+    });
+
+    return {
+      nodes,
+      edges,
+      hubCount: hubSet.size,
+      nodeCount: nodes.length,
+      semEdgeCnt
+    };
+  }
+
   function buildOkfDetailMarkup(f) {
     const k = isKo();
     const cid = f.id;
-    const allEdges = (OKF_GRAPH.edges || []).map((e) => e.data || {});
-    const relEdges = allEdges.filter((e) => e.source === cid || e.target === cid);
+
+    const richMatches = HP_SEMANTIC_EDGES.filter((e) => e.fromId === cid || e.toId === cid);
+    const rawGraphEdges = (OKF_GRAPH.edges || [])
+      .map((e) => e.data || {})
+      .filter(
+        (e) =>
+          (e.source === cid || e.target === cid) &&
+          !richMatches.some(
+            (r) =>
+              (r.fromId === e.source && r.toId === e.target) ||
+              (r.fromId === e.target && r.toId === e.source)
+          )
+      );
+
+    const combinedRels = [
+      ...richMatches.map((r) => ({
+        isOut: r.fromId === cid,
+        fromId: r.fromId,
+        toId: r.toId,
+        otherId: r.fromId === cid ? r.toId : r.fromId,
+        rel: r.rel,
+        color: r.color,
+        reason: k ? r.reason_ko : r.reason_en
+      })),
+      ...rawGraphEdges.slice(0, 8).map((e) => {
+        const isOut = e.source === cid;
+        return {
+          isOut,
+          fromId: e.source,
+          toId: e.target,
+          otherId: isOut ? e.target : e.source,
+          rel: isOut ? "REFERENCES_OKF_CONCEPT" : "CITED_BY_OKF_CONCEPT",
+          color: isOut ? "#3b6ea5" : "#3b735b",
+          reason: k
+            ? "OKF v0.2 Progressive Disclosure 마크다운 상호참조 링크로 연결된 컨셉입니다."
+            : "Cross-referenced via OKF v0.2 Progressive Disclosure markdown link."
+        };
+      })
+    ];
 
     let relHtml = "";
-    if (relEdges.length > 0) {
+    if (combinedRels.length > 0) {
       relHtml = `
         <div class="section-label">
-          <span>${k ? "OKF 시맨틱 연결 관계" : "OKF Semantic Relations"} (${relEdges.length})</span>
-          <span>${k ? "클릭 시 해당 컨셉으로 이동" : "Click to jump to concept"}</span>
+          <span>Business Semantic Relations (${combinedRels.length})</span>
+          <span>${k ? "클릭 시 연결 컨셉으로 이동" : "Click to jump to concept"}</span>
         </div>
         <div class="biz-edge-list">
-          ${relEdges
-            .slice(0, 14)
+          ${combinedRels
             .map((e) => {
-              const isOut = e.source === cid;
-              const otherId = isOut ? e.target : e.source;
-              const otherFile = OKF_FILES.find((x) => x.id === otherId);
+              const otherFile = OKF_FILES.find((x) => x.id === e.otherId);
               const otherPage = otherFile ? `p.${otherFile.pdf_page}` : "";
-              const dotColor = isOut ? "#3b6ea5" : "#3b735b";
               return `
-                <div class="biz-edge-item" onclick="selectByConceptId('${escapeHtml(otherId)}')">
+                <div class="biz-edge-item" onclick="selectByConceptId('${escapeHtml(e.otherId)}')">
                   <div class="biz-edge-top">
                     <span class="edge-badge">
-                      <span class="edge-dot" style="background:${dotColor};"></span>
-                      ${isOut ? "REFERENCES ➔" : "CITED BY ⬅"}
+                      <span class="edge-dot" style="background:${e.color};"></span>
+                      ${escapeHtml(e.rel)}
                     </span>
-                    <span class="edge-jump-meta">${escapeHtml(otherId)} ${otherPage ? `(${otherPage})` : ""} ↗</span>
+                    <span class="edge-jump-meta">${escapeHtml(e.otherId.split("/").pop())} ${
+                otherPage ? `(${otherPage})` : ""
+              } ↗</span>
                   </div>
                   <div class="edge-target">
                     <span class="edge-kw">from</span>
-                    <span class="${isOut ? "edge-sec-self" : "edge-sec-peer"}">${escapeHtml(e.source)}</span>
+                    <span class="${e.isOut ? "edge-sec-self" : "edge-sec-peer"}">${escapeHtml(
+                e.fromId.split("/").pop()
+              )}</span>
                     <span class="edge-arrow">➔</span>
                     <span class="edge-kw">to</span>
-                    <span class="${isOut ? "edge-sec-peer" : "edge-sec-self"}">${escapeHtml(e.target)}</span>
+                    <span class="${e.isOut ? "edge-sec-peer" : "edge-sec-self"}">${escapeHtml(
+                e.toId.split("/").pop()
+              )}</span>
                   </div>
+                  <div class="edge-reason">${escapeHtml(e.reason)}</div>
                 </div>
               `;
             })
@@ -692,7 +1463,6 @@
       `;
     }
 
-    // Extract raw YAML frontmatter block
     const rawMatch = (f.raw || "").match(/^---\s*\n([\s\S]*?)\n---/);
     const rawYaml = rawMatch ? `---\n${rawMatch[1]}\n---` : "# Progressive Disclosure Index (No YAML Frontmatter)";
     const fmType = (f.frontmatter && f.frontmatter.type) || "Index";
@@ -791,6 +1561,28 @@
   window.closeGraphDetail = function () {
     const p = document.getElementById("graph-detail-panel");
     if (p) p.classList.remove("open");
+    setTimeout(() => {
+      if (okfNetwork) okfNetwork.fit({ animation: { duration: 250 } });
+    }, 220);
+  };
+
+  window.toggleOkfGraphDetailPanel = function () {
+    const p = document.getElementById("graph-detail-panel");
+    if (!p) return;
+    p.classList.toggle("open");
+    setTimeout(() => {
+      if (okfNetwork) okfNetwork.fit({ animation: { duration: 250 } });
+    }, 220);
+  };
+
+  window.toggleOkfGraphDetailWide = function () {
+    const p = document.getElementById("graph-detail-panel");
+    if (!p) return;
+    p.classList.add("open");
+    p.classList.toggle("wide");
+    setTimeout(() => {
+      if (okfNetwork) okfNetwork.fit({ animation: { duration: 250 } });
+    }, 220);
   };
 
   function openGraphDetailForIdx(idx) {
@@ -798,7 +1590,10 @@
     const f = OKF_FILES[CURRENT_OKF_IDX];
     if (!f) return;
     const pathEl = document.getElementById("graph-detail-path");
-    if (pathEl) pathEl.textContent = f.rel_path;
+    if (pathEl) {
+      pathEl.textContent = f.rel_path;
+      pathEl.title = `bundles/hp_dragonfly/${f.rel_path}`;
+    }
     const bodyEl = document.getElementById("graph-detail-body");
     if (bodyEl) {
       bodyEl.innerHTML = buildOkfDetailMarkup(f);
@@ -811,91 +1606,64 @@
   window.buildOkfGraph = function (scope) {
     const container = document.getElementById("network-canvas");
     if (!container || !window.vis) return;
-    const isDark = document.body.classList.contains("dark-mode");
 
-    const rawNodes = (OKF_GRAPH.nodes || []).map((n) => n.data || {});
-    const rawEdges = (OKF_GRAPH.edges || []).map((e) => e.data || {});
+    const built = buildVizStyleOkfGraphData(scope || "ALL");
+    okfGraphNodes = built.nodes;
+    okfGraphEdges = built.edges;
 
-    const filteredNodes = rawNodes.filter((n) => {
-      if (!scope || scope === "ALL") return true;
-      if (scope === "tables") return n.id.startsWith("tables/") || n.id.startsWith("datasets/");
-      if (scope === "references") return n.id.startsWith("references/") || n.id.startsWith("tables/");
-      if (scope === "playbooks") {
-        return (
-          n.id.startsWith("playbooks/") ||
-          n.id.startsWith("computations/") ||
-          n.id.startsWith("metrics/") ||
-          n.id.startsWith("tables/")
-        );
-      }
-      return true;
-    });
-
-    const nodeIds = new Set(filteredNodes.map((n) => n.id));
-    const visNodes = filteredNodes.map((d) => {
-      const fIdx = OKF_FILES.findIndex((f) => f.id === d.id);
-      let bg = d.color || "#3b82f6";
-      if (d.id.startsWith("playbooks/")) bg = "#f59e0b";
-      return {
-        id: d.id,
-        provIdx: fIdx >= 0 ? fIdx : 0,
-        label: d.id.split("/").pop(),
-        title: `${d.label || d.id} (${d.type || "Concept"})`,
-        shape: "dot",
-        size: Math.max(16, Math.min(28, (d.size || 36) * 0.52)),
-        color: {
-          background: bg,
-          border: isDark ? "#e3e3e3" : "#ffffff",
-          highlight: { background: "#1a73e8", border: "#174ea6" }
-        },
-        font: {
-          color: isDark ? "#e3e3e3" : "#202124",
-          size: 11.5,
-          face: "Google Sans, Noto Sans KR, sans-serif"
-        }
-      };
-    });
-
-    const visEdges = rawEdges
-      .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target))
-      .map((e) => ({
-        from: e.source,
-        to: e.target,
-        arrows: "to",
-        color: { color: isDark ? "rgba(154,160,166,0.35)" : "rgba(95,99,104,0.32)", highlight: "#1a73e8" }
-      }));
-
+    const stDocs = document.getElementById("g-stat-docs");
     const stProvs = document.getElementById("g-stat-provs");
     const stEdges = document.getElementById("g-stat-edges");
-    if (stProvs) stProvs.textContent = String(visNodes.length);
-    if (stEdges) stEdges.textContent = String(visEdges.length);
+    if (stDocs) stDocs.textContent = String(built.hubCount);
+    if (stProvs) stProvs.textContent = String(built.nodeCount);
+    if (stEdges) stEdges.textContent = String(built.semEdgeCnt);
+
+    const options = {
+      physics: {
+        enabled: okfPhysics,
+        solver: "forceAtlas2Based",
+        forceAtlas2Based: {
+          gravitationalConstant: -38,
+          centralGravity: 0.008,
+          springLength: 88,
+          springConstant: 0.08,
+          damping: 0.45
+        },
+        stabilization: { iterations: 140 }
+      },
+      interaction: {
+        hover: true,
+        tooltipDelay: 180,
+        keyboard: true
+      }
+    };
 
     if (okfNetwork) okfNetwork.destroy();
     okfNetwork = new window.vis.Network(
       container,
-      { nodes: new window.vis.DataSet(visNodes), edges: new window.vis.DataSet(visEdges) },
       {
-        physics: {
-          enabled: okfPhysics,
-          solver: "forceAtlas2Based",
-          forceAtlas2Based: {
-            gravitationalConstant: -45,
-            centralGravity: 0.01,
-            springLength: 95,
-            springConstant: 0.08,
-            damping: 0.45
-          },
-          stabilization: { iterations: 120 }
-        },
-        interaction: { hover: true, tooltipDelay: 150 }
-      }
+        nodes: new window.vis.DataSet(okfGraphNodes),
+        edges: new window.vis.DataSet(okfGraphEdges)
+      },
+      options
     );
+
+    okfNetwork.once("stabilizationIterationsDone", function () {
+      okfNetwork.fit({ animation: { duration: 350 } });
+      setTimeout(() => {
+        if (okfNetwork && okfNetwork.getScale() > 0.95) {
+          okfNetwork.moveTo({ scale: 0.90, animation: { duration: 250 } });
+        }
+      }, 380);
+    });
 
     okfNetwork.on("click", function (params) {
       if (params.nodes && params.nodes.length > 0) {
         const clickedId = params.nodes[0];
-        const fIdx = OKF_FILES.findIndex((f) => f.id === clickedId);
-        if (fIdx >= 0) openGraphDetailForIdx(fIdx);
+        const nObj = okfGraphNodes.find((n) => n.id === clickedId);
+        if (nObj && typeof nObj.provIdx === "number") {
+          openGraphDetailForIdx(nObj.provIdx);
+        }
       }
     });
   };
@@ -903,21 +1671,37 @@
   window.searchGraphNode = function (term) {
     const q = (term || "").trim().toLowerCase();
     if (!q || !okfNetwork) return;
-    const found = OKF_FILES.findIndex(
+    const foundNode = okfGraphNodes.find(
+      (n) =>
+        String(n.label || "").toLowerCase().includes(q) ||
+        String(n.title || "").toLowerCase().includes(q) ||
+        String(n.id || "").toLowerCase().includes(q)
+    );
+    if (foundNode) {
+      try {
+        okfNetwork.selectNodes([foundNode.id]);
+        okfNetwork.focus(foundNode.id, { scale: 1.25, animation: { duration: 420 } });
+        if (typeof foundNode.provIdx === "number") {
+          openGraphDetailForIdx(foundNode.provIdx);
+        }
+      } catch (_) {}
+      return;
+    }
+    const foundIdx = OKF_FILES.findIndex(
       (f) => f.id.toLowerCase().includes(q) || (f.body || "").toLowerCase().includes(q)
     );
-    if (found >= 0) {
-      const id = OKF_FILES[found].id;
+    if (foundIdx >= 0) {
+      const id = OKF_FILES[foundIdx].id;
       try {
         okfNetwork.selectNodes([id]);
-        okfNetwork.focus(id, { scale: 1.25, animation: { duration: 400 } });
-        openGraphDetailForIdx(found);
+        okfNetwork.focus(id, { scale: 1.25, animation: { duration: 420 } });
+        openGraphDetailForIdx(foundIdx);
       } catch (_) {}
     }
   };
 
   window.fitGraph = function () {
-    if (okfNetwork) okfNetwork.fit({ animation: true });
+    if (okfNetwork) okfNetwork.fit({ animation: { duration: 350 } });
   };
 
   window.togglePhysics = function () {
@@ -4716,46 +5500,90 @@
       TroubleshootingCase: "#a85c56",
       DiagnosticCode: "#b88a44",
       ProductSKU: "#6b88a8",
-      ProductModel: "#3b735b",
-      ServicePlaybook: "#8a5cf5",
-      ServiceManualChapter: "#2d936c",
+      ProductModel: "#527a9a",
+      SafetyProcedure: "#a85c56",
+      ComplianceStandard: "#8a7a6b",
+      SupplierMetric: "#b88a44",
+      ServicePlaybook: "#3b735b",
+      ServiceManualChapter: "#3b735b",
       ServiceManualDocument: "#3b735b"
     };
 
-    const nodes = (q.graph.nodes || []).map((n) => ({
-      id: n.id,
-      label: n.label,
-      title: `${n.group || "Node"} · ${n.id}`,
-      shape: "dot",
-      size: 21,
-      color: {
-        background: groupColors[n.group] || "#3b6ea5",
-        border: isDark ? "#e3e3e3" : "#ffffff"
-      },
-      font: {
-        color: isDark ? "#e3e3e3" : "#202124",
-        size: 11.5,
-        face: "Google Sans, Roboto Mono, sans-serif"
-      },
-      rawNode: n
-    }));
+    const lexGroups = new Set([
+      "ServicePlaybook",
+      "ServiceManualChapter",
+      "ServiceManualDocument"
+    ]);
 
-    const edges = (q.graph.edges || []).map((e, idx) => ({
-      id: `inst_e_${idx}`,
-      from: e.from,
-      to: e.to,
-      label: e.label,
-      arrows: "to",
-      font: {
-        size: 10,
-        color: isDark ? "#e3e3e3" : "#202124",
-        background: isDark ? "rgba(31,31,31,0.88)" : "rgba(255,255,255,0.92)",
-        strokeWidth: 0,
-        align: "middle"
-      },
-      color: { color: "#6b88a8", highlight: "#1a73e8" },
-      rawEdge: e
-    }));
+    const nodes = (q.graph.nodes || []).map((n) => {
+      const isLex = lexGroups.has(n.group);
+      return {
+        id: n.id,
+        label: n.label,
+        title: `${n.group || "Node"} · ${n.id}`,
+        shape: isLex ? "box" : "dot",
+        size: isLex ? 18 : 20,
+        margin: isLex ? 10 : undefined,
+        borderWidth: isLex ? 2.2 : 2.0,
+        color: isLex
+          ? {
+              background: isDark ? "#23312b" : "#f2f7f4",
+              border: "#3b735b",
+              highlight: {
+                background: isDark ? "#2d4038" : "#e1ede7",
+                border: "#2c5a46"
+              }
+            }
+          : {
+              background: groupColors[n.group] || "#3b6ea5",
+              border: isDark ? "#1e1f22" : "#ffffff",
+              highlight: {
+                background: groupColors[n.group] || "#3b6ea5",
+                border: isDark ? "#ffffff" : "#202124"
+              }
+            },
+        font: {
+          color: isLex ? (isDark ? "#b8d4c7" : "#23312b") : isDark ? "#e3e3e3" : "#202124",
+          size: isLex ? 11.5 : 12,
+          face: "Google Sans, Roboto Mono, sans-serif",
+          multi: "html"
+        },
+        rawNode: n
+      };
+    });
+
+    const bridgePrefixes = new Set([
+      "DOCUMENTED_IN_CHAPTER",
+      "DEFINED_IN_CH6",
+      "GOVERNED_BY_PLAYBOOK",
+      "CITES_MANUAL"
+    ]);
+
+    const edges = (q.graph.edges || []).map((e, idx) => {
+      const relPrefix = String(e.label || "").split(" ")[0];
+      const isBridge = bridgePrefixes.has(relPrefix);
+      const isDag = relPrefix === "REQUIRES_REMOVAL_OF" || relPrefix === "MITIGATES_CASE";
+      const strokeColor = isBridge ? "#b88a44" : isDag ? "#a85c56" : "#6b88a8";
+      return {
+        id: `inst_e_${idx}`,
+        from: e.from,
+        to: e.to,
+        label: e.label,
+        arrows: { to: { enabled: true, scaleFactor: 0.7 } },
+        width: isBridge || isDag ? 2.1 : 1.7,
+        dashes: isBridge ? [4, 4] : false,
+        smooth: { type: "continuous", roundness: 0.25 },
+        font: {
+          size: 10,
+          color: isBridge ? "#b88a44" : isDag ? "#a85c56" : isDark ? "#e3e3e3" : "#3c4043",
+          background: isDark ? "rgba(31,31,31,0.9)" : "rgba(255,255,255,0.92)",
+          strokeWidth: 0,
+          align: "horizontal"
+        },
+        color: { color: strokeColor, highlight: "#1a73e8", hover: strokeColor },
+        rawEdge: e
+      };
+    });
 
     if (window.bqVisNet) window.bqVisNet.destroy();
     window.bqVisNet = new window.vis.Network(
@@ -4763,13 +5591,36 @@
       { nodes: new window.vis.DataSet(nodes), edges: new window.vis.DataSet(edges) },
       {
         physics: {
+          enabled: true,
           solver: "forceAtlas2Based",
-          forceAtlas2Based: { gravitationalConstant: -55, springLength: 125 },
-          stabilization: { iterations: 130 }
+          forceAtlas2Based: {
+            gravitationalConstant: -75,
+            centralGravity: 0.01,
+            springLength: 145,
+            springConstant: 0.06,
+            damping: 0.55,
+            avoidOverlap: 0.7
+          },
+          stabilization: { enabled: true, iterations: 150, updateInterval: 25 }
         },
-        interaction: { hover: true, tooltipDelay: 150 }
+        interaction: { hover: true, tooltipDelay: 120, navigationButtons: false, zoomView: true }
       }
     );
+
+    window.bqVisNet.once("stabilizationIterationsDone", function () {
+      if (!window.bqVisNet) return;
+      window.bqVisNet.fit({ animation: { duration: 420, easingFunction: "easeInOutQuad" } });
+      setTimeout(() => {
+        if (!window.bqVisNet) return;
+        const pos = window.bqVisNet.getViewPosition();
+        const curScale = window.bqVisNet.getScale();
+        window.bqVisNet.moveTo({
+          position: pos,
+          scale: Math.min(curScale * 0.92, 1.05),
+          animation: { duration: 240, easingFunction: "easeOutQuad" }
+        });
+      }, 450);
+    });
 
     window.bqVisNet.on("click", function (params) {
       if (params.nodes && params.nodes.length > 0) {
@@ -5973,6 +6824,12 @@
     syncStaticLabels();
     renderManagementModule();
     const hashMod = (window.location.hash || "").replace(/^#/, "");
+    if (hashMod === "okf-graph") {
+      GRAPH_MODE = true;
+      syncViewSwitchButton();
+      switchModule("okf-validation");
+      return;
+    }
     const validMods = ["intro", "okf-validation", "okf-management", "bq-graph", "agent", "rag-vs-graphrag"];
     switchModule(validMods.includes(hashMod) ? hashMod : "intro");
   });

@@ -24,7 +24,7 @@
   </script>
 
   <!-- Google Cloud Console Enterprise Stylesheet -->
-  <link rel="stylesheet" href="css/gcp-console.css?v=20261025_07" />
+  <link rel="stylesheet" href="css/gcp-console.css?v=20261025_08" />
 </head>
 <body>
 
@@ -168,7 +168,7 @@
         <div class="sidebar-header-row">
           <div>
             <div class="graph-sidebar-title" id="g-sidebar-title">OKF Knowledge Graph</div>
-            <div class="graph-sidebar-sub" id="g-sidebar-sub">노드를 클릭하면 우측 패널에 해당 OKF 문서의 YAML Frontmatter와 영문 마크다운 원문이 표시됩니다.</div>
+            <div class="graph-sidebar-sub" id="g-sidebar-sub">노드를 클릭하면 우측 패널에 시맨틱 엣지(Business Semantic Relations), YAML Frontmatter, 마크다운 원문이 표시됩니다.</div>
           </div>
           <button type="button" class="sidebar-collapse-btn" onclick="toggleOkfGraphSidebar()" title="좌측 패널 접기 (Collapse)">
             <span class="material-symbols-outlined" style="font-size:15px;">left_panel_close</span>
@@ -176,41 +176,43 @@
         </div>
 
         <div class="ctrl-group">
-          <label id="g-scope-label">Concept Category Filter</label>
+          <label id="g-scope-label">Graph Scope Filter</label>
           <select id="graph-scope-select" class="gcp-select" onchange="buildOkfGraph(this.value)">
-            <option value="ALL">ALL · 21 Concepts &amp; 110 Edges</option>
-            <option value="tables">tables/ · 8 BigQuery Tables</option>
-            <option value="references">references/ · 5 PDF Manual Refs</option>
-            <option value="playbooks">playbooks/ &amp; computations/ &amp; metrics/</option>
+            <option value="ALL">ALL · 전체 매뉴얼(109p) · 28 OKF 번들 별자리</option>
+            <option value="DAG_SAFETY">01. 분해 선행 DAG (REQUIRES_REMOVAL_OF) &amp; 700V ESD</option>
+            <option value="BIOS_BLINK">02. LED 점멸 진단(3.2/2.2) · HP Sure Start &amp; LPDDR5</option>
+            <option value="SKU_PARTS">03. 12개 SKU 구성 · 38종 스페어 파트 &amp; 5G 화이트리스트</option>
+            <option value="THERMAL_DISPLAY">04. 발열/배터리 스웰링(90B) · 3K2K OLED 풀탭 &amp; TB4 독</option>
+            <option value="CORE">05. 핵심 안전 특례 · 만료 스냅샷(v0.1) &amp; 플레이북 서브그래프</option>
           </select>
         </div>
 
         <div class="ctrl-group">
-          <label id="g-search-label">Node Search</label>
-          <input type="text" id="graph-search-input" class="gcp-input" placeholder="Search node (disassembly, sku, sure-start)..." oninput="searchGraphNode(this.value)" />
+          <label id="g-search-label">Node &amp; Entity Search</label>
+          <input type="text" id="graph-search-input" class="gcp-input" placeholder="노드·부품·점멸코드 검색 (M90788, 3.2, Sure Start, OLED)..." oninput="searchGraphNode(this.value)" />
         </div>
 
         <div class="stats-grid">
           <div class="stat-box">
-            <div class="num" id="g-stat-docs">28</div>
-            <div class="lbl">OKF Files</div>
+            <div class="num" id="g-stat-docs">10</div>
+            <div class="lbl" id="g-stat-docs-lbl">Roots &amp; Hubs</div>
           </div>
           <div class="stat-box">
-            <div class="num" id="g-stat-provs">21</div>
-            <div class="lbl">Concepts</div>
+            <div class="num" id="g-stat-provs">86</div>
+            <div class="lbl" id="g-stat-provs-lbl">Nodes &amp; Chunks</div>
           </div>
           <div class="stat-box">
-            <div class="num" id="g-stat-edges">110</div>
-            <div class="lbl">Semantic Edges</div>
+            <div class="num" id="g-stat-edges">22</div>
+            <div class="lbl" id="g-stat-edges-lbl">Semantic Edges</div>
           </div>
         </div>
 
         <div class="legend-box">
-          <div class="legend-row"><span class="dot-indicator" style="background:#8b5cf6;"></span> BigQuery Dataset (<code>datasets/</code>)</div>
-          <div class="legend-row"><span class="dot-indicator" style="background:#3b82f6;"></span> Structured Table (<code>tables/</code> · 8)</div>
-          <div class="legend-row"><span class="dot-indicator" style="background:#10b981;"></span> PDF Service Manual Ref (<code>references/</code> · 5)</div>
-          <div class="legend-row"><span class="dot-indicator" style="background:#f59e0b;"></span> Service Playbook (<code>playbooks/</code> · 2)</div>
-          <div class="legend-row"><span class="dot-indicator" style="background:#64748b;"></span> Metric &amp; Computation (4)</div>
+          <div class="legend-row"><span class="dot-indicator" style="background:#3b6ea5;"></span> <span id="g-leg-1">Source Document / Ontology Root (원본·데이터셋 루트)</span></div>
+          <div class="legend-row"><span class="dot-indicator" style="background:#6b88a8;"></span> <span id="g-leg-2">Chapter / Section Hub (매뉴얼 장·절 및 도메인 허브)</span></div>
+          <div class="legend-row"><span class="dot-indicator" style="background:#3b735b;"></span> <span id="g-leg-3">Standard OKF Concept &amp; Chunk (정형 테이블·일반 조항)</span></div>
+          <div class="legend-row"><span class="dot-indicator" style="background:#a85c56;"></span> <span id="g-leg-4">Safety DAG / Caveat / Playbook (분해 선행 DAG·안전 특례)</span></div>
+          <div class="legend-row"><span class="diamond-indicator" style="background:#b88a44;"></span> <span id="g-leg-5">Core Hardware Entity &amp; Metric (핵심 부품/코드 다이아몬드)</span></div>
         </div>
 
         <div class="btn-row">
@@ -228,27 +230,43 @@
           <button class="bq-cam-btn primary-toggle" onclick="toggleOkfGraphSidebar()">
             <span class="material-symbols-outlined" style="font-size:16px;">dock_to_right</span> <span id="lbl-okf-g-sidebar">좌측 패널 토글</span>
           </button>
+          <button class="bq-cam-btn" onclick="fitGraph()">
+            <span class="material-symbols-outlined" style="font-size:16px;">fit_screen</span> <span id="lbl-okf-g-fit2">화면 맞춤</span>
+          </button>
+          <button class="bq-cam-btn" onclick="togglePhysics()">
+            <span class="material-symbols-outlined" style="font-size:16px;">motion_photos_on</span> <span id="lbl-okf-g-phys2">물리엔진</span>
+          </button>
+          <button class="bq-cam-btn" onclick="toggleOkfGraphDetailPanel()">
+            <span class="material-symbols-outlined" style="font-size:16px;">menu_book</span> <span id="lbl-okf-g-inspector">선택 문서 인스펙터</span>
+          </button>
         </div>
         <div id="network-canvas"></div>
-
-        <aside id="graph-detail-panel" class="open">
-          <div class="detail-panel-header">
-            <div class="detail-panel-title-wrap">
-              <span class="material-symbols-outlined" style="color:var(--gcp-blue);">description</span>
-              <code id="graph-detail-path"></code>
-            </div>
-            <div class="detail-panel-actions">
-              <button class="gcp-action-btn" style="padding:4px 9px; font-size:11.5px;" onclick="openCurrentInPdfCompare()">
-                <span class="material-symbols-outlined" style="font-size:14px;">picture_as_pdf</span> <span id="lbl-open-pdf-compare">PDF 대조뷰로 열기</span>
-              </button>
-              <button class="icon-close-btn" onclick="closeGraphDetail()" title="Close">
-                <span class="material-symbols-outlined">close</span>
-              </button>
-            </div>
-          </div>
-          <div class="detail-panel-body" id="graph-detail-body"></div>
-        </aside>
+        <div class="bq-status-pill">
+          <span id="okf-graph-status-left"><strong>5-Tier OKF Constellation Graph:</strong> Root Document (<code>#3b6ea5</code>) ➔ Chapter Hub (<code>#6b88a8</code>) ➔ OKF Concept (<code>#3b735b</code> / <code>#a85c56</code>) ➔ Rule Chunk ➔ Entity Diamond (<code>#b88a44</code>)</span>
+          <span id="okf-graph-status-right">마우스 휠 줌 · 드래그 · 노드 클릭 시 시맨틱 엣지 및 OKF 원문 열람</span>
+        </div>
       </section>
+
+      <aside id="graph-detail-panel" class="open">
+        <div class="detail-panel-header">
+          <div class="detail-panel-title-wrap">
+            <span class="material-symbols-outlined" style="color:var(--gcp-blue);">description</span>
+            <code id="graph-detail-path"></code>
+          </div>
+          <div class="detail-panel-actions">
+            <button class="gcp-action-btn" style="padding:3px 8px; font-size:11px;" onclick="toggleOkfGraphDetailWide()" title="인스펙터 폭 넓히기 (Toggle Wide)">
+              <span class="material-symbols-outlined" style="font-size:14px;">open_in_full</span>
+            </button>
+            <button class="gcp-action-btn" style="padding:4px 9px; font-size:11.5px;" onclick="openCurrentInPdfCompare()">
+              <span class="material-symbols-outlined" style="font-size:14px;">picture_as_pdf</span> <span id="lbl-open-pdf-compare">PDF 대조뷰로 열기</span>
+            </button>
+            <button class="icon-close-btn" onclick="closeGraphDetail()" title="Close">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </div>
+        <div class="detail-panel-body" id="graph-detail-body"></div>
+      </aside>
     </main>
 
     <!-- MODULE 03: okf-management (Git Metadata-as-Code & Dataplex kcmd) -->
@@ -416,9 +434,9 @@
   </div>
 
   <!-- Pre-bundled Data & Application Scripts -->
-  <script src="data/studio_bundle.js?v=20261025_07"></script>
-  <script src="js/agent-qa-bank.js?v=20261025_07"></script>
-  <script src="js/i18n.js?v=20261025_07"></script>
-  <script src="js/app.js?v=20261025_07"></script>
+  <script src="data/studio_bundle.js?v=20261025_08"></script>
+  <script src="js/agent-qa-bank.js?v=20261025_08"></script>
+  <script src="js/i18n.js?v=20261025_08"></script>
+  <script src="js/app.js?v=20261025_08"></script>
 </body>
 </html>
