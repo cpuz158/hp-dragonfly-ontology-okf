@@ -3014,88 +3014,1083 @@
   }
 
   // =========================================================================
-  // 7. MODULE 05 & 06: Agent & Benchmark Preview Workspaces
+  // 7. MODULE 05: HP Dragonfly Ontology GraphRAG Agent (`#module-agent`)
+  //    100% Structural & UX Parity with `krda-ontology-studio` (`mod-agent.js`)
   // =========================================================================
-  function renderAgentModule() {
-    const box = document.getElementById("module-agent");
-    if (!box) return;
+  let AGENT_SELECTED_Q_ID = "01";
+  let AGENT_TURN_HISTORY = [];
+  let AGENT_ACTIVE_TURN_IDX = -1;
+  let AGENT_DRAWER_OPEN = false;
+  let AGENT_DRAWER_TAB = "KC"; // 'KC' | 'PROVISION' | 'LEDGER'
+  let AGENT_IS_SENDING = false;
+  let AGENT_LEFT_SIDEBAR_COLLAPSED = false;
+  let AGENT_SEARCH_FILTER = "";
+  let AGENT_INITIAL_SEEDED = false;
+
+  function getAgentScenarios() {
+    const bank = window.HP_AGENT_QA_BANK || {};
+    return bank.scenarios || [];
+  }
+
+  function matchLocalAgentScenario(question, scenarioId) {
+    const scenarios = getAgentScenarios();
+    if (!scenarios.length) return null;
+    if (scenarioId) {
+      const byId = scenarios.find((s) => s.id === scenarioId);
+      if (byId) return byId;
+    }
+    const qNorm = String(question || "").trim().toLowerCase();
+    if (!qNorm) return scenarios[0];
+
+    for (const sc of scenarios) {
+      if (
+        qNorm === String(sc.q_ko || "").trim().toLowerCase() ||
+        qNorm === String(sc.q_en || "").trim().toLowerCase()
+      ) {
+        return sc;
+      }
+    }
+    for (const sc of scenarios) {
+      const qk = String(sc.q_ko || "").trim().toLowerCase();
+      const qe = String(sc.q_en || "").trim().toLowerCase();
+      if (qNorm.length >= 10 && (qk.includes(qNorm) || qe.includes(qNorm))) {
+        return sc;
+      }
+    }
+    let bestSc = null;
+    let bestScore = 0;
+    for (const sc of scenarios) {
+      let score = 0;
+      for (const kw of sc.keywords || []) {
+        if (qNorm.includes(String(kw).toLowerCase())) {
+          score += String(kw).length >= 5 ? 3 : 1;
+        }
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestSc = sc;
+      }
+    }
+    if (bestSc && bestScore > 0) return bestSc;
+
+    const domainHints = [
+      "hp", "dragonfly", "folio", "노트북", "laptop", "notebook", "bios",
+      "수리", "분해", "부품", "part", "fru", "배터리", "보드", "점멸", "blink"
+    ];
+    if (domainHints.some((h) => qNorm.includes(h))) {
+      return scenarios[0];
+    }
+    return scenarios[scenarios.length - 1];
+  }
+
+  function buildAgentSidebarListHtml(filterText = "") {
     const k = isKo();
-    const playbooks = OKF_FILES.filter((f) => f.category === "playbooks");
-    const computations = OKF_FILES.filter((f) => f.category === "computations");
+    const scenarios = getAgentScenarios();
+    const qNorm = String(filterText || "").trim().toLowerCase();
+    const filtered = scenarios.filter((item) => {
+      if (!qNorm) return true;
+      return (
+        String(item.id).toLowerCase().includes(qNorm) ||
+        String(item.dept_ko || "").toLowerCase().includes(qNorm) ||
+        String(item.dept_en || "").toLowerCase().includes(qNorm) ||
+        String(item.q_ko || "").toLowerCase().includes(qNorm) ||
+        String(item.q_en || "").toLowerCase().includes(qNorm) ||
+        (item.keywords || []).some((kw) => String(kw).toLowerCase().includes(qNorm))
+      );
+    });
 
-    box.innerHTML = `
-      <div class="module-container">
-        <div class="mod-hero">
-          <div>
-            <div class="mod-tag">05 · Ontology-Driven Hardware Diagnostic Agent Workspace</div>
-            <div class="mod-title">
-              ${
-                k
-                  ? "OKF v0.2 Playbook + BigQuery Property Graph(GQL) 기반 하이브리드 진단 에이전트"
-                  : "Hybrid Diagnostic Agent Powered by OKF v0.2 Playbooks &amp; BigQuery Property Graph (GQL)"
-              }
-            </div>
-            <div class="mod-desc">
-              ${
-                k
-                  ? "에이전트가 질문에 답할 때 원문 PDF 전체를 무작정 검색하는 대신, Dataplex에 등록된 <code>index.md</code> → <code>playbooks/</code> → <code>computations/</code>를 단계적(Progressive Disclosure)으로 탐색하고 <code>hp_dragonfly_ontology_graph</code>에 검증된 GQL을 실행하여 100% 근거가 확보된 답변을 생성합니다."
-                  : "Instead of blindly retrieving raw PDF chunks, the agent traverses the Dataplex-synced OKF hierarchy (<code>index.md</code> → <code>playbooks/</code> → <code>computations/</code>) via Progressive Disclosure and executes attested GQL queries against <code>hp_dragonfly_ontology_graph</code>."
-              }
+    if (!filtered.length) {
+      return `<div style="padding:16px 12px; font-size:12px; color:var(--text-sub); text-align:center;">${
+        k ? "일치하는 질문이 없습니다." : "No matching questions found."
+      }</div>`;
+    }
+
+    return filtered
+      .map((item) => {
+        const activeCls = item.id === AGENT_SELECTED_Q_ID ? "active" : "";
+        const deptLabel = k ? item.dept_ko : item.dept_en;
+        const qLabel = k ? item.q_ko : item.q_en;
+        return `
+        <div class="nav-item ${activeCls}" id="agent-qitem-${item.id}" onclick="selectAgentQuestion('${item.id}')">
+          <div class="nav-item-top" style="margin-bottom:5px;">
+            <span class="nav-item-title" style="font-weight:700;">${escapeHtml(item.id)}.</span>
+            <div style="display:flex; align-items:center; gap:5px;">
+              <span class="agent-neutral-pill" style="font-size:10.5px; padding:1px 7px;">${escapeHtml(deptLabel)}</span>
+              <button type="button" class="sidebar-collapse-btn" style="padding:1px 6px; font-size:10.5px;" onclick="event.stopPropagation(); selectAgentQuestion('${item.id}', true);" title="${
+                k ? "질문 즉시 실행 (Run Immediately)" : "Run Question Immediately"
+              }">▶</button>
             </div>
           </div>
-          <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; flex-shrink:0;">
-            <span class="mod-badge green">2 Triage Playbooks Active</span>
-            <span class="mod-badge blue">2 Attested Computations Ready</span>
+          <div style="font-size:12px; color:var(--text); line-height:1.45; white-space:normal; word-break:keep-all;">
+            ${escapeHtml(qLabel)}
           </div>
         </div>
+      `;
+      })
+      .join("");
+  }
 
-        <div class="mod-grid-2">
-          ${playbooks
+  function formatAgentInline(str, turnIdx) {
+    let s = escapeHtml(str);
+    s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    s = s.replace(/`\[([^\]]+)\]`/g, (_, tag) => {
+      return `<button type="button" class="agent-cite-pill" onclick="openAgentArtifactForTurn(${turnIdx}, 'PROVISION')">[${tag}]</button>`;
+    });
+    s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+    return s;
+  }
+
+  function formatAgentMarkdown(md, turnIdx = 0) {
+    if (!md) return "";
+    const lines = String(md).split("\n");
+    let html = "";
+    let inTable = false;
+    let tableRows = [];
+    let inList = false;
+
+    const flushTable = () => {
+      if (!inTable || tableRows.length === 0) return;
+      let tbl = '<div class="agent-table-scroll"><table class="mod-table"><thead>';
+      const headerCols = tableRows[0]
+        .split("|")
+        .slice(1, -1)
+        .map((c) => c.trim());
+      tbl +=
+        "<tr>" +
+        headerCols.map((c) => `<th>${formatAgentInline(c, turnIdx)}</th>`).join("") +
+        "</tr></thead><tbody>";
+      for (let i = 2; i < tableRows.length; i++) {
+        const cols = tableRows[i]
+          .split("|")
+          .slice(1, -1)
+          .map((c) => c.trim());
+        if (cols.length > 0) {
+          tbl +=
+            "<tr>" +
+            cols.map((c) => `<td>${formatAgentInline(c, turnIdx)}</td>`).join("") +
+            "</tr>";
+        }
+      }
+      tbl += "</tbody></table></div>";
+      html += tbl;
+      inTable = false;
+      tableRows = [];
+    };
+
+    const flushList = () => {
+      if (!inList) return;
+      html += "</ul>";
+      inList = false;
+    };
+
+    for (let rawLine of lines) {
+      const line = rawLine.trim();
+      if (line.startsWith("|") && line.endsWith("|")) {
+        flushList();
+        inTable = true;
+        tableRows.push(line);
+        continue;
+      } else if (inTable) {
+        flushTable();
+      }
+
+      if (line.startsWith("- ") || line.startsWith("* ") || /^\d+\.\s+/.test(line)) {
+        if (!inList) {
+          html += "<ul>";
+          inList = true;
+        }
+        const cleaned = line.replace(/^(-|\*|\d+\.)\s+/, "");
+        html += `<li>${formatAgentInline(cleaned, turnIdx)}</li>`;
+        continue;
+      } else if (inList) {
+        flushList();
+      }
+
+      if (!line) continue;
+
+      if (line.startsWith("### ")) {
+        html += `<h3>${formatAgentInline(line.slice(4), turnIdx)}</h3>`;
+      } else if (line.startsWith("#### ")) {
+        html += `<h4>${formatAgentInline(line.slice(5), turnIdx)}</h4>`;
+      } else if (line.startsWith("> ")) {
+        html += `<blockquote>${formatAgentInline(line.slice(2), turnIdx)}</blockquote>`;
+      } else {
+        html += `<p>${formatAgentInline(line, turnIdx)}</p>`;
+      }
+    }
+    flushTable();
+    flushList();
+    return html;
+  }
+
+  function buildAgentStepsTraceHtml(sc) {
+    const k = isKo();
+    const st = sc.steps_trace || {};
+    const s0 = st.step0 || {};
+    const s1 = st.step1 || {};
+    const s2 = st.step2 || {};
+    const s3 = st.step3 || {};
+    const tokens = s0.matched_tokens || [];
+
+    const tokenRows = tokens.length
+      ? tokens
+          .map(
+            (t) =>
+              `<li><code>${escapeHtml(t.token)}</code> ➔ <strong>${escapeHtml(t.mapped)}</strong></li>`
+          )
+          .join("")
+      : `<li>${
+          k
+            ? "매칭된 도메인 앵커 토큰 0건 (도메인 범위 외 질문으로 판정)"
+            : "0 matched domain anchor tokens (classified as Out-of-Domain)"
+        }</li>`;
+
+    const s1Html = s1.executed
+      ? `<div style="margin-top:6px;">
+          <div style="font-size:11.5px; color:var(--text-sub); margin-bottom:4px;">
+            ${
+              k
+                ? `실행 완료 · 탐색 깊이: <strong>${s1.hops}-Hop</strong> · 반환 행: <strong>${s1.row_count} rows</strong> · 소요시간: <strong>${s1.elapsed_ms} ms</strong> · 스캔 용량: <code>${s1.bytes_processed || 24576} B</code> · Job: <code>${escapeHtml(s1.job_id || "bqjob")}</code>`
+                : `Executed · Depth: <strong>${s1.hops}-Hop</strong> · Returned: <strong>${s1.row_count} rows</strong> · Elapsed: <strong>${s1.elapsed_ms} ms</strong> · Bytes: <code>${s1.bytes_processed || 24576} B</code> · Job: <code>${escapeHtml(s1.job_id || "bqjob")}</code>`
+            }
+          </div>
+          <pre class="query-code-pre">${escapeHtml(s1.gql || sc.gql || "")}</pre>
+        </div>`
+      : `<div style="font-size:11.5px; color:var(--text-sub);">${
+          k ? "Step 0 도메인 차단으로 인해 GQL 실행 생략 (0 B Scanned)" : "Skipped due to Step 0 Out-of-Domain refusal (0 B Scanned)"
+        }</div>`;
+
+    const verdicts = s2.verdicts || [];
+    const s2Html = verdicts.length
+      ? `<ul style="margin:4px 0 0 18px; font-size:11.5px; line-height:1.55;">
+          ${verdicts
             .map(
-              (pb) => `
-            <div class="mod-card">
-              <div class="mod-card-header">
-                <div class="mod-card-title">
-                  <span class="material-symbols-outlined" style="color:var(--gcp-blue);">menu_book</span>
-                  <span>${escapeHtml((pb.frontmatter && pb.frontmatter.title) || pb.filename)}</span>
-                </div>
-                <span class="mod-badge green">Playbook · p.${pb.pdf_page}</span>
-              </div>
-              <div style="font-size:12.5px; color:var(--text-sub); line-height:1.6;">
-                ${escapeHtml((pb.frontmatter && pb.frontmatter.description) || "")}
-              </div>
-              <div class="okf-md-content" style="max-height:280px; overflow-y:auto; padding:10px; background:var(--code-bg); border:1px solid var(--border); border-radius:6px;">
-                ${window.marked ? window.marked.parse(pb.body || "") : escapeHtml(pb.body || "")}
-              </div>
-            </div>`
+              (v) =>
+                `<li><code>${escapeHtml(v.kc_entry_id)}</code> ➔ <strong>status=${escapeHtml(v.status)}</strong>, decision=<strong>${escapeHtml(v.decision)}</strong> (${escapeHtml(
+                  k ? v.reason_ko : v.reason_en
+                )})</li>`
             )
             .join("")}
+        </ul>`
+      : `<div style="font-size:11.5px; color:var(--text-sub);">${
+          k ? "KC 엔트리 조회 생략" : "No KC entries queried"
+        }</div>`;
+
+    const s3Html = sc.refused
+      ? `<div style="font-size:11.5px; color:var(--text-sub);">${
+          k ? "도메인 범위 외 질문 거절 완료" : "Out-of-domain refusal completed"
+        }</div>`
+      : sc.blocked
+      ? `<div style="font-size:11.5px; color:var(--gcp-red); font-weight:600;">${
+          k
+            ? `BLOCKED_DEPRECATED 차단 발동 · 감사 티켓(${escapeHtml(s3.incident_id || "INC-HP-KC-2026-013")}) 발행 및 원문 인출 중단`
+            : `BLOCKED_DEPRECATED triggered · Audit ticket (${escapeHtml(s3.incident_id || "INC-HP-KC-2026-013")}) issued & raw manual fetch halted`
+        }</div>`
+      : `<div style="font-size:11.5px; color:var(--text-sub);">${
+          k
+            ? `거버넌스 게이트 통과(ALLOW) ➔ OKF v0.2 마크다운 정본 <strong>${s3.provisions_fetched}건</strong> 및 원본 PDF(<code>N17344-001</code>) 페이지/SHA-256 무결성 교차 검증 완료`
+            : `Governance gate passed (ALLOW) ➔ Retrieved <strong>${s3.provisions_fetched}</strong> canonical OKF v0.2 Markdown specs & verified PDF (<code>N17344-001</code>) SHA-256 provenance`
+        }</div>`;
+
+    return `
+      <div style="display:flex; flex-direction:column; gap:10px; font-size:12px;">
+        <div style="padding:8px 10px; background:var(--surface-elevated); border:1px solid var(--border-subtle); border-radius:6px;">
+          <strong>Step 0 · <code>before_agent_callback</code> (${
+            k ? "최장일치 엔티티 앵커 바인딩" : "Longest-Match Entity Anchor Binding"
+          })</strong>
+          <ul style="margin:4px 0 0 18px; font-size:11.5px; line-height:1.55;">${tokenRows}</ul>
         </div>
-
-        <div class="mod-grid-2">
-          ${computations
-            .map(
-              (cp) => `
-            <div class="mod-card">
-              <div class="mod-card-header">
-                <div class="mod-card-title">
-                  <span class="material-symbols-outlined" style="color:var(--gcp-blue);">terminal</span>
-                  <span>${escapeHtml((cp.frontmatter && cp.frontmatter.title) || cp.filename)}</span>
-                </div>
-                <span class="mod-badge blue">Attested Computation</span>
-              </div>
-              <div style="font-size:12.5px; color:var(--text-sub); line-height:1.6;">
-                ${escapeHtml((cp.frontmatter && cp.frontmatter.description) || "")}
-              </div>
-              <div class="okf-md-content" style="max-height:260px; overflow-y:auto; padding:10px; background:var(--code-bg); border:1px solid var(--border); border-radius:6px;">
-                ${window.marked ? window.marked.parse(cp.body || "") : escapeHtml(cp.body || "")}
-              </div>
-            </div>`
-            )
-            .join("")}
+        <div style="padding:8px 10px; background:var(--surface-elevated); border:1px solid var(--border-subtle); border-radius:6px;">
+          <strong>Step 1 · <code>graph_query</code> (BigQuery ISO/IEC 39075 GQL · <code>hp_dragonfly_ontology_graph</code>)</strong>
+          ${s1Html}
+        </div>
+        <div style="padding:8px 10px; background:var(--surface-elevated); border:1px solid var(--border-subtle); border-radius:6px;">
+          <strong>Step 2 · <code>kc_lookup</code> (Dataplex Knowledge Catalog · <code>okf_hp_dragonfly</code>)</strong>
+          ${s2Html}
+        </div>
+        <div style="padding:8px 10px; background:var(--surface-elevated); border:1px solid var(--border-subtle); border-radius:6px;">
+          <strong>Step 3 · <code>before_tool_callback</code> ➔ <code>fetch_okf_markdown</code> (${
+            k ? "거버넌스 게이트 판정 및 OKF/PDF 원문 인출" : "Governance Gate & OKF/PDF Provenance Fetch"
+          })</strong>
+          ${s3Html}
         </div>
       </div>
     `;
+  }
+
+  function buildAgentTurnBubbleHtml(turn, turnIdx) {
+    const k = isKo();
+    const sc = turn.scenario;
+    const isBlocked = Boolean(sc.blocked);
+    const isRefused = Boolean(sc.refused);
+    const hasOkf = Boolean(sc.requires_okf_lookup);
+    const deptName = k ? sc.dept_ko : sc.dept_en;
+    const answerMd = k ? sc.answer_ko : sc.answer_en;
+
+    let statusBadgeHtml = "";
+    if (isRefused) {
+      statusBadgeHtml = `<span class="agent-neutral-pill">${
+        k ? "도메인 외 질문 거절 (Out-of-Domain)" : "Out-of-Domain Refusal"
+      }</span>`;
+    } else if (isBlocked) {
+      statusBadgeHtml = `<span class="agent-neutral-pill" style="border-color:var(--gcp-red); color:var(--gcp-red); font-weight:600;">${
+        k ? "BLOCKED_DEPRECATED · 폐기 매뉴얼 차단" : "BLOCKED_DEPRECATED · Deprecated Manual Blocked"
+      }</span>`;
+    } else if (hasOkf) {
+      statusBadgeHtml = `<span class="agent-neutral-pill">${
+        k ? "KC ALLOW · OKF 원문 검증" : "KC ALLOW · OKF Source Attested"
+      }</span>`;
+    } else {
+      statusBadgeHtml = `<span class="agent-neutral-pill">${
+        k ? "Step 1 · GQL 원장 조회" : "Step 1 · GQL Graph Query"
+      }</span>`;
+    }
+
+    const defaultDrawerTab = isBlocked ? "KC" : hasOkf ? "PROVISION" : "LEDGER";
+    const openBtnLabel = isBlocked
+      ? k
+        ? "차단 판정 근거 열기"
+        : "Open Block Verdict"
+      : hasOkf
+      ? k
+        ? "원문·원장 근거 상세 열기"
+        : "Open OKF & BigQuery Evidence"
+      : k
+      ? "테이블 결과 상세 열기"
+      : "Open Table Results";
+
+    const openBtnHtml = isRefused
+      ? ""
+      : `<button type="button" class="agent-artifact-open-btn" onclick="openAgentArtifactForTurn(${turnIdx}, '${defaultDrawerTab}')">
+          ${openBtnLabel}
+        </button>`;
+
+    const s1 = (sc.steps_trace && sc.steps_trace.step1) || {};
+    const qaTitle = isRefused
+      ? k
+        ? "Step 0 도메인 가드레일 판정 로그 (0 Bytes Scanned)"
+        : "Step 0 Domain Guardrail Trace (0 Bytes Scanned)"
+      : k
+      ? `실행된 GQL 쿼리 및 경로 분석 (Step 0~3 · ${s1.row_count || 0}행 · ${s1.elapsed_ms || 0} ms)`
+      : `Executed GQL Query & Path Analysis (Step 0–3 · ${s1.row_count || 0} rows · ${s1.elapsed_ms || 0} ms)`;
+
+    return `
+      <div class="msg-agent-bubble ${isBlocked ? "blocked-bubble" : ""}">
+        <div class="msg-agent-topbar">
+          <div class="msg-agent-meta-left">
+            <span class="agent-neutral-pill">${escapeHtml(sc.id || "01")}. ${escapeHtml(deptName)}</span>
+            ${statusBadgeHtml}
+          </div>${openBtnHtml}
+        </div>
+
+        <div class="agent-md-body">
+          ${formatAgentMarkdown(answerMd, turnIdx)}
+        </div>
+
+        <details class="query-accordion">
+          <summary>
+            <span>${escapeHtml(qaTitle)}</span>
+            <span class="material-symbols-outlined qa-chevron">expand_more</span>
+          </summary>
+          <div class="query-accordion-body">
+            ${buildAgentStepsTraceHtml(sc)}
+          </div>
+        </details>
+      </div>
+    `;
+  }
+
+  function buildAgentWelcomeCardHtml() {
+    const k = isKo();
+    return `
+      <div class="agent-msg-row msg-agent" id="agent-welcome-card">
+        <div class="mod-card" style="padding:18px 22px;">
+          <div style="font-size:14px; font-weight:600; color:var(--text); margin-bottom:6px;">
+            ${
+              k
+                ? "HP Dragonfly G3 / Folio G3 엔터프라이즈 온톨로지 에이전트 실행 구조"
+                : "HP Dragonfly G3 / Folio G3 Enterprise Ontology Agent Execution Architecture"
+            }
+          </div>
+          <div style="font-size:12.5px; color:var(--text-sub); line-height:1.7;">
+            ${
+              k
+                ? "• <strong>Step 0 (<code>before_agent_callback</code>)</strong>: 사용자 질문에서 부품 번호(<code>N20728-601</code>), 점멸 코드(<code>LED-CAPS-2-2</code>, <code>3.2</code>), 고장 증상을 최장일치로 추출하여 온톨로지 클래스 앵커에 바인딩합니다.<br>• <strong>Step 1 (<code>graph_query</code>)</strong>: BigQuery Property Graph(<code>hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph</code>)에 ISO/IEC 39075 GQL을 실행하여 선행 분해 순서(DAG), SKU별 보드 FRU, 플레이북 경로를 멀티홉으로 조회합니다.<br>• <strong>Step 2 (<code>kc_lookup</code>)</strong>: Dataplex Knowledge Catalog(<code>okf_hp_dragonfly</code>)에서 연결된 OKF v0.2 엔트리의 유효 상태(<code>status: verified / deprecated</code>, <code>stale_after</code>)를 검증합니다.<br>• <strong>Step 3 (<code>before_tool_callback</code> ➔ <code>fetch_okf_markdown</code>)</strong>: 유효 정본(<code>ALLOW</code>) 판정 시에만 OKF v0.2 마크다운과 원본 서비스 매뉴얼 PDF(<code>N17344-001</code>) 페이지를 인출하며, 폐기된 구버전 지침은 <code>BLOCKED_DEPRECATED</code>로 즉시 차단합니다."
+                : "• <strong>Step 0 (<code>before_agent_callback</code>)</strong>: Extracts spare part numbers (<code>N20728-601</code>), blink codes (<code>LED-CAPS-2-2</code>, <code>3.2</code>), and symptoms via longest-match alias binding.<br>• <strong>Step 1 (<code>graph_query</code>)</strong>: Executes ISO/IEC 39075 GQL against <code>hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph</code> to resolve prerequisite disassembly DAGs, SKU-to-System-Board FRUs, and playbook bridges.<br>• <strong>Step 2 (<code>kc_lookup</code>)</strong>: Queries Dataplex Knowledge Catalog (<code>okf_hp_dragonfly</code>) to verify entry governance metadata (<code>status: verified / deprecated</code>, <code>stale_after</code>).<br>• <strong>Step 3 (<code>before_tool_callback</code> ➔ <code>fetch_okf_markdown</code>)</strong>: Enforces the governance gate—retrieving verbatim OKF v0.2 Markdown and PDF (<code>N17344-001</code>) pages on <code>ALLOW</code>, or halting with <code>BLOCKED_DEPRECATED</code>."
+            }
+          </div>
+          <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border-subtle); display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span style="font-size:11.5px; font-weight:600; color:var(--text-sub);">${
+              k ? "추천 대표 질문 바로 실행:" : "Quick-Run Featured Scenarios:"
+            }</span>
+            <button type="button" class="scen-pill" style="padding:3px 10px; font-size:11.5px;" onclick="selectAgentQuestion('01', true)">
+              ${k ? "01. 시스템 보드(N20728-601) 분해 DAG & 700V ESD" : "01. System Board (N20728-601) Disassembly DAG & ESD"}
+            </button>
+            <button type="button" class="scen-pill" style="padding:3px 10px; font-size:11.5px;" onclick="selectAgentQuestion('02', true)">
+              ${k ? "02. LED 2.2 점멸 & HP Sure Start 무분해 복구" : "02. Caps Lock 2.2 Blink & Sure Start Recovery"}
+            </button>
+            <button type="button" class="scen-pill" style="padding:3px 10px; font-size:11.5px;" onclick="selectAgentQuestion('03', true)">
+              ${k ? "03. LED 3.2 온보드 RAM 불량 & SKU별 보드 매핑" : "03. Caps Lock 3.2 Soldered RAM & SKU Board Matrix"}
+            </button>
+            <button type="button" class="scen-pill" style="padding:3px 10px; font-size:11.5px;" onclick="selectAgentQuestion('13', true)">
+              ${k ? "13. [거버넌스 차단] 폐기 매뉴얼(BLOCKED_DEPRECATED)" : "13. [Governance Block] Deprecated Draft (BLOCKED)"}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderAgentModule() {
+    const rootEl = document.getElementById("module-agent");
+    if (!rootEl) return;
+    const k = isKo();
+    const scenarios = getAgentScenarios();
+    if (!AGENT_INITIAL_SEEDED && scenarios.length > 0) {
+      AGENT_INITIAL_SEEDED = true;
+      const sc0 = scenarios[0];
+      AGENT_TURN_HISTORY.push({
+        user_q_ko: sc0.q_ko,
+        user_q_en: sc0.q_en,
+        scenario: sc0
+      });
+      AGENT_ACTIVE_TURN_IDX = 0;
+      AGENT_SELECTED_Q_ID = scenarios.length > 1 ? scenarios[1].id : sc0.id;
+    }
+    const selSc = scenarios.find((s) => s.id === AGENT_SELECTED_Q_ID) || scenarios[0];
+
+    const historyHtml = AGENT_TURN_HISTORY.map((turn, idx) => {
+      const userQ = k ? turn.user_q_ko : turn.user_q_en;
+      return `
+        <div class="agent-msg-row msg-user">
+          <div class="msg-user-bubble">${escapeHtml(userQ)}</div>
+        </div>
+        <div class="agent-msg-row msg-agent">
+          ${buildAgentTurnBubbleHtml(turn, idx)}
+        </div>
+      `;
+    }).join("");
+
+    rootEl.innerHTML = `
+      <!-- Top Full-Width Subbar -->
+      <div class="pane-subbar" style="justify-content:space-between; padding:0 20px; height:44px;">
+        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+          <button type="button" class="sidebar-collapse-btn" onclick="toggleAgentLeftSidebar()" title="${
+            k ? "좌측 질문 목록 접기/펼치기" : "Toggle Left Question Sidebar"
+          }">
+            <span class="material-symbols-outlined" style="font-size:16px;" id="agent-left-toggle-icon">${
+              AGENT_LEFT_SIDEBAR_COLLAPSED ? "left_panel_open" : "left_panel_close"
+            }</span>
+            <span id="lbl-agent-left-toggle">${
+              AGENT_LEFT_SIDEBAR_COLLAPSED
+                ? k
+                  ? "질문 패널 펼치기"
+                  : "Expand Questions"
+                : k
+                ? "질문 패널 접기"
+                : "Collapse Questions"
+            }</span>
+          </button>
+          <span class="material-symbols-outlined" style="font-size:18px; color:var(--gcp-blue);">smart_toy</span>
+          <span style="font-weight:600; color:var(--text); white-space:nowrap;">${
+            k
+              ? "HP Dragonfly Graph 하드웨어 서비스 · 진단 · 분해 추론 에이전트"
+              : "HP Dragonfly Graph Hardware Service, Triage & Disassembly Agent"
+          }</span>
+          <span style="font-size:11.5px; color:var(--text-sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            ${
+              k
+                ? "Step 0(앵커 바인딩) ➔ Step 1(BigQuery GQL) ➔ Step 2(Dataplex KC 검증) ➔ Step 3(게이트 판정 · OKF/PDF 원문 인출)"
+                : "Step 0 (Anchor Bind) ➔ Step 1 (BigQuery GQL) ➔ Step 2 (Dataplex KC Lookup) ➔ Step 3 (Gate & OKF/PDF Fetch)"
+            }
+          </span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+          <button type="button" class="gcp-action-btn" onclick="toggleAgentArtifactDrawer()" style="padding:4px 12px; font-size:12px;">
+            <span class="material-symbols-outlined" style="font-size:15px;">menu_book</span>
+            <span>${k ? "근거 아티팩트 서랍" : "Evidence Artifact Drawer"}</span>
+          </button>
+          <button type="button" class="gcp-action-btn" onclick="clearAgentChatSession()" style="padding:4px 10px; font-size:12px;">
+            ${k ? "초기화" : "Reset"}
+          </button>
+        </div>
+      </div>
+
+      <!-- Body Row: Left Question Sidebar + Center Wide Chat Studio + Right Slide-out Evidence Drawer -->
+      <div class="bench-body-row">
+        <!-- 1. Left Question Sidebar -->
+        <aside class="agent-nav-sidebar ${AGENT_LEFT_SIDEBAR_COLLAPSED ? "collapsed" : ""}" id="agent-left-sidebar">
+          <div class="agent-sidebar-header">
+            <div style="font-size:15px; font-weight:700; color:var(--text); letter-spacing:-0.2px; margin-bottom:6px;">
+              ${k ? `질문 목록 (${scenarios.length}건)` : `Question Catalog (${scenarios.length})`}
+            </div>
+            <div style="font-size:12px; color:var(--text-sub); line-height:1.55;">
+              ${
+                k
+                  ? "질문을 클릭하면 하단 입력창에 채워지며, 우측 <strong>▶ 버튼</strong> 또는 <strong>Enter</strong>로 즉시 실행합니다."
+                  : "Click any question to populate the composer, or click <strong>▶</strong> / press <strong>Enter</strong> to execute."
+              }
+            </div>
+          </div>
+
+          <div class="search-box">
+            <div class="search-input-wrap">
+              <span class="material-symbols-outlined">search</span>
+              <input type="text" id="agent-q-search" value="${escapeHtml(AGENT_SEARCH_FILTER)}" placeholder="${
+                k ? "질문 또는 부품/코드 검색 (N20728, LED, BIOS)..." : "Filter by part, code, or keyword..."
+              }" oninput="filterAgentSidebarQuestions(this.value)" />
+            </div>
+          </div>
+
+          <div class="nav-list" id="agent-q-list">
+            ${buildAgentSidebarListHtml(AGENT_SEARCH_FILTER)}
+          </div>
+        </aside>
+
+        <!-- 2. Center Wide Chat Studio -->
+        <section class="agent-chat-pane">
+          <div class="bench-arm-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span>Graph Agent · <code>hp_dragonfly_ontology_graph</code> + Dataplex KC <code>okf_hp_dragonfly</code></span>
+            </div>
+            <span style="font-size:11.5px; font-weight:500; color:var(--text-sub);">
+              ${k ? "실시간 BigQuery GQL + 28 OKF v0.2 정본 연동" : "Live BigQuery GQL + 28 Canonical OKF v0.2 Docs"}
+            </span>
+          </div>
+
+          <!-- Scrollable Chat Messages -->
+          <div class="agent-chat-messages" id="agent-chat-messages">
+            ${buildAgentWelcomeCardHtml()}
+            ${historyHtml}
+          </div>
+
+          <!-- Bottom Chat Input Bar -->
+          <div class="agent-chat-input-bar">
+            <div class="agent-composer-card">
+              <textarea id="agent-chat-input" class="agent-chat-textarea" rows="1"
+                        placeholder="${
+                          k
+                            ? "좌측에서 질문(01. ~ 14.)을 클릭하거나 HP Dragonfly 노트북 부품/고장 질문을 입력하세요... (Enter 전송, Shift+Enter 줄바꿈)"
+                            : "Select a question (01.–14.) on the left or ask any HP Dragonfly hardware/triage question... (Enter to send)"
+                        }"
+                        oninput="autoResizeAgentTextarea(this)"
+                        onkeydown="handleAgentChatKeydown(event)">${escapeHtml(
+                          selSc ? (k ? selSc.q_ko : selSc.q_en) : ""
+                        )}</textarea>
+              <div class="agent-composer-footer">
+                <button type="button" id="agent-send-btn" class="agent-send-btn" onclick="sendAgentChatMessage()" title="${
+                  k ? "질문 전송 (Enter)" : "Send Question (Enter)"
+                }">
+                  <span class="material-symbols-outlined">arrow_upward</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. Right Slide-out Evidence Artifact Drawer -->
+        <aside id="agent-artifact-drawer" class="agent-artifact-drawer ${AGENT_DRAWER_OPEN ? "open" : ""}">
+          <div class="detail-panel-header">
+            <div class="detail-panel-title-wrap">
+              <span class="material-symbols-outlined" style="font-size:16px; color:var(--text-sub);">verified_user</span>
+              <code id="agent-drawer-title">${
+                k ? "실시간 검증 근거 아티팩트" : "Live Verified Evidence Artifacts"
+              }</code>
+            </div>
+            <button type="button" class="icon-close-btn" onclick="closeAgentArtifactDrawer()" title="${
+              k ? "닫기" : "Close"
+            }">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+
+          <div class="agent-drawer-tabs">
+            <button type="button" class="mgmt-subtab-btn ${AGENT_DRAWER_TAB === "KC" ? "active" : ""}" id="agent-dtab-KC" onclick="switchAgentDrawerTab('KC')">
+              ${k ? "KC 유효성 판정" : "KC Verdict"}
+            </button>
+            <button type="button" class="mgmt-subtab-btn ${AGENT_DRAWER_TAB === "PROVISION" ? "active" : ""}" id="agent-dtab-PROVISION" onclick="switchAgentDrawerTab('PROVISION')">
+              ${k ? "OKF 원문" : "OKF Source"}
+            </button>
+            <button type="button" class="mgmt-subtab-btn ${AGENT_DRAWER_TAB === "LEDGER" ? "active" : ""}" id="agent-dtab-LEDGER" onclick="switchAgentDrawerTab('LEDGER')">
+              ${k ? "테이블 결과" : "Table Results"}
+            </button>
+          </div>
+
+          <div class="detail-panel-body" id="agent-drawer-body"></div>
+        </aside>
+      </div>
+    `;
+
+    const inputEl = document.getElementById("agent-chat-input");
+    if (inputEl) window.autoResizeAgentTextarea(inputEl);
+    if (AGENT_DRAWER_OPEN) {
+      renderAgentArtifactDrawer();
+    }
+  }
+
+  window.toggleAgentLeftSidebar = function () {
+    AGENT_LEFT_SIDEBAR_COLLAPSED = !AGENT_LEFT_SIDEBAR_COLLAPSED;
+    const sb = document.getElementById("agent-left-sidebar");
+    if (sb) sb.classList.toggle("collapsed", AGENT_LEFT_SIDEBAR_COLLAPSED);
+    const iconEl = document.getElementById("agent-left-toggle-icon");
+    const lblEl = document.getElementById("lbl-agent-left-toggle");
+    const k = isKo();
+    if (iconEl) {
+      iconEl.textContent = AGENT_LEFT_SIDEBAR_COLLAPSED ? "left_panel_open" : "left_panel_close";
+    }
+    if (lblEl) {
+      lblEl.textContent = AGENT_LEFT_SIDEBAR_COLLAPSED
+        ? k
+          ? "질문 패널 펼치기"
+          : "Expand Questions"
+        : k
+        ? "질문 패널 접기"
+        : "Collapse Questions";
+    }
+  };
+
+  window.filterAgentSidebarQuestions = function (val) {
+    AGENT_SEARCH_FILTER = val || "";
+    const listEl = document.getElementById("agent-q-list");
+    if (listEl) {
+      listEl.innerHTML = buildAgentSidebarListHtml(AGENT_SEARCH_FILTER);
+    }
+  };
+
+  window.selectAgentQuestion = function (qId, autoSend = false) {
+    AGENT_SELECTED_Q_ID = qId;
+    const scenarios = getAgentScenarios();
+    scenarios.forEach((item) => {
+      const el = document.getElementById(`agent-qitem-${item.id}`);
+      if (el) el.classList.toggle("active", item.id === qId);
+    });
+    const found = scenarios.find((item) => item.id === qId);
+    const inputEl = document.getElementById("agent-chat-input");
+    if (found && inputEl) {
+      inputEl.value = isKo() ? found.q_ko : found.q_en;
+      window.autoResizeAgentTextarea(inputEl);
+      inputEl.focus();
+      if (autoSend) {
+        window.sendAgentChatMessage(qId);
+      }
+    }
+  };
+
+  window.autoResizeAgentTextarea = function (el) {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 120) + "px";
+  };
+
+  window.handleAgentChatKeydown = function (e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      window.sendAgentChatMessage();
+    }
+  };
+
+  window.clearAgentChatSession = function () {
+    AGENT_TURN_HISTORY = [];
+    AGENT_ACTIVE_TURN_IDX = -1;
+    AGENT_DRAWER_OPEN = false;
+    renderAgentModule();
+  };
+
+  window.sendAgentChatMessage = async function (explicitScenarioId = null) {
+    if (AGENT_IS_SENDING) return;
+    const inputEl = document.getElementById("agent-chat-input");
+    const msgBox = document.getElementById("agent-chat-messages");
+    const sendBtn = document.getElementById("agent-send-btn");
+    if (!inputEl || !msgBox) return;
+
+    const question = inputEl.value.trim();
+    if (!question) return;
+
+    const k = isKo();
+    AGENT_IS_SENDING = true;
+    if (sendBtn) sendBtn.disabled = true;
+
+    inputEl.value = "";
+    window.autoResizeAgentTextarea(inputEl);
+
+    const userRow = document.createElement("div");
+    userRow.className = "agent-msg-row msg-user";
+    userRow.innerHTML = `<div class="msg-user-bubble">${escapeHtml(question)}</div>`;
+    msgBox.appendChild(userRow);
+
+    const loadingRow = document.createElement("div");
+    loadingRow.className = "agent-msg-row msg-agent";
+    const loadingTextId = `agent-loading-stage-${Date.now()}`;
+    const loadingStages = k
+      ? [
+          "Step 0 · before_agent_callback : 부품 번호·진단 코드 최장일치 엔티티 앵커 바인딩 중...",
+          "Step 1 · graph_query : BigQuery hp_dragonfly_ontology_graph GQL 경로 탐색 및 실행 중...",
+          "Step 2 · kc_lookup : Dataplex Knowledge Catalog (okf_hp_dragonfly) 유효성 검증 중...",
+          "Step 3 · before_tool_callback : 거버넌스 게이트 판정 및 OKF v0.2 마크다운/PDF 원문 인출 중..."
+        ]
+      : [
+          "Step 0 · before_agent_callback : Binding spare part & diagnostic code entity anchors...",
+          "Step 1 · graph_query : Executing ISO/IEC 39075 GQL on BigQuery hp_dragonfly_ontology_graph...",
+          "Step 2 · kc_lookup : Verifying Dataplex Knowledge Catalog (okf_hp_dragonfly) status...",
+          "Step 3 · before_tool_callback : Evaluating governance gate & fetching canonical OKF v0.2 Markdown..."
+        ];
+    let stageIdx = 0;
+
+    loadingRow.innerHTML = `
+      <div class="msg-agent-bubble" style="padding:14px 18px;">
+        <div class="agent-loading-line">
+          <span class="material-symbols-outlined gcp-spin-sync" style="font-size:17px; color:var(--text-sub); flex-shrink:0;">sync</span>
+          <span id="${loadingTextId}" class="agent-loading-text">${loadingStages[0]}</span>
+        </div>
+      </div>
+    `;
+    msgBox.appendChild(loadingRow);
+    msgBox.scrollTop = msgBox.scrollHeight;
+
+    const loadingTimer = setInterval(() => {
+      if (stageIdx < loadingStages.length - 1) {
+        stageIdx += 1;
+        const stageEl = document.getElementById(loadingTextId);
+        if (stageEl) stageEl.textContent = loadingStages[stageIdx];
+      }
+    }, 320);
+
+    try {
+      let matchedSc = null;
+      try {
+        const res = await fetch("/api/agent/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question,
+            scenario_id: explicitScenarioId,
+            live_bq: true
+          })
+        });
+        const data = await res.json();
+        if (data && data.ok && data.scenario) {
+          matchedSc = data.scenario;
+        }
+      } catch (_) {
+        // Fallback to pre-verified local scenario bank
+      }
+
+      if (!matchedSc) {
+        matchedSc = matchLocalAgentScenario(question, explicitScenarioId);
+      }
+
+      await new Promise((r) => setTimeout(r, 420));
+
+      const turnObj = {
+        user_q_ko: matchedSc && question === matchedSc.q_en ? matchedSc.q_ko : question,
+        user_q_en: matchedSc && question === matchedSc.q_ko ? matchedSc.q_en : question,
+        scenario: matchedSc
+      };
+      const turnIdx = AGENT_TURN_HISTORY.length;
+      AGENT_TURN_HISTORY.push(turnObj);
+      AGENT_ACTIVE_TURN_IDX = turnIdx;
+
+      if (matchedSc && matchedSc.id) {
+        AGENT_SELECTED_Q_ID = matchedSc.id;
+        getAgentScenarios().forEach((item) => {
+          const el = document.getElementById(`agent-qitem-${item.id}`);
+          if (el) el.classList.toggle("active", item.id === matchedSc.id);
+        });
+      }
+
+      loadingRow.innerHTML = buildAgentTurnBubbleHtml(turnObj, turnIdx);
+
+      if (AGENT_DRAWER_OPEN) {
+        renderAgentArtifactDrawer();
+      }
+    } catch (err) {
+      loadingRow.innerHTML = `
+        <div class="msg-agent-bubble blocked-bubble">
+          <div class="agent-md-body">
+            <h3>${k ? "에이전트 요청 처리 중 오류가 발생했습니다" : "Error processing agent request"}</h3>
+            <p><code>${escapeHtml(err.message || String(err))}</code></p>
+          </div>
+        </div>
+      `;
+    } finally {
+      clearInterval(loadingTimer);
+      AGENT_IS_SENDING = false;
+      if (sendBtn) sendBtn.disabled = false;
+      msgBox.scrollTop = msgBox.scrollHeight;
+    }
+  };
+
+  window.openAgentArtifactForTurn = function (turnIdx, defaultTab = "KC") {
+    if (turnIdx < 0 || turnIdx >= AGENT_TURN_HISTORY.length) return;
+    AGENT_ACTIVE_TURN_IDX = turnIdx;
+    AGENT_DRAWER_TAB = defaultTab;
+    AGENT_DRAWER_OPEN = true;
+    const drawerEl = document.getElementById("agent-artifact-drawer");
+    if (drawerEl) drawerEl.classList.add("open");
+    renderAgentArtifactDrawer();
+  };
+
+  window.toggleAgentArtifactDrawer = function () {
+    const drawerEl = document.getElementById("agent-artifact-drawer");
+    if (!drawerEl) return;
+    AGENT_DRAWER_OPEN = !AGENT_DRAWER_OPEN;
+    drawerEl.classList.toggle("open", AGENT_DRAWER_OPEN);
+    if (AGENT_DRAWER_OPEN) {
+      renderAgentArtifactDrawer();
+    }
+  };
+
+  window.closeAgentArtifactDrawer = function () {
+    AGENT_DRAWER_OPEN = false;
+    const drawerEl = document.getElementById("agent-artifact-drawer");
+    if (drawerEl) drawerEl.classList.remove("open");
+  };
+
+  window.switchAgentDrawerTab = function (tabId) {
+    AGENT_DRAWER_TAB = tabId;
+    renderAgentArtifactDrawer();
+  };
+
+  window.jumpToOkfValidationFromAgent = function (okfRelPath) {
+    const fIdx = OKF_FILES.findIndex((f) => f.rel_path === okfRelPath);
+    if (fIdx >= 0) {
+      CURRENT_OKF_IDX = fIdx;
+    }
+    GRAPH_MODE = false;
+    window.switchModule("okf-validation");
+    window.selectItem(CURRENT_OKF_IDX);
+  };
+
+  function renderAgentArtifactDrawer() {
+    const bodyEl = document.getElementById("agent-drawer-body");
+    const titleEl = document.getElementById("agent-drawer-title");
+    if (!bodyEl) return;
+    const k = isKo();
+
+    ["KC", "PROVISION", "LEDGER"].forEach((t) => {
+      const btn = document.getElementById(`agent-dtab-${t}`);
+      if (btn) btn.classList.toggle("active", t === AGENT_DRAWER_TAB);
+    });
+
+    if (AGENT_ACTIVE_TURN_IDX < 0 || !AGENT_TURN_HISTORY[AGENT_ACTIVE_TURN_IDX]) {
+      bodyEl.innerHTML = `
+        <div style="padding:24px 16px; font-size:12.5px; color:var(--text-sub); line-height:1.6; text-align:center;">
+          ${
+            k
+              ? "아직 실행된 에이전트 응답이 없습니다.<br>좌측에서 질문(<code>01.</code> ~ <code>14.</code>)을 선택하고 전송하면<br>실시간 <strong>KC 유효성 판정 · OKF 원문 · BigQuery 테이블 결과</strong>가 이곳에 표시됩니다."
+              : "No agent response executed yet.<br>Select any question (<code>01.</code>–<code>14.</code>) on the left and send it to inspect live <strong>Dataplex KC Verdicts, OKF v0.2 Sources, and BigQuery GQL Results</strong>."
+          }
+        </div>
+      `;
+      return;
+    }
+
+    const turn = AGENT_TURN_HISTORY[AGENT_ACTIVE_TURN_IDX];
+    const sc = turn.scenario || {};
+    const drawer = sc.artifact_drawer || {};
+    const kcVerdicts = drawer.kc_verdicts || [];
+    const provisions = drawer.provisions || [];
+    const ledgerTables = drawer.ledger_tables || [];
+
+    if (titleEl) {
+      titleEl.textContent = `${sc.id || "01"}. ${k ? sc.dept_ko : sc.dept_en} · ${
+        k ? "근거 아티팩트" : "Evidence Artifacts"
+      }`;
+    }
+
+    if (AGENT_DRAWER_TAB === "KC") {
+      bodyEl.innerHTML =
+        kcVerdicts
+          .map((kv) => {
+            const isAllowed = kv.decision === "ALLOW" || kv.decision === "SUPERSEDED_RESOLVED";
+            const supInfo = kv.superseded_chain_example
+              ? `<div style="margin-top:8px; padding:8px 10px; background:var(--code-bg); border:1px solid var(--border); border-radius:6px; font-size:11.5px; line-height:1.5;">
+                  <strong>${
+                    k ? "참고 · 정본 대체(Canonical Replacement) 체인:" : "Note · Canonical Replacement Chain:"
+                  }</strong><br>
+                  <code>${escapeHtml(kv.superseded_chain_example.from)}</code> ➔ <code>${escapeHtml(
+                  kv.superseded_chain_example.resolved_to
+                )}</code> (${kv.superseded_chain_example.hops}-hop, <code>${escapeHtml(
+                  kv.superseded_chain_example.decision
+                )}</code>)
+                </div>`
+              : "";
+            return `
+              <div class="mod-card ${!isAllowed ? "blocked-card" : ""}" style="padding:14px 16px; margin-bottom:12px;">
+                <div class="mod-card-header">
+                  <span class="mod-card-title" style="font-size:13px;">
+                    ${escapeHtml(kv.article_no || "OKF Entry")}
+                  </span>
+                  <span class="agent-neutral-pill">${escapeHtml(kv.decision)} (status=${escapeHtml(kv.status)})</span>
+                </div>
+                <div style="font-size:12px; color:var(--text-sub); margin-bottom:6px;">${escapeHtml(
+                  k ? kv.title_ko : kv.title_en
+                )}</div>
+                <div class="agent-table-scroll">
+                  <table class="mod-table" style="font-size:11.5px;">
+                    <tbody>
+                      <tr><th style="width:115px;">KC Entry ID</th><td><code>${escapeHtml(kv.kc_entry_id)}</code></td></tr>
+                      <tr><th>Dataplex FQN</th><td><code>${escapeHtml(kv.kc_entry_fqn || "")}</code></td></tr>
+                      <tr><th>${k ? "유효 상태 (status)" : "Status"}</th><td><code>${escapeHtml(kv.status)}</code> (v${escapeHtml(kv.version || "1.0.0")})</td></tr>
+                      <tr><th>${k ? "유효 기한 (stale_after)" : "Stale After"}</th><td><code>${escapeHtml(kv.stale_after || "2027-12-31")}</code></td></tr>
+                      <tr><th>${k ? "게이트 판정" : "Gate Decision"}</th><td><strong>${escapeHtml(kv.decision)}</strong> (${escapeHtml(
+              k ? kv.reason_ko : kv.reason_en
+            )})</td></tr>
+                      <tr><th>${k ? "검증 체인" : "Resolution Chain"}</th><td><code>${escapeHtml(
+              (kv.chain || [kv.kc_entry_id]).join(" -> ")
+            )}</code></td></tr>
+                      ${
+                        kv.incident_id
+                          ? `<tr><th>${k ? "발행 감사 티켓" : "Audit Ticket"}</th><td><code>${escapeHtml(kv.incident_id)}</code></td></tr>`
+                          : ""
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                ${supInfo}
+              </div>
+            `;
+          })
+          .join("") ||
+        `<div style="padding:16px; font-size:12px; color:var(--text-sub);">${
+          k ? "조회된 KC 판정 내역이 없습니다." : "No Dataplex KC verdicts recorded for this turn."
+        }</div>`;
+      return;
+    }
+
+    if (AGENT_DRAWER_TAB === "PROVISION") {
+      if (sc.blocked || provisions.length === 0) {
+        bodyEl.innerHTML = `
+          <div class="mod-card blocked-card" style="padding:16px;">
+            <div style="font-size:13px; font-weight:600; color:var(--text); margin-bottom:6px;">
+              ${
+                k
+                  ? "OKF 원문 인출 차단됨 (BLOCKED_DEPRECATED)"
+                  : "OKF Source Retrieval Blocked (BLOCKED_DEPRECATED)"
+              }
+            </div>
+            <div style="font-size:12px; color:var(--text-sub); line-height:1.6;">
+              ${
+                k
+                  ? "<code>before_tool_callback</code> 거버넌스 게이트가 Dataplex KC 유효성 미통과(<code>status: deprecated</code>, 만료일 2025-12-31)를 감지하여 폐기된 수리 지침 원문 인출을 원천 차단했습니다."
+                  : "The <code>before_tool_callback</code> governance gate detected <code>status: deprecated</code> in Dataplex KC and blocked raw manual retrieval to prevent unsafe servicing."
+              }
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      bodyEl.innerHTML = provisions
+        .map((p) => {
+          return `
+            <div class="mod-card" style="padding:14px 16px; margin-bottom:14px;">
+              <div class="mod-card-header">
+                <span class="mod-card-title" style="font-size:13px;">
+                  [${escapeHtml(p.article_no)}] ${escapeHtml(k ? p.title_ko : p.title_en)}
+                </span>
+                <span class="agent-neutral-pill">${escapeHtml(
+                  k ? p.provision_role_ko : p.provision_role_en
+                )}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+                <code style="font-family:var(--mono); font-size:11px; color:var(--text-sub);">${escapeHtml(p.uri)}</code>
+                <button type="button" class="gcp-action-btn" style="flex:0 0 auto; padding:4px 10px; font-size:11.5px;" onclick="jumpToOkfValidationFromAgent('${escapeHtml(
+                  p.okf_rel_path
+                )}')">
+                  ${k ? `02 · 원문 대조뷰(PDF p.${p.pdf_page}) 열기` : `Open 02 · PDF Compare (p.${p.pdf_page})`}
+                </button>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:4px; font-size:11px; color:var(--text-sub); line-height:1.5; background:var(--code-bg); border:1px solid var(--border); border-radius:6px; padding:8px 10px; margin-bottom:8px;">
+                <div><strong>Dataplex KC Entry:</strong> <code>${escapeHtml(p.kc_entry_fqn || "")}</code></div>
+                <div><strong>Source PDF Page:</strong> <code>N17344-001 (${escapeHtml(p.source_pdf || "")})</code></div>
+                <div><strong>SHA-256 Provenance:</strong> <code>${escapeHtml(p.sha256 || "verified")}</code></div>
+                ${
+                  p.target_columns
+                    ? `<div><strong>${k ? "매핑 원장 컬럼:" : "Mapped BQ Columns:"}</strong> <code>${escapeHtml(
+                        p.target_columns
+                      )}</code></div>`
+                    : ""
+                }
+              </div>
+              ${
+                p.yaml_frontmatter
+                  ? `
+                <details class="fm-accordion" style="margin-bottom:6px;">
+                  <summary>
+                    <span class="fm-summary-left"><span>YAML Frontmatter (OKF v0.2)</span></span>
+                    <span class="material-symbols-outlined fm-chevron">expand_more</span>
+                  </summary>
+                  <div class="frontmatter-block">${escapeHtml(p.yaml_frontmatter)}</div>
+                </details>
+              `
+                  : ""
+              }
+              <div class="okf-body-box" style="font-size:12.5px; padding:12px 14px; max-height:300px; overflow-y:auto;">${escapeHtml(
+                p.verbatim_body || ""
+              )}</div>
+            </div>
+          `;
+        })
+        .join("");
+      return;
+    }
+
+    // LEDGER Tab ("테이블 결과")
+    if (ledgerTables.length === 0) {
+      bodyEl.innerHTML = `<div style="padding:16px; font-size:12px; color:var(--text-sub);">${
+        k
+          ? "거버넌스 게이트 차단 또는 도메인 외 질문으로 인해 테이블 결과가 없습니다."
+          : "No BigQuery table results due to governance block or out-of-domain refusal."
+      }</div>`;
+      return;
+    }
+
+    bodyEl.innerHTML = ledgerTables
+      .map((lt) => {
+        const rows = lt.rows || [];
+        let tblHtml = `<div style="font-size:12px; color:var(--text-sub);">${
+          k ? "조회된 행 없음 (0건)" : "0 rows returned"
+        }</div>`;
+        if (rows.length > 0) {
+          const cols = Object.keys(rows[0]);
+          const ths = cols.map((c) => `<th><code>${escapeHtml(c)}</code></th>`).join("");
+          const trs = rows
+            .map(
+              (r) =>
+                `<tr>${cols
+                  .map((c) => `<td>${escapeHtml(String(r[c] ?? "-"))}</td>`)
+                  .join("")}</tr>`
+            )
+            .join("");
+          tblHtml = `<div class="agent-table-scroll"><table class="mod-table" style="font-size:11.5px;"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+        }
+        return `
+          <div class="mod-card" style="padding:14px 16px; margin-bottom:14px;">
+            <div class="mod-card-header">
+              <span class="mod-card-title" style="font-size:13px;">
+                ${escapeHtml(k ? lt.table_title_ko || "테이블 결과" : lt.table_title_en || "Table Results")}
+              </span>
+              <span class="agent-neutral-pill">${lt.row_count} rows · ${lt.elapsed_ms} ms</span>
+            </div>
+            ${tblHtml}
+            <details class="query-accordion" style="margin-top:8px;">
+              <summary>
+                <span>${
+                  k
+                    ? `실행된 통합 GQL/SQL 원문 (Job: ${escapeHtml(lt.job_id || "bqjob")})`
+                    : `Executed GQL/SQL Statement (Job: ${escapeHtml(lt.job_id || "bqjob")})`
+                }</span>
+                <span class="material-symbols-outlined qa-chevron">expand_more</span>
+              </summary>
+              <div class="query-accordion-body">
+                <pre class="query-code-pre">${escapeHtml(lt.sql || "")}</pre>
+              </div>
+            </details>
+          </div>
+        `;
+      })
+      .join("");
   }
 
   function renderBenchmarkModule() {

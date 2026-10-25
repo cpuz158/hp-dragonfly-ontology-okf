@@ -1258,13 +1258,17 @@ body.dark-mode .hl-term {
   width: 305px;
 }
 
-.nav-sidebar {
+.bq-sidebar,
+.graph-sidebar,
+.nav-sidebar,
+.agent-nav-sidebar {
   transition: width 0.2s ease, padding 0.2s ease, border-width 0.2s ease;
 }
 
 .bq-sidebar.collapsed,
 .graph-sidebar.collapsed,
-.nav-sidebar.collapsed {
+.nav-sidebar.collapsed,
+.agent-nav-sidebar.collapsed {
   width: 0 !important;
   min-width: 0 !important;
   padding-left: 0 !important;
