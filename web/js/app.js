@@ -928,6 +928,8 @@
   // =========================================================================
   // 5. MODULE 03: OKF & kcmd Management (`#module-enrollment`)
   // =========================================================================
+  let SELECTED_KC_FILE_IDX = 0;
+
   window.setMgmtTab = function (tab) {
     MGMT_TAB = tab;
     renderManagementModule();
@@ -938,23 +940,186 @@
     renderManagementModule();
   };
 
+  window.selectKcFileIdx = function (idx) {
+    SELECTED_KC_FILE_IDX = idx;
+    renderManagementModule();
+  };
+
   function renderManagementModule() {
     const box = document.getElementById("module-enrollment");
     if (!box) return;
     const k = isKo();
     const curSnap = CATALOG_SNAPS[SELECTED_SNAP_IDX] || CATALOG_SNAPS[0] || {};
-    const curFile = OKF_FILES[CURRENT_OKF_IDX] || OKF_FILES[0] || {};
+    const kcFile = OKF_FILES[SELECTED_KC_FILE_IDX] || OKF_FILES[0] || {};
+    const kcFm = kcFile.frontmatter || {};
+    const kcEntrySlug = (kcFile.rel_path || "index.md").replace(/\.md$/, "").replace(/[\/_]/g, "-");
+    const kcEntryFqn = `projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/${kcEntrySlug}`;
 
-    const kcmdCliPreview = `# 1. Push Enriched BigQuery Overview Aspects (1 Dataset + 8 Tables)
+    const kcmdCliPreview = `# 1. Push Enriched BigQuery Overview Aspects (1 Dataset + 8 Structured Tables)
 ./bin/kcmd push ./catalog
 # Scope: bq-dataset.hp-dragonfly.prj_ontology_hp_dragonfly
 
-# 2. Push Full OKF v0.2 Bundle (28 Files) to Custom EntryGroup
+# 2. Push Full OKF v0.2 Bundle (28 Files -> 29 Entries) to Custom EntryGroup
 ./bin/kcmd push ./catalog_okf
 # Scope: kb.hp-dragonfly.us-central1.okf_hp_dragonfly
 
 # 3. Round-Trip Pull Verification from Dataplex Knowledge Catalog
 ./bin/kcmd pull ./catalog_okf_pulled -s kb.hp-dragonfly.us-central1.okf_hp_dragonfly`;
+
+    const tab1Body = `
+      <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; background:var(--surface-elevated); border:1px solid var(--border); border-radius:6px; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex:1; min-width:260px;">
+          <span class="material-symbols-outlined" style="color:var(--gcp-blue);">description</span>
+          <strong style="font-size:12.5px;">${k ? "YAML 스냅샷 파일 선택:" : "Select YAML Snapshot:"}</strong>
+          <select class="gcp-select" style="flex:1; min-width:240px; max-width:460px;" onchange="selectSnapIdx(Number(this.value))">
+            ${CATALOG_SNAPS.map(
+              (s, i) =>
+                `<option value="${i}" ${i === SELECTED_SNAP_IDX ? "selected" : ""}>${escapeHtml(s.rel_path)} — ${escapeHtml(s.label)}</option>`
+            ).join("")}
+          </select>
+        </div>
+        <button class="gcp-action-btn" style="flex:0 0 auto; padding:6px 12px;" onclick="switchModule('okf-validation'); selectItem(${CURRENT_OKF_IDX});">
+          <span class="material-symbols-outlined">open_in_new</span> ${k ? "02 · 1:1 원본 대조뷰 열기" : "Open 02 · 1:1 Validator"}
+        </button>
+      </div>
+
+      <div class="mod-grid-2">
+        <div style="min-width:0;">
+          <div class="section-label">
+            <span>1. Selected Metadata-as-Code YAML (<code>${escapeHtml(curSnap.rel_path || "")}</code>)</span>
+            <span>kcmd Snapshot</span>
+          </div>
+          <div class="frontmatter-block" style="border:1px solid var(--border); border-radius:6px; max-height:430px; overflow:auto;">${colorizeYaml(curSnap.content || "")}</div>
+        </div>
+        <div style="min-width:0; display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <div class="section-label">
+              <span>2. kcmd CLI Sync Commands (Push &amp; Round-Trip Pull)</span>
+              <span>./bin/kcmd v1.0.0</span>
+            </div>
+            <div class="frontmatter-block" style="border:1px solid var(--border); border-radius:6px; overflow-x:auto;">${escapeHtml(kcmdCliPreview)}</div>
+          </div>
+          <div>
+            <div class="section-label">
+              <span>3. Git Metadata-as-Code Commit History (${GIT_COMMITS.length} Commits)</span>
+              <span>branch: main</span>
+            </div>
+            <div style="max-height:245px; overflow:auto; border:1px solid var(--border); border-radius:6px;">
+              <table class="mod-table">
+                <thead>
+                  <tr>
+                    <th style="width:80px;">Commit</th>
+                    <th style="width:135px;">Date</th>
+                    <th>Commit Message (Metadata as Code)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${GIT_COMMITS.map(
+                    (c) => `
+                    <tr>
+                      <td><code>${escapeHtml(c.short_hash)}</code></td>
+                      <td style="white-space:nowrap; font-size:11.5px; color:var(--text-sub);">${escapeHtml((c.date || "").slice(0, 16))}</td>
+                      <td><b>${escapeHtml(c.subject)}</b></td>
+                    </tr>`
+                  ).join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const genObj = kcFm.generated || {};
+    const verObj = kcFm.verified || {};
+    const srcArr = Array.isArray(kcFm.sources) ? kcFm.sources : [];
+    const tab2Body = `
+      <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; background:var(--surface-elevated); border:1px solid var(--border); border-radius:6px; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex:1; min-width:260px;">
+          <span class="material-symbols-outlined" style="color:var(--gcp-blue);">inventory_2</span>
+          <strong style="font-size:12.5px;">${k ? "Dataplex KC 엔트리 선택 (28 OKF Entries):" : "Select Dataplex KC Entry (28 OKF Entries):"}</strong>
+          <select class="gcp-select" style="flex:1; min-width:240px; max-width:480px;" onchange="selectKcFileIdx(Number(this.value))">
+            ${OKF_FILES.map(
+              (f, i) =>
+                `<option value="${i}" ${i === SELECTED_KC_FILE_IDX ? "selected" : ""}>[${escapeHtml(f.category)}] ${escapeHtml(f.rel_path)} (PDF p.${f.pdf_page})</option>`
+            ).join("")}
+          </select>
+        </div>
+        <span class="mod-badge green">EntryGroup: okf_hp_dragonfly · Synced</span>
+      </div>
+
+      <div class="mod-grid-2">
+        <div style="min-width:0;">
+          <div class="gcp-kc-aspect-box" style="margin-bottom:14px;">
+            <div class="gcp-kc-aspect-header">
+              <span>Dataplex Entry Details &amp; Custom Aspect (<code>okf</code>)</span>
+              <span class="mod-badge blue">${escapeHtml(kcFm.type || "Index")}</span>
+            </div>
+            <table class="kc-aspect-table">
+              <tbody>
+                <tr>
+                  <th>Dataplex Entry FQN</th>
+                  <td><code>${escapeHtml(kcEntryFqn)}</code></td>
+                </tr>
+                <tr>
+                  <th>EntryType</th>
+                  <td><code>projects/hp-dragonfly/locations/us-central1/entryTypes/okf-bundle</code></td>
+                </tr>
+                <tr>
+                  <th>AspectType</th>
+                  <td><code>projects/hp-dragonfly/locations/us-central1/aspectTypes/okf</code></td>
+                </tr>
+                <tr class="kc-group-row">
+                  <th colspan="2">Aspect Fields (<code>hp-dragonfly.us-central1.okf</code>)</th>
+                </tr>
+                <tr class="kc-nested-row">
+                  <th>status</th>
+                  <td><span class="mod-badge green">${escapeHtml(kcFm.status || "verified")}</span></td>
+                </tr>
+                <tr class="kc-nested-row">
+                  <th>stale_after</th>
+                  <td><code>${escapeHtml(kcFm.stale_after || "2027-10-25")}</code></td>
+                </tr>
+                <tr class="kc-nested-row">
+                  <th>generated.by / at</th>
+                  <td><code>${escapeHtml(genObj.by || "agent:hp-dragonfly-enrichment-agent/v1.0")}</code> · ${escapeHtml(genObj.at || "2026-10-25")}</td>
+                </tr>
+                <tr class="kc-nested-row">
+                  <th>verified.by / at</th>
+                  <td><code>${escapeHtml(verObj.by || "human:dhmoon@google.com")}</code> · ${escapeHtml(verObj.at || "2026-10-25")}</td>
+                </tr>
+                <tr class="kc-nested-row">
+                  <th>sources (PDF Provenance)</th>
+                  <td>
+                    ${
+                      srcArr.length > 0
+                        ? srcArr
+                            .map(
+                              (s) =>
+                                `<div><code>${escapeHtml(s.file || "pdf_6290467_en-US-1.pdf")}</code> (pages: <b>${escapeHtml(s.pages || String(kcFile.pdf_page))}</b>, sha256: <code>${escapeHtml((s.sha256 || "").slice(0, 16))}...</code>)</div>`
+                            )
+                            .join("")
+                        : `<code>pdf_6290467_en-US-1.pdf (p.${kcFile.pdf_page})</code>`
+                    }
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div style="min-width:0;">
+          <div class="section-label">
+            <span>Dataplex System Aspect: <code>dataplex-types.global.overview</code></span>
+            <span>Synced from <code>bundles/hp_dragonfly/${escapeHtml(kcFile.rel_path || "")}</code></span>
+          </div>
+          <div class="okf-body-box okf-md-content" style="max-height:420px; overflow-y:auto;">${
+            window.marked && typeof window.marked.parse === "function"
+              ? window.marked.parse(kcFile.body || "")
+              : `<pre>${escapeHtml(kcFile.body || "")}</pre>`
+          }</div>
+        </div>
+      </div>
+    `;
 
     box.innerHTML = `
       <div class="module-container">
@@ -988,7 +1153,7 @@
             <div class="mod-card-title">${k ? "Enrichment Agent 실행" : "Enrichment Agent Run"}</div>
             <div style="font-size:12px; color:var(--text-sub); line-height:1.6;">
               • <strong>Script</strong>: <code>scripts/enrichment_agent.py</code><br>
-              • <strong>Input</strong>: <code>pdf_6290467_en-US-1.pdf</code> + 8 BQ Tables<br>
+              • <strong>Input</strong>: <code>pdf_6290467_en-US-1.pdf</code> + BQ Tables<br>
               • <strong>Output</strong>: 28 OKF <code>.md</code> + <code>viz.html</code>
             </div>
           </div>
@@ -1022,66 +1187,28 @@
         </div>
 
         <div class="mod-card">
-          <div class="mod-card-header">
+          <div class="mod-card-header" style="border-bottom:1px solid var(--border-subtle); padding-bottom:12px; margin-bottom:4px;">
             <div class="mod-card-title">
               <span class="material-symbols-outlined" style="color:var(--gcp-blue);">terminal</span>
               <span>${
                 k
-                  ? "Metadata-as-Code YAML 스냅샷 인스펙터 & Git 버전 커밋 히스토리"
-                  : "Metadata-as-Code YAML Snapshot Inspector & Git Commit History"
+                  ? "Metadata as Code (Git / YAML) &amp; Dataplex Knowledge Catalog 엔트리 인스펙터"
+                  : "Metadata as Code (Git / YAML) &amp; Dataplex Knowledge Catalog Entry Inspector"
               }</span>
             </div>
-            <div style="display:flex; align-items:center; gap:10px;">
-              <span style="font-size:12px; color:var(--text-sub);">${k ? "스냅샷 파일 선택:" : "Select YAML Snapshot:"}</span>
-              <select class="gcp-select" style="width:360px;" onchange="selectSnapIdx(Number(this.value))">
-                ${CATALOG_SNAPS.map(
-                  (s, i) =>
-                    `<option value="${i}" ${i === SELECTED_SNAP_IDX ? "selected" : ""}>${escapeHtml(s.rel_path)} — ${escapeHtml(s.label)}</option>`
-                ).join("")}
-              </select>
-              <button class="gcp-action-btn" style="padding:6px 12px;" onclick="switchModule('okf-validation'); selectItem(${CURRENT_OKF_IDX});">
-                <span class="material-symbols-outlined">open_in_new</span> ${k ? "02 · 1:1 대조뷰 열기" : "Open 02 · 1:1 Validator"}
+            <div class="mgmt-subtab-group">
+              <button type="button" class="mgmt-subtab-btn ${MGMT_TAB !== "KC_ENTRIES" ? "active" : ""}" onclick="setMgmtTab('SNAPS')">
+                <span class="material-symbols-outlined" style="font-size:15px;">code</span>
+                ${k ? "1. YAML 스냅샷 & Git 커밋 이력" : "1. YAML Snapshots & Git History"}
+              </button>
+              <button type="button" class="mgmt-subtab-btn ${MGMT_TAB === "KC_ENTRIES" ? "active" : ""}" onclick="setMgmtTab('KC_ENTRIES')">
+                <span class="material-symbols-outlined" style="font-size:15px;">verified</span>
+                ${k ? "2. Dataplex KC 엔트리 탐색기 (28 Entries)" : "2. Dataplex KC Entry Explorer (28 Entries)"}
               </button>
             </div>
           </div>
 
-          <div class="mod-grid-2" style="margin-top:6px;">
-            <div>
-              <div class="section-label">
-                <span>1. Selected Metadata-as-Code YAML (${escapeHtml(curSnap.rel_path || "")})</span>
-                <span>kcmd Snapshot</span>
-              </div>
-              <div class="frontmatter-block" style="border:1px solid var(--border); border-radius:6px; max-height:360px; overflow-y:auto;">${colorizeYaml(curSnap.content || "")}</div>
-            </div>
-            <div>
-              <div class="section-label">
-                <span>2. kcmd CLI Commands &amp; Git Commit Provenance (${GIT_COMMITS.length} Commits)</span>
-                <span>branch: main</span>
-              </div>
-              <div class="frontmatter-block" style="border:1px solid var(--border); border-radius:6px; margin-bottom:10px;">${escapeHtml(kcmdCliPreview)}</div>
-              <div style="max-height:210px; overflow-y:auto; border:1px solid var(--border); border-radius:6px;">
-                <table class="mod-table">
-                  <thead>
-                    <tr>
-                      <th>Commit</th>
-                      <th>Date</th>
-                      <th>Message (Metadata as Code)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${GIT_COMMITS.map(
-                      (c) => `
-                      <tr>
-                        <td><code>${escapeHtml(c.short_hash)}</code></td>
-                        <td style="white-space:nowrap; font-size:11.5px; color:var(--text-sub);">${escapeHtml((c.date || "").slice(0, 16))}</td>
-                        <td><b>${escapeHtml(c.subject)}</b></td>
-                      </tr>`
-                    ).join("")}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+          ${MGMT_TAB === "KC_ENTRIES" ? tab2Body : tab1Body}
         </div>
       </div>
     `;
@@ -1747,6 +1874,11 @@
       this.renderer.domElement.addEventListener("mousemove", (e) => this.onMouseMove(e));
       this.renderer.domElement.addEventListener("mouseleave", () => this.hideHoverTooltip());
 
+      if (window.ResizeObserver && this.container) {
+        this.resizeObserver = new window.ResizeObserver(() => this.resize());
+        this.resizeObserver.observe(this.container);
+      }
+
       this.rebuildThemeAndGraph();
       this.animate();
     }
@@ -2170,6 +2302,77 @@
       bqThreeViz.camera.position.set(0, 18, 670);
       bqThreeViz.controls.target.set(0, 0, 0);
     }
+  };
+
+  window.toggleBqLeftSidebar = function () {
+    const sb = document.getElementById("bq-left-sidebar");
+    if (!sb) return;
+    const isCollapsed = sb.classList.toggle("collapsed");
+    const k = isKo();
+    const icon1 = document.getElementById("bq-left-toggle-icon");
+    const lbl1 = document.getElementById("lbl-bq-left-toggle");
+    const icon2 = document.getElementById("bq-inst-left-toggle-icon");
+    const lbl2 = document.getElementById("lbl-bq-inst-left-toggle");
+    const nextIcon = isCollapsed ? "left_panel_open" : "left_panel_close";
+    const nextText = isCollapsed
+      ? k
+        ? "좌측 패널 펼치기"
+        : "Expand Left Panel"
+      : k
+      ? "좌측 패널 접기"
+      : "Collapse Left Panel";
+    if (icon1) icon1.textContent = nextIcon;
+    if (lbl1) lbl1.textContent = nextText;
+    if (icon2) icon2.textContent = nextIcon;
+    if (lbl2) lbl2.textContent = nextText;
+
+    setTimeout(() => {
+      if (bqThreeViz) bqThreeViz.resize();
+      if (window.bqVisNet) {
+        try {
+          window.bqVisNet.redraw();
+          window.bqVisNet.fit({ animation: true });
+        } catch (_) {}
+      }
+    }, 220);
+  };
+
+  window.toggleBqDrawerWidth = function () {
+    const drawer = document.getElementById("bq-detail-drawer");
+    if (!drawer) return;
+    drawer.classList.add("open");
+    const isWide = drawer.classList.toggle("wide");
+    const k = isKo();
+    const iconEl = document.getElementById("bq-drawer-wide-icon");
+    const lblEl = document.getElementById("lbl-bq-drawer-wide");
+    if (iconEl) iconEl.textContent = isWide ? "close_fullscreen" : "open_in_full";
+    if (lblEl) lblEl.textContent = isWide ? (k ? "기본 폭" : "Normal") : k ? "넓게" : "Wide";
+    setTimeout(() => {
+      if (bqThreeViz) bqThreeViz.resize();
+      if (window.bqVisNet) {
+        try {
+          window.bqVisNet.redraw();
+        } catch (_) {}
+      }
+    }, 220);
+  };
+
+  window.toggleOkfCompareSidebar = function () {
+    const sb = document.getElementById("okf-nav-sidebar");
+    if (sb) sb.classList.toggle("collapsed");
+  };
+
+  window.toggleOkfGraphSidebar = function () {
+    const sb = document.getElementById("okf-graph-sidebar");
+    if (sb) sb.classList.toggle("collapsed");
+    setTimeout(() => {
+      if (okfNetwork) {
+        try {
+          okfNetwork.redraw();
+          okfNetwork.fit({ animation: true });
+        } catch (_) {}
+      }
+    }, 220);
   };
 
   function buildDrawerModeSwitchBar() {
