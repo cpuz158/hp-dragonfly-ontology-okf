@@ -1,0 +1,11 @@
+# Python virtual environment and bytecode
+.venv/
+__pycache__/
+*.py[cod]
+
+# Local kcmd compiled binary (optional: keep scripts tracked, ignore large binary)
+bin/
+
+# Temporary kcmd staging and round-trip pull verification directories
+.staging/
+pulled_okf/
