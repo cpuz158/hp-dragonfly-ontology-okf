@@ -1,0 +1,13 @@
+scope: kb.hp-dragonfly.us-central1.okf_hp_dragonfly
+snapshot:
+  entries:
+  - hp-dragonfly.us-central1.okf-bundle
+  aspects:
+  - dataplex-types.global.overview
+  - hp-dragonfly.us-central1.okf
+publishing:
+  entries:
+  - hp-dragonfly.us-central1.okf-bundle
+  aspects:
+  - dataplex-types.global.overview
+  - hp-dragonfly.us-central1.okf
