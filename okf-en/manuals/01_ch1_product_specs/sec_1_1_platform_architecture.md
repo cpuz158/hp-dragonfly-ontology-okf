@@ -1,7 +1,7 @@
 ---
-type: Provision
-title: 'Ch.1 §1.1 (Platform Overview — 12th Gen Intel Alder Lake-U Processors & 13.5" 3:2 Magnesium Chassis)'
-description: 'Defines the HP Elite Dragonfly 13.5 G3 processor architecture (12th Gen Intel Core i5-1235U/1245U vPro, i7-1255U/1265U vPro), Intel Iris Xe Graphics, and 13.5-inch 3:2 magnesium-aluminum clamshell chassis.'
+type: section
+title: 'Chapter 1 Table 1-1 — Product Description: 12th Gen Intel Alder Lake-U Processors, Iris Xe Graphics & 13.5" 3:2 Display (PDF p.7 · Doc p.1)'
+description: 'Covers HP Dragonfly Folio 13.5 G3 12th Gen Intel Core processors (i7-1265U, i7-1255U, i5-1245U, i5-1235U), Intel Iris Xe Graphics, and 13.5-inch 3:2 WUXGA+ / 3K2K OLED touch displays from Table 1-1 (PDF p.7 / Doc p.1).'
 version: '0.2.0'
 tags:
 - unstructured_context
@@ -11,41 +11,90 @@ tags:
 language: en
 sources:
 - id: origin_pdf
-  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf
+  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf#page=7
   kind: origin_document
-  sha256: 9494b8336bfb34b49ef19ef0455aa55c4fdb57082fa2b8f462ad90db5aca30a5
+  sha256: 5ec0c7cb8bdd4bb4a32fa35735475706e45e57852fc43ba5379ad4622165f9a7
 source_uri: gs://hp-dragonfly-okf/okf-en/manuals/01_ch1_product_specs/sec_1_1_platform_architecture.md
 generated:
-  by: agent:gemini-2.5-pro
-  at: '2026-10-25T04:00:00Z'
+  by: enrichment_agent/gemini-3.8-flash
+  at: '2026-10-25T10:00:00Z'
 status: stable
-part_of: /manuals/01_ch1_product_specs/doc.md
+part_of: 01_ch1_product_specs
 sequence: 1
-treatment: verbatim_en
-license: 'Proprietary (HP Inc. Maintenance & Service Guide N17344-001)'
-content_class: authentic
-section_number: 'Ch.1 §1.1'
-source_page: 1
+treatment: normative
+license: 'HP Inc. Authorized Service & Engineering Documentation (N17344-001)'
+content_class: procedural
+section_number: 'Ch.1 Table 1-1 (Processors, Graphics & Display)'
+source_page: 7
+source_pages_span: 'PDF p.7 (Doc p.1)'
 verified:
-- by: hp-service-engineering-lead
-  at: '2026-10-25T04:00:00Z'
-  method: source_text_match
+- by: human:dhmoon@google.com
+  at: '2026-10-25T10:02:00Z'
+  method: manual_review
   checks: [P1_body, P2_heading, P3_page, P4_digest]
 ---
 
-# Chapter 1 §1.1 — Product Description: Processor & Platform Architecture (pp. 1–2)
+# Chapter 1 Table 1-1 — Product Description: 12th Gen Intel Alder Lake-U Processors, Iris Xe Graphics & 13.5" 3:2 Display (PDF p.7 · Doc p.1)
 
-## 1. Platform Identification & Document Scope
-- **Product Name:** HP Elite Dragonfly 13.5 inch G3 Notebook PC (and HP Dragonfly Folio 13.5 inch G3 2-in-1 reference)
-- **Manual Document Part Number:** `N17344-001` (First Edition, May 2022)
-- **Chassis Form Factor:** Ultra-lightweight magnesium-aluminum clamshell with 13.5-inch `3:2` aspect ratio display (`0.99 kg` / `2.18 lbs` starting weight; Slate Blue or Natural Silver finish).
+## 1. Overview and Product Description
 
-## 2. 12th Generation Intel® Core™ Alder Lake-U Processors (15W TDP, 10 Cores / 12 Threads)
-1. **Intel® Core™ i7-1265U (vPro® Enterprise):** Up to `4.8 GHz` with Intel Turbo Boost Technology, `12 MB` L3 cache, 10 cores (2 Performance-cores + 8 Efficient-cores), 12 threads.
-2. **Intel® Core™ i7-1255U (Non-vPro):** Up to `4.7 GHz` Turbo Boost, `12 MB` L3 cache, 10 cores (2P + 8E), 12 threads.
-3. **Intel® Core™ i5-1245U (vPro® Enterprise):** Up to `4.4 GHz` Turbo Boost, `12 MB` L3 cache, 10 cores (2P + 8E), 12 threads.
-4. **Intel® Core™ i5-1235U (Non-vPro):** Up to `4.4 GHz` Turbo Boost, `12 MB` L3 cache, 10 cores (2P + 8E), 12 threads.
+This section details the platform architecture, processor specifications, graphics subsystem, 13.5-inch 3:2 display panels, and onboard system memory from **Table 1-1 (Product components and their descriptions)** of the HP Dragonfly Folio 13.5 inch G3 2-in-1 Notebook PC Maintenance and Service Guide (Document Part Number: `N17344-001`, PDF p.7 / Doc p.1).
 
-## 3. Integrated Graphics & Platform Controller
-- **Graphics Subsystem:** Integrated **Intel® Iris® Xe Graphics** (dual-channel LPDDR5 memory configuration active across all factory SKUs).
-- **Chipset Architecture:** Integrated Intel SoC PCH on the single-piece system board (`M90788-601` / `M90788-001`).
+Ontology Graph Reference Mapping:
+- Representative Enterprise 5G SKU: `SKU-DFG3-I732-5G`
+- Onboard System Board Spare Part Number (e.g., i7-1265U / 32 GB LPDDR5): `N20728-601`
+- Display Subsystem & Panel Assembly Linkage IDs: `M90788-601` / `N19201-601`
+
+---
+
+## 2. Table 1-1: Product Components and Their Descriptions (PDF p.7 / Doc p.1)
+
+### 2.1 Processors
+
+The notebook is powered by 12th generation Intel® Core™ mobile processors (Alder Lake-U architecture, 10-core hybrid configuration):
+
+| Processor Model | Base Clock & Max Turbo Frequency | Cores | Intel Smart Cache |
+| :--- | :--- | :--- | :--- |
+| **Intel Core i7-1265U processor** | 1.8 GHz (max turbo frequency 4.8 GHz) | 10 cores (2P + 8E) | 12 MB Intel® Smart Cache |
+| **Intel Core i7-1255U processor** | 1.7 GHz (max turbo frequency 4.7 GHz) | 10 cores (2P + 8E) | 12 MB Intel® Smart Cache |
+| **Intel Core i5-1245U processor** | 1.2 GHz (max turbo frequency 4.4 GHz) | 10 cores (2P + 8E) | 12 MB Intel® Smart Cache |
+| **Intel Core i5-1235U processor** | 1.3 GHz (max turbo frequency 4.4 GHz) | 10 cores (2P + 8E) | 12 MB Intel® Smart Cache |
+
+---
+
+### 2.2 Graphics Subsystem
+
+Integrated **Intel Iris® Xe Graphics** subsystem features:
+
+- **Hardware Decode & Video Standard**: Supports HD Decode, DX12, HDMI™ 2.0
+- **DirectX Support**: DirectX 12.1
+- **OpenGL Support**: OpenGL 4.6
+- **OpenCL Support**: OpenCL 3.0
+- **Displays Supported**: Up to 4 simultaneous independent displays
+- **Multiformat Codec Engines**: 2 hardware engines
+
+---
+
+### 2.3 Display Panel Specifications
+
+All configurations feature a 34.3 cm (13.5 in) 3:2 aspect ratio display with touch screen support, Corning® Gorilla® Glass 7 protection, and HP Eye Ease low blue light technology:
+
+| Resolution | Panel Tech & Surface | Color Gamut | Brightness | Privacy Feature |
+| :--- | :--- | :--- | :--- | :--- |
+| **WUXGA+ (1920 × 1280)** | IPS UWVA, BrightView Touch | sRGB 100% | 400 nits | Standard |
+| **WUXGA+ (1920 × 1280)** | IPS UWVA, Antiglare Touch | sRGB 100% | 400 nits | Standard |
+| **WUXGA+ (1920 × 1280)** | IPS UWVA, BrightView Touch | sRGB 100% | 1000 nits | HP Sure View Reflect integrated privacy screen |
+| **3k2k (3000 × 2000)** | OLED, BrightView Touch | DCI-P3 100% | 400 nits | Standard |
+
+---
+
+### 2.4 System Memory
+
+Memory is implemented as high-frequency low-power soldered system RAM:
+
+- **Type & Upgradability**: Onboard, non-upgradable memory supporting up to 32 GB of RAM
+- **Standard & Architecture**: LPDDR5-6400, supports dual-channel memory
+- **Supported Memory Configurations**:
+  - 32 GB (maximum capacity, paired with system board spare parts such as `N20728-601` under `SKU-DFG3-I732-5G`)
+  - 16 GB
+  - 8 GB

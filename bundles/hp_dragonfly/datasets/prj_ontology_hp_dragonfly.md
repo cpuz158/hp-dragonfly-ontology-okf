@@ -11,11 +11,11 @@ tags:
 - bigquery-dataset
 - property-graph
 generated:
-  by: enrichment_agent/gemini-2.5-pro
-  at: '2026-10-25T02:50:00Z'
+  by: enrichment_agent/gemini-3.8-flash
+  at: '2026-10-25T10:00:00Z'
 verified:
 - by: human:dhmoon@google.com
-  at: '2026-10-25T02:52:00Z'
+  at: '2026-10-25T10:02:00Z'
 status: stable
 stale_after: '2027-10-25T00:00:00Z'
 sources:
@@ -23,7 +23,7 @@ sources:
   resource: https://bigquery.googleapis.com/v2/projects/hp-dragonfly/datasets/prj_ontology_hp_dragonfly
   title: BigQuery Dataset hp-dragonfly.prj_ontology_hp_dragonfly
   author: team:data-platform
-  last_modified: '2026-10-25T02:50:00Z'
+  last_modified: '2026-10-25T10:00:00Z'
 - id: hp-msg-n17344
   resource: references/hp-folio-g3-service-manual-n17344.md
   title: HP Dragonfly Folio 13.5 inch G3 2-in-1 Notebook PC Maintenance and Service Guide
@@ -43,8 +43,15 @@ It also hosts the native BigQuery Property Graph **`hp-dragonfly.prj_ontology_hp
 - [`tables/component_disassembly_deps`](../tables/component_disassembly_deps.md) (15 rows): Physical disassembly prerequisite edges defining which component must be removed before another component (Edge Table: REQUIRES_REMOVAL_OF)
 - [`tables/diagnostic_codes_reference`](../tables/diagnostic_codes_reference.md) (8 rows): HP PC Hardware Diagnostics UEFI/Windows failure codes, power/battery LED blink patterns, and ESD/thermal thresholds (Node Table: DiagnosticCode)
 - [`tables/dragonfly_series_models`](../tables/dragonfly_series_models.md) (6 rows): Master lineup and physical specifications for the HP Dragonfly product family (G1, G2, Max, G3, Folio G3, G4) (Node Table: ProductModel)
+- [`tables/edge_case_governed_by_playbook`](../tables/edge_case_governed_by_playbook.md) (12 rows): Cross-Layer ONT-to-LEX Bridge Edge Table: TroubleshootingCase -> ServicePlaybook (GOVERNED_BY_PLAYBOOK).
+- [`tables/edge_component_documented_in_chapter`](../tables/edge_component_documented_in_chapter.md) (38 rows): Cross-Layer ONT-to-LEX Bridge Edge Table: HardwareComponent -> ServiceManualChapter (DOCUMENTED_IN_CHAPTER).
+- [`tables/edge_diagnostic_defined_in_chapter`](../tables/edge_diagnostic_defined_in_chapter.md) (8 rows): Cross-Layer ONT-to-LEX Bridge Edge Table: DiagnosticCode -> ServiceManualChapter (DEFINED_IN_CH6_MANUAL).
+- [`tables/edge_playbook_orchestrates_chapter`](../tables/edge_playbook_orchestrates_chapter.md) (8 rows): LEX Layer Edge Table: ServicePlaybook -> ServiceManualChapter (ORCHESTRATES_REFERENCE).
 - [`tables/firmware_bios_and_nvm`](../tables/firmware_bios_and_nvm.md) (8 rows): System BIOS releases, SoftPaq driver packages, and Nonvolatile Memory (NVM) / TPM 2.0 security specifications
 - [`tables/hardware_components_catalog`](../tables/hardware_components_catalog.md) (38 rows): Official spare parts catalog for HP Dragonfly G3 and Folio G3 including major components, display subcomponents, and kits (Node Table: HardwareComponent)
+- [`tables/lex_manual_chapters`](../tables/lex_manual_chapters.md) (5 rows): Unstructured LEX Node Table: 5 OKF v0.2 reference chapters extracted from N17344-001 with Dataplex kc_entry_id.
+- [`tables/lex_service_manual_documents`](../tables/lex_service_manual_documents.md) (2 rows): Unstructured LEX Node Table: Origin HP Service Guide PDF roots linked to Dataplex Knowledge Catalog (okf_hp_dragonfly).
+- [`tables/lex_service_playbooks`](../tables/lex_service_playbooks.md) (6 rows): Unstructured LEX Node Table: 6 OKF v0.2 agent playbooks, computations, and metrics with Dataplex kc_entry_id.
 - [`tables/ports_sensors_and_docks`](../tables/ports_sensors_and_docks.md) (10 rows): External I/O ports, internal sensors, status LEDs, active pen, and official HP docking station compatibility matrix
 - [`tables/product_skus_and_configs`](../tables/product_skus_and_configs.md) (12 rows): Commercial SKU configurations and hardware specifications for HP Elite Dragonfly G3, Dragonfly Folio G3, and series models (Node Table: ProductSKU)
 

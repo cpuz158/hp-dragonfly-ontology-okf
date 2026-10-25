@@ -1086,7 +1086,7 @@ def build_eq_items() -> List[Dict[str, Any]]:
         },
         "rag_agent": {
             "agent_id": "hp_dragonfly_vector_rag_agent",
-            "framework": "Google ADK (LlmAgent · vertex_rag_search + execute_sql)",
+            "framework": "Google ADK · gemini-3.8-flash (vertex_rag_search + execute_sql)",
             "verdict": sp["rag_verdict"],
             "verdict_ko": sp["rag_verdict_ko"],
             "verdict_en": sp["rag_verdict_en"],
@@ -1125,7 +1125,7 @@ def build_eq_items() -> List[Dict[str, Any]]:
         "graphrag_agent": {
             "agent_id": "hp_dragonfly_ontology_graph_agent",
             "framework": (
-                "Google ADK (LlmAgent · before_agent_callback + graph_query_gql + "
+                "Google ADK · gemini-3.8-flash (before_agent_callback + graph_query_gql + "
                 "kc_lookup_aspect + before_tool_callback + fetch_okf_provision)"
             ),
             "verdict": "PASS",

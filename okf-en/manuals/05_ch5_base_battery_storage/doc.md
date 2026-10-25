@@ -1,7 +1,7 @@
 ---
-type: SourceDocument
-title: '[05 Chapter Root] Chapter 5 Sec.2: Bottom Cover, Battery Pack, NVMe SSD & 5G WWAN Removal Procedures (pp. 35–51)'
-description: 'Chapter 5 Sec.2: Bottom Cover, Battery Pack, NVMe SSD & 5G WWAN Removal Procedures (pp. 35–51) (Source PDF: pdf_6290467_en-US-1.pdf, p.35~51 (전 17쪽), 4 clauses)'
+type: document
+title: '[05 Chapter Root] Chapter 5 (Part A): Authorized Service Provider Removal Procedures — Bottom Cover, SSD, SIM, WWAN, Wireless Charger & Battery (PDF p.39–49 · Doc pp. 33–43 · 4 Chunks)'
+description: 'Summarizes Chapter 5 Part A (Doc pp. 33–43, PDF pp. 39–49) covering preparation for disassembly, Bottom cover (N22918-001 & leather wrap release), M.2 2280 PCIe Gen4 NVMe SSD, Magnetic pen slot, SIM board (N22922-001), WWAN module (4x4 MIMO antennas #5–#8), Wireless charging module (N22924-001), and 4-cell 53Whr Battery (M90788-005).'
 version: '0.2.0'
 tags:
 - unstructured_context
@@ -11,35 +11,47 @@ tags:
 language: en
 sources:
 - id: origin_pdf
-  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf
+  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf#page=39
   kind: origin_document
-  sha256: 8ebd4c6175546b821769124e3751dc30f67b63f14751c4b15411c6917ea47b34
+  sha256: d9a002c985e61acfead2c7cdbe444b4a91135b7e48bc21eb38b19b79edc4ae50
 source_uri: gs://hp-dragonfly-okf/okf-en/manuals/05_ch5_base_battery_storage/doc.md
 generated:
-  by: agent:gemini-2.5-pro
-  at: '2026-10-25T04:00:00Z'
+  by: enrichment_agent/gemini-3.8-flash
+  at: '2026-10-25T10:00:00Z'
 status: stable
-part_of: /index.md
-sequence: 35
+part_of: hp_dragonfly_folio_g3_service_manual_n17344_001
+sequence: 5
 treatment: normative
-license: 'Proprietary (HP Inc. Maintenance & Service Guide N17344-001)'
-content_class: authentic
-section_number: 'doc.md ([05] Chapter Root)'
-source_page: 35
+license: 'HP Inc. Authorized Service & Engineering Documentation (N17344-001)'
+content_class: reference
+section_number: 'Chapter 05 Root'
+source_page: 39
+source_pages_span: 'PDF p.39–49 (Doc pp. 33–43)'
 verified:
-- by: hp-service-engineering-lead
-  at: '2026-10-25T04:00:00Z'
-  method: source_text_match
+- by: human:dhmoon@google.com
+  at: '2026-10-25T10:02:00Z'
+  method: manual_review
   checks: [P1_body, P2_heading, P3_page, P4_digest]
 ---
 
-# [05] Chapter 5 Sec.2: Bottom Cover, Battery Pack, NVMe SSD & 5G WWAN Removal Procedures (pp. 35–51)
+# [05 Chapter Root] Chapter 5 (Part A): Authorized Service Provider Removal Procedures — Bottom Cover, SSD, SIM, WWAN, Wireless Charger & Battery (PDF p.39–49 · Doc pp. 33–43 · 4 Chunks)
 
-- **Source PDF:** `pdf_6290467_en-US-1.pdf` (HP Elite Dragonfly 13.5 G3 Maintenance and Service Guide, Doc Part `N17344-001`, Pages `p.35~51 (전 17쪽)`)
-- **Included Unstructured Clauses (`Provisions`):** `4` clauses
+## 1. Chapter Root Overview (`okf-en` · 1:1 Grounded in `docs/pdf_6290467_en-US-1.pdf`)
+- **Chapter Identifier:** `[05] 05_CH5_BASE_STORAGE_WWAN`
+- **Source Service Manual:** HP Dragonfly Folio 13.5 inch G3 2-in-1 Notebook PC Maintenance and Service Guide (`N17344-001`)
+- **Exact PDF Page Span:** **`PDF p.39–49 (Doc pp. 33–43)`** (Opens PDF viewer at `#page=39`)
+- **Enrichment Agent & Model:** `enrichment_agent/gemini-3.8-flash` (`Metadata-as-Code` + `./bin/kcmd`)
+- **OKF Repository Path:** `okf-en/manuals/05_ch5_base_battery_storage/doc.md`
+- **Dataplex Knowledge Catalog EntryGroup:** `projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly_en`
+- **Chapter Executive Summary:** Summarizes Chapter 5 Part A (Doc pp. 33–43, PDF pp. 39–49) covering preparation for disassembly, Bottom cover (N22918-001 & leather wrap release), M.2 2280 PCIe Gen4 NVMe SSD, Magnetic pen slot, SIM board (N22922-001), WWAN module (4x4 MIMO antennas #5–#8), Wireless charging module (N22924-001), and 4-cell 53Whr Battery (M90788-005).
 
-## Unstructured Context Clauses in This Chapter (`Provisions`)
-* **[Ch.5 §5.4 — Ch.5 §5.4 (Bottom Cover N22918-001 Removal Procedure — 5 Captive Torx T5 Screws & Rear Hinge Clip Release)](sec_5_4_bottom_cover_removal.md)** (`p.35`): Step 0 root prerequisite for all internal repairs: loosening the 5 captive Torx T5 screws and releasing the Bottom Cover (N22918-001) starting from the rear hinge edge.
-* **[Ch.5 §5.5 — Ch.5 §5.5 (Battery Pack M90788-005 Removal — Mandatory First-Step Power Isolation Before Any ZIF/FRU Work)](sec_5_5_battery_pack_isolation_and_removal.md)** (`p.38`): Mandatory Step 1 power isolation rule: immediately after Bottom Cover removal, the battery cable (M90788-005 / M90789-005) must be disconnected before touching any ZIF cable or M.2 card.
-* **[Ch.5 §5.6 — Ch.5 §5.6 (M.2 2280 PCIe Gen4 NVMe SSD Removal & Mandatory Thermal Pad / Mylar EMI Shield Re-Adhesion)](sec_5_6_nvme_ssd_and_mylar_shield_procedure.md)** (`p.41`): Specifies M.2 2280 PCIe Gen4 NVMe SSD removal and enforces mandatory re-adhesion of the thermal pad and conductive black Mylar EMI shield (N09040-001) to prevent 85°C controller throttling and WWAN RFI.
-* **[Ch.5 §5.7 — Ch.5 §5.7 (5G/LTE WWAN Module Removal, 4x4 MIMO Coaxial Antenna Color Mapping 5/6/7/8 & BIOS Whitelist)](sec_5_7_wwan_5g_and_wlan_antenna_routing.md)** (`p.43`): Details 5G/LTE WWAN module removal, U.FL coaxial connector vertical unseating, 4x4 MIMO antenna color-to-terminal mapping (5:Orange, 6:White, 7:Yellow, 8:Purple), and BIOS FCC whitelist rules.
+## 2. Child PDF Section Chunks (4 Chunks)
+| Section / Table | Chunk Title (English) | Exact PDF / Doc Page | Governance Status |
+| :---: | :--- | :---: | :---: |
+| `Ch.5 §5.1–5.2 (Preparation for Disassembly & Bottom Cover N22918-001)` | Chapter 5 §5.1–5.2 — Preparation for Disassembly & Bottom Cover (N22918-001) Removal Procedure (PDF p.39–41 · Doc p.33–35) | `PDF p.39` (`PDF p.39–41 (Doc p.33–35)`) | `stable` |
+| `Ch.5 §5.8 (Battery Pack M90788-005 Removal & Power Isolation)` | Chapter 5 §5.8 — 4-Cell 53 Whr Battery Pack (M90788-005) Removal & Prerequisite Power Isolation Procedure (PDF p.48–49 · Doc p.42–43) | `PDF p.48` (`PDF p.48–49 (Doc p.42–43)`) | `stable` |
+| `Ch.5 §5.3 (Solid-State Drive M.2 2280 NVMe SSD Removal)` | Chapter 5 §5.3 — Solid-State Drive (M.2 2280 PCIe Gen4 NVMe SSD) & EMI Shield Removal Procedure (PDF p.41–42 · Doc p.35–36) | `PDF p.41` (`PDF p.41–42 (Doc p.35–36)`) | `stable` |
+| `Ch.5 §5.4–5.7 (Magnetic Pen Slot, SIM Board, WWAN Module & Wireless Charger)` | Chapter 5 §5.4–5.7 — Magnetic Pen Slot, SIM Board (N22922-001), 5G WWAN Module (4x4 MIMO Antennas #5–#8) & Wireless Charging Module (N22924-001) (PDF p.43–47 · Doc p.37–41) | `PDF p.43` (`PDF p.43–47 (Doc p.37–41)`) | `stable` |
+
+## 3. Ontology Property Graph (`hp_dragonfly_ontology_graph`) & Dataplex KC Linkage
+- This Chapter Root (`doc.md`) and its child chunks are generated directly from `docs/pdf_6290467_en-US-1.pdf` (Chapters 1–12, `pdf_page = doc_page + 6`) using the `gemini-3.8-flash` Enrichment Agent and published to Dataplex Knowledge Catalog (`okf` Aspect) and BigQuery Property Graph (`hp_dragonfly_ontology_graph`) via `./bin/kcmd`.

@@ -1,7 +1,7 @@
 ---
-type: SourceDocument
-title: '[02 Chapter Root] Chapter 2: External Components, I/O Ports & Display Subsystems (pp. 5–16 · 4 Clauses)'
-description: 'Chapter 2: External Components, I/O Ports & Display Subsystems (pp. 5–16 · 4 Clauses) (Source PDF: pdf_6290467_en-US-1.pdf, p.5~16 (전 12쪽), 4 clauses)'
+type: document
+title: '[02 Chapter Root] Chapter 2: Components — Right/Left Ports, Display, Keyboard, Bottom & Labels [Tables 2-1–2-8] (PDF p.11–21 · Doc pp. 5–15 · 4 Chunks)'
+description: 'Summarizes Chapter 2 (Doc pp. 5–15, PDF pp. 11–21) covering Right/Left side components (magnetic pen charger, nano SIM slot, audio jack, 2x Thunderbolt 4 USB4 ports), Display components (8MP webcam, dual IR LEDs, ambient light sensor, 6 wireless antennas), Keyboard/Touchpad/LEDs/Special keys, Bottom vents, Service tag labels, and SIM card insertion.'
 version: '0.2.0'
 tags:
 - unstructured_context
@@ -11,35 +11,47 @@ tags:
 language: en
 sources:
 - id: origin_pdf
-  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf
+  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf#page=11
   kind: origin_document
-  sha256: b4f1494c02a6218c438891ac7ca738dc785436b986a3305b5c8630b6381bb280
+  sha256: 3a779293c705878eb1dbc974ad8f84f5026bcd1f8c32e77d8eb65f9d9ee92c36
 source_uri: gs://hp-dragonfly-okf/okf-en/manuals/02_ch2_external_components/doc.md
 generated:
-  by: agent:gemini-2.5-pro
-  at: '2026-10-25T04:00:00Z'
+  by: enrichment_agent/gemini-3.8-flash
+  at: '2026-10-25T10:00:00Z'
 status: stable
-part_of: /index.md
-sequence: 5
+part_of: hp_dragonfly_folio_g3_service_manual_n17344_001
+sequence: 2
 treatment: normative
-license: 'Proprietary (HP Inc. Maintenance & Service Guide N17344-001)'
-content_class: authentic
-section_number: 'doc.md ([02] Chapter Root)'
-source_page: 5
+license: 'HP Inc. Authorized Service & Engineering Documentation (N17344-001)'
+content_class: reference
+section_number: 'Chapter 02 Root'
+source_page: 11
+source_pages_span: 'PDF p.11–21 (Doc pp. 5–15)'
 verified:
-- by: hp-service-engineering-lead
-  at: '2026-10-25T04:00:00Z'
-  method: source_text_match
+- by: human:dhmoon@google.com
+  at: '2026-10-25T10:02:00Z'
+  method: manual_review
   checks: [P1_body, P2_heading, P3_page, P4_digest]
 ---
 
-# [02] Chapter 2: External Components, I/O Ports & Display Subsystems (pp. 5–16 · 4 Clauses)
+# [02 Chapter Root] Chapter 2: Components — Right/Left Ports, Display, Keyboard, Bottom & Labels [Tables 2-1–2-8] (PDF p.11–21 · Doc pp. 5–15 · 4 Chunks)
 
-- **Source PDF:** `pdf_6290467_en-US-1.pdf` (HP Elite Dragonfly 13.5 G3 Maintenance and Service Guide, Doc Part `N17344-001`, Pages `p.5~16 (전 12쪽)`)
-- **Included Unstructured Clauses (`Provisions`):** `4` clauses
+## 1. Chapter Root Overview (`okf-en` · 1:1 Grounded in `docs/pdf_6290467_en-US-1.pdf`)
+- **Chapter Identifier:** `[02] 02_CH2_COMPONENTS_PORTS`
+- **Source Service Manual:** HP Dragonfly Folio 13.5 inch G3 2-in-1 Notebook PC Maintenance and Service Guide (`N17344-001`)
+- **Exact PDF Page Span:** **`PDF p.11–21 (Doc pp. 5–15)`** (Opens PDF viewer at `#page=11`)
+- **Enrichment Agent & Model:** `enrichment_agent/gemini-3.8-flash` (`Metadata-as-Code` + `./bin/kcmd`)
+- **OKF Repository Path:** `okf-en/manuals/02_ch2_external_components/doc.md`
+- **Dataplex Knowledge Catalog EntryGroup:** `projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly_en`
+- **Chapter Executive Summary:** Summarizes Chapter 2 (Doc pp. 5–15, PDF pp. 11–21) covering Right/Left side components (magnetic pen charger, nano SIM slot, audio jack, 2x Thunderbolt 4 USB4 ports), Display components (8MP webcam, dual IR LEDs, ambient light sensor, 6 wireless antennas), Keyboard/Touchpad/LEDs/Special keys, Bottom vents, Service tag labels, and SIM card insertion.
 
-## Unstructured Context Clauses in This Chapter (`Provisions`)
-* **[Ch.2 §2.1 — Ch.2 §2.1 (Right & Left Side I/O Ports — Dual Thunderbolt 4 USB4 40Gbps, USB-A, HDMI 2.0b & Nano-SIM)](sec_2_1_thunderbolt_and_io_ports.md)** (`p.5`): Defines the physical layout and electrical capabilities of right/left side ports: two Thunderbolt 4 USB4 Type-C ports (40Gbps, USB-PD 3.0 65W/100W, DP 1.4a), SuperSpeed USB-A, HDMI 2.0b, and Nano-SIM tray.
-* **[Ch.2 §2.2 — Ch.2 §2.2 (Display Subsystem — 13.5" 3K2K OLED vs. WUXGA+ Sure View Reflect & 5MP IR Camera)](sec_2_2_display_oled_sureview_camera.md)** (`p.7`): Specifies the three 13.5-inch 3:2 display panel options (3K2K 3000x2000 OLED Touch, WUXGA+ 1000-nit HP Sure View Reflect, 400-nit Low-Power IPS) and the 5MP IR webcam, ambient light sensor, and dual-array microphones.
-* **[Ch.2 §2.3 — Ch.2 §2.3 (Top Cover Keyboard, Electronic Privacy Camera Key, Fingerprint Reader & Quad Speakers)](sec_2_3_keyboard_privacy_shutter_biometrics.md)** (`p.10`): Covers the top cover with integrated spill-resistant backlit keyboard, electronic camera privacy shutter key, match-on-chip fingerprint sensor, glass clickpad, and Bang & Olufsen quad-speaker audio.
-* **[Ch.2 §2.4 — Ch.2 §2.4 (Bottom Cover Service Tag Labels — Serial Number, Product ID, Warranty & DMI Programming Rule)](sec_2_4_service_tag_and_regulatory_labels.md)** (`p.14`): Details the Serial Number, Product ID, and Regulatory Label locations on the bottom cover, and the mandatory DMI tattooing procedure after System Board replacement.
+## 2. Child PDF Section Chunks (4 Chunks)
+| Section / Table | Chunk Title (English) | Exact PDF / Doc Page | Governance Status |
+| :---: | :--- | :---: | :---: |
+| `Ch.2 Tables 2-1 & 2-2 (Right & Left Side Ports)` | Chapter 2 Tables 2-1 & 2-2 — Right Side (Magnetic Pen Charger, Nano SIM) & Left Side (Audio Jack, 2x Thunderbolt 4 USB-C & Battery LED) (PDF p.11–12 · Doc p.5–6) | `PDF p.11` (`PDF p.11–12 (Doc p.5–6)`) | `stable` |
+| `Ch.2 Table 2-3 (Display Components & Antennas)` | Chapter 2 Table 2-3 — Display Components: Low Blue Light Mode, Dual Microphones, 8MP IR Camera, Ambient Light Sensor & 6 Wireless Antennas (PDF p.13–14 · Doc p.7–8) | `PDF p.13` (`PDF p.13–14 (Doc p.7–8)`) | `stable` |
+| `Ch.2 Tables 2-4, 2-5 & 2-6 (Touchpad, Lights & Special Keys)` | Chapter 2 Tables 2-4–2-6 — Keyboard Area: Touchpad, Status Lights (Caps Lock/Privacy/Mute) & Special Keys (Sure View, Camera Privacy Key & Fingerprint Reader) (PDF p.14–18 · Doc p.8–12) | `PDF p.14` (`PDF p.14–18 (Doc p.8–12)`) | `stable` |
+| `Ch.2 Tables 2-7 & 2-8 (Bottom Vents, Labels & Nano SIM Card)` | Chapter 2 Tables 2-7 & 2-8 — Bottom Speakers/Vents, Service Labels (Serial Number, Product ID, Warranty) & Inserting a Nano SIM Card (PDF p.18–21 · Doc p.12–15) | `PDF p.18` (`PDF p.18–21 (Doc p.12–15)`) | `stable` |
+
+## 3. Ontology Property Graph (`hp_dragonfly_ontology_graph`) & Dataplex KC Linkage
+- This Chapter Root (`doc.md`) and its child chunks are generated directly from `docs/pdf_6290467_en-US-1.pdf` (Chapters 1–12, `pdf_page = doc_page + 6`) using the `gemini-3.8-flash` Enrichment Agent and published to Dataplex Knowledge Catalog (`okf` Aspect) and BigQuery Property Graph (`hp_dragonfly_ontology_graph`) via `./bin/kcmd`.

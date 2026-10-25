@@ -1,4 +1,4 @@
-scope: kb.hp-dragonfly.us-central1.okf_hp_dragonfly
+scope: kb.hp-dragonfly.us-central1.okf_hp_dragonfly_en
 snapshot:
   entries:
   - hp-dragonfly.us-central1.okf-bundle

@@ -1,80 +1,62 @@
-# HP Dragonfly Ontology Layer Workspace (`2026-10-25_project-Ontology`)
+# HP Dragonfly Ontology Layer — OKF v0.2, Metadata-as-Code (`kcmd`), BigQuery Property Graph & Google ADK (`gemini-3.8-flash`)
 
-본 워크스페이스는 **HP Dragonfly G3 / Dragonfly Folio 13.5 G3 및 Dragonfly 시리즈 전체(G1, G2, Max, G3, Folio G3, G4)**의 비정형 매뉴얼(`docs/pdf_6290467_en-US-1.pdf`, 109p)과 정형 데이터베이스(`BigQuery`, 100% English)를 결합하여 **GCP Ontology Layer (OKF v0.2 + Metadata as Code Git Repo + `kcmd` + Dataplex Knowledge Catalog + BigQuery Property Graph)**를 구축하는 엔드투엔드 표준 리포지토리입니다.
-
----
-
-## 1. 전체 아키텍처 및 3단계 파이프라인
-
-1. **Enrichment Agent (`scripts/enrichment_agent.py`)**:
-   - 비정형 PDF 매뉴얼(`docs/pdf_6290467_en-US-1.pdf`, Doc Part `N17344-001`)과 BigQuery 8개 정형 테이블(`hp-dragonfly.prj_ontology_hp_dragonfly`)을 읽어 **OKF v0.2 번들(`bundles/hp_dragonfly/`, 28개 마크다운 파일 + `viz.html` 그래프 뷰어)** 및 **Dataplex Overview Aspect(`catalog/`)**를 자동 생성합니다.
-2. **Metadata as Code (`git` 버전 관리)**:
-   - 생성된 `bundles/hp_dragonfly/`(OKF v0.2), `catalog/`(BigQuery 카탈로그 스냅샷), `catalog.yaml`, `okf_catalog.yaml`을 Git 리포지토리(`main` 브랜치)에서 코드처럼 버전 관리(Diff / Blame / PR)합니다.
-3. **`kcmd`를 통한 Dataplex Knowledge Catalog 배포 (`scripts/sync_okf_to_dataplex.py` & `./bin/kcmd`)**:
-   - **BigQuery Native Catalog (`scope: bq-dataset.hp-dragonfly.prj_ontology_hp_dragonfly`)**: BigQuery 데이터셋 및 8개 테이블 엔트리에 마크다운 `overview` Aspect를 직접 동기화합니다.
-   - **OKF Knowledge Base (`scope: kb.hp-dragonfly.us-central1.okf_hp_dragonfly`)**: 커스텀 EntryType(`okf-bundle`)과 커스텀 AspectType(`okf`)을 통해 28개 OKF 문서와 Provenance/Trust 시그널(`generated`, `verified`, `sources`, `status`, `stale_after`)을 Dataplex Knowledge Catalog에 무손실 배포합니다.
+- **GitHub Repository**: [https://github.com/cpuz158/hp-dragonfly-ontology-okf](https://github.com/cpuz158/hp-dragonfly-ontology-okf)
+- **GCP Project**: `hp-dragonfly` (`us-central1` / `US`)
+- **BigQuery Property Graph**: `hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph` (11 Node/Lexical Tables · 13 Edge Labels)
+- **Dataplex Knowledge Catalog EntryGroups**:
+  - `projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly`
+  - `projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly_kr` (`gs://hp-dragonfly-okf/okf-kr/`)
+  - `projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly_en` (`gs://hp-dragonfly-okf/okf-en/`)
+- **LLM & Agent Framework**: **Google ADK (`google-adk`)** + **Vertex AI `gemini-3.8-flash`** (`location="global"`)
 
 ---
 
-## 2. 디렉터리 구조
+## 1. 아키텍처 및 4단계 엔드투엔드 파이프라인
 
-```text
-~/Research/2026-10-25_project-Ontology/
-├── .git/                                 # Metadata-as-Code Git 버전 관리 저장소
-├── .venv/                                # Python 가상환경 (google-cloud-bigquery, pypdf, reference_agent 등)
-├── bin/
-│   └── kcmd                              # 컴파일된 공식 Knowledge Catalog Metadata-as-Code CLI (v1.0.0)
-├── catalog.yaml                          # BigQuery Dataset Scope 매니페스트 (bq-dataset.hp-dragonfly.prj_ontology_hp_dragonfly)
-├── okf_catalog.yaml                      # OKF Bundle EntryGroup Scope 매니페스트 (kb.hp-dragonfly.us-central1.okf_hp_dragonfly)
-├── catalog/                              # [Metadata as Code #1] kcmd pull/push용 BigQuery 테이블 YAML 스냅샷
-│   ├── hp-dragonfly.prj_ontology_hp_dragonfly.yaml
-│   └── hp-dragonfly.prj_ontology_hp_dragonfly/*.yaml
-├── bundles/
-│   └── hp_dragonfly/                     # [Metadata as Code #2] OKF v0.2 표준 번들 (28개 .md + viz.html)
-│       ├── index.md
-│       ├── log.md
-│       ├── viz.html                      # Cytoscape.js 기반 자체 포함 인터랙티브 지식 그래프 뷰어 (21개 노드, 110개 엣지)
-│       ├── datasets/                     # prj_ontology_hp_dragonfly.md
-│       ├── tables/                       # 8개 BigQuery 정형 테이블 OKF 문서
-│       ├── references/                   # PDF 서비스 매뉴얼(N17344-001)에서 추출한 5개 핵심 엔지니어링 레퍼런스
-│       ├── metrics/                      # 2개 서비스성/부품교체율 핵심 지표 (Metric)
-│       ├── computations/                 # 2개 공인 SQL/GQL 쿼리 (Attested Computation)
-│       └── playbooks/                    # 2개 현장 엔지니어/AI 에이전트 장애 조치 플레이북 (Playbook)
-├── docs/
-│   └── pdf_6290467_en-US-1.pdf           # [비정형 원천] HP Dragonfly Folio 13.5 G3 Maintenance & Service Guide (N17344-001)
-├── data/                                 # [정형 시드] 8개 정형 테이블의 100% 영문 로컬 JSONL 파일
-└── scripts/
-    ├── hp_dragonfly_seed_data.py         # 8개 정형 테이블 영문 스키마 및 시드 데이터 (109 rows)
-    ├── build_hp_dragonfly_dataset.py     # BigQuery 데이터셋/테이블/Property Graph 생성 스크립트
-    ├── create_property_graph.sql         # BigQuery Property Graph (GQL) DDL
-    ├── enrichment_agent.py               # PDF + BigQuery 결합 OKF v0.2 & Catalog Overview 생성 에이전트
-    ├── okf-aspect.json                   # Dataplex 커스텀 AspectType (`okf`) 템플릿
-    └── sync_okf_to_dataplex.py           # kcmd 기반 Dataplex Knowledge Catalog 양방향 배포/검증 스크립트
-```
+1. **PDF 기반 한·영 이중화 OKF v0.2 청킹 및 Enrichment (`scripts/regenerate_pdf_okf_with_gemini38.py` & `scripts/enrichment_agent.py`)**:
+   - 실제 원천 PDF(`docs/pdf_6290467_en-US-1.pdf`, Doc Part `N17344-001`, 109 PDF pages, Chapters 1–12)의 정확한 파일 페이지(`pdf_page = doc_page + 6`) 텍스트를 추출하여 Vertex AI **`gemini-3.8-flash`** 모델로 8개 챕터 루트(`doc.md`)와 26개 세부 조항(`okf-kr/` 34개 파일, `okf-en/` 34개 파일) 및 `bundles/hp_dragonfly/`(35개 OKF 파일 + `viz.html`)를 생성합니다.
+2. **Metadata as Code (Git 버전 관리)**:
+   - 생성된 `okf-kr/`, `okf-en/`, `bundles/hp_dragonfly/`, `catalog/`, `catalog.yaml`, `okf_catalog.yaml`을 Git 리포지토리([cpuz158/hp-dragonfly-ontology-okf](https://github.com/cpuz158/hp-dragonfly-ontology-okf))에서 코드로 버전 관리합니다.
+3. **`kcmd`를 통한 Dataplex Knowledge Catalog 동기화 (`scripts/sync_okf_to_dataplex.py` & `./bin/kcmd`)**:
+   - **BigQuery Native Catalog (`scope: bq-dataset.hp-dragonfly.prj_ontology_hp_dragonfly`)**: BigQuery 데이터셋 및 정형/렉시컬 테이블에 `dataplex-types.global.overview` Aspect를 배포합니다.
+   - **OKF Knowledge Base (`okf_hp_dragonfly`, `okf_hp_dragonfly_kr`, `okf_hp_dragonfly_en`)**: 커스텀 EntryType(`okf-bundle`)과 커스텀 AspectType(`okf`)을 통해 Provenance/Trust 시그널(`generated`, `verified`, `sources`, `status`, `stale_after`)을 Dataplex Knowledge Catalog에 무손실 배포합니다.
+4. **Google ADK (`gemini-3.8-flash`) 기반 RAG Agent vs. Ontology Graph Agent 라이브 비교 (`agents/adk_rag_vs_graph/` & `scripts/adk_live_runner.py`)**:
+   - **Arm A (`hp_dragonfly_vector_rag_agent`)**: `LlmAgent(model="gemini-3.8-flash")` + `vertex_rag_search` + 단발성 `execute_sql` (EQ01~EQ14 정확도: **3 / 14, 21.4%**).
+   - **Arm B (`hp_dragonfly_ontology_graph_agent`)**: `LlmAgent(model="gemini-3.8-flash")` + `before_agent_callback` + `graph_query_gql` (BigQuery Property Graph) + `kc_lookup_aspect` (Dataplex KC 거버넌스 게이트) + `fetch_okf_provision` (EQ01~EQ14 정확도: **14 / 14, 100.0%**).
 
 ---
 
-## 3. 고객사 환경에서 전체 파이프라인 재현하기
+## 2. 실제 PDF(`N17344-001`, 109p) 챕터 및 페이지 매핑 (`okf-kr/` & `okf-en/`)
+
+| 그룹 번호 | 챕터 루트 (`doc.md`) | 실제 PDF 파일 페이지 (`#page=N`) | 원문 매뉴얼 페이지 | 하위 조항 수 |
+| :--- | :--- | :--- | :--- | :--- |
+| **`[01]`** | `manuals/01_ch1_product_specs/doc.md` (제1장 제품 사양 및 시스템 아키텍처) | **pp. 7–10** | Chapter 1 (pp. 1–4) | 3개 (`§1.1`~`§1.3`) |
+| **`[02]`** | `manuals/02_ch2_external_components/doc.md` (제2장 시스템 외관 구성요소 및 포트·라벨) | **pp. 11–21** | Chapter 2 (pp. 5–15) | 4개 (`§2.1`~`§2.4`) |
+| **`[03]`** | `manuals/03_ch3_spare_parts_catalog/doc.md` (제3장 주요 교체 부품 카탈로그, FRU) | **pp. 22–30** | Chapter 3 (pp. 16–24) | 3개 (`별표 3-1`, `보드`, `별표 3-2`) |
+| **`[04]`** | `manuals/04_ch5_preliminary_safety/doc.md` (제4장 분해 전 준비 및 정전기·배터리 예방 수칙) | **pp. 31–38** | Chapter 4 (pp. 25–32) | 3개 (`§4.1`~`§4.3`) |
+| **`[05]`** | `manuals/05_ch5_base_battery_storage/doc.md` (제5장 Part A 하판·배터리·WWAN·SSD 분해) | **pp. 39–49** | Chapter 5 Part A (pp. 33–43) | 4개 (`§5.1`~`§5.4`) |
+| **`[06]`** | `manuals/06_ch5_thermal_sysboard_display/doc.md` (제5장 Part B 방열판·시스템 보드·OLED 분해 DAG) | **pp. 50–82** | Chapter 5 Part B (pp. 44–76) | 3개 (`§5.10`, `§5.13`, `§5.14`) |
+| **`[07]`** | `manuals/07_ch6_7_bios_and_blink_codes/doc.md` (제6~8장 Computer Setup(BIOS)·진단·백업) | **pp. 83–94** | Chapters 6–8 (pp. 77–88) | 3개 (`§6.1`, `§7.1`, `§7.2`) |
+| **`[08]`** | `internal_policies/08_hp_field_service_sop/doc.md` (제9~12장 전력·정전기(ESD)·서비스 및 지원) | **pp. 95–106** | Chapters 9–12 (pp. 89–100) | 3개 (`§9.1`, `§10.1`, `§11.1`) |
+
+---
+
+## 3. 재현 및 실행 명령어
 
 ```bash
 cd ~/Research/2026-10-25_project-Ontology
 
-# Step 1. BigQuery 영문 정형 데이터셋(8개 테이블) 및 Property Graph 구축
-.venv/bin/python scripts/build_hp_dragonfly_dataset.py \
-  --project-id hp-dragonfly \
-  --dataset-id prj-ontology-hp-dragonfly \
-  --location US \
-  --create-property-graph
+# 1. PDF 원문 기반 한·영 OKF (okf-kr / okf-en) 재생성 (Vertex AI gemini-3.8-flash)
+GOOGLE_API_USE_CLIENT_CERTIFICATE=false .venv/bin/python scripts/regenerate_pdf_okf_with_gemini38.py
 
-# Step 2. Enrichment Agent 실행 (PDF + BigQuery -> OKF v0.2 번들 & Catalog 스냅샷 생성)
-.venv/bin/python scripts/enrichment_agent.py \
-  --project-id hp-dragonfly \
-  --dataset-id prj_ontology_hp_dragonfly
+# 2. Enrichment Agent 실행 (bundles/hp_dragonfly & catalog 스냅샷 생성)
+GOOGLE_API_USE_CLIENT_CERTIFICATE=false .venv/bin/python scripts/enrichment_agent.py
 
-# Step 3. kcmd를 사용하여 Dataplex Knowledge Catalog로 배포 및 Round-Trip 검증
-.venv/bin/python scripts/sync_okf_to_dataplex.py \
-  --project hp-dragonfly \
-  --location us-central1 \
-  --entry-group okf_hp_dragonfly \
-  --action all
+# 3. kcmd 기반 Dataplex Knowledge Catalog 배포 (BigQuery + okf_hp_dragonfly + okf_hp_dragonfly_kr/en)
+GOOGLE_API_USE_CLIENT_CERTIFICATE=false .venv/bin/python scripts/sync_okf_to_dataplex.py --action all
+GOOGLE_API_USE_CLIENT_CERTIFICATE=false .venv/bin/python scripts/sync_okf_to_dataplex.py --action push-okf --bundle-dir okf-kr --entry-group okf_hp_dragonfly_kr
+GOOGLE_API_USE_CLIENT_CERTIFICATE=false .venv/bin/python scripts/sync_okf_to_dataplex.py --action push-okf --bundle-dir okf-en --entry-group okf_hp_dragonfly_en
+
+# 4. 웹 스튜디오 서버 실행 (Port 8765, Google ADK gemini-3.8-flash 라이브 연동)
+GOOGLE_API_USE_CLIENT_CERTIFICATE=false .venv/bin/python scripts/studio_server.py --port 8765
 ```

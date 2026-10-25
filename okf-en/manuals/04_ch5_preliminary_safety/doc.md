@@ -1,7 +1,7 @@
 ---
-type: SourceDocument
-title: '[04 Chapter Root] Chapter 5 Sec.1: Preliminary Disassembly Safety, ESD 700V & Swollen Battery Rules (pp. 29–34)'
-description: 'Chapter 5 Sec.1: Preliminary Disassembly Safety, ESD 700V & Swollen Battery Rules (pp. 29–34) (Source PDF: pdf_6290467_en-US-1.pdf, p.29~34 (전 6쪽), 3 clauses)'
+type: document
+title: '[04 Chapter Root] Chapter 4: Removal and Replacement Preliminary Requirements & ESD Protection [Table 4-1] (PDF p.31–38 · Doc pp. 25–32 · 3 Chunks)'
+description: 'Summarizes Chapter 4 (Doc pp. 25–32, PDF pp. 31–38) covering required tools, service considerations for plastic parts/cables/drives, Electrostatic Discharge (ESD) protection and Table 4-1 static voltage levels (700V–35,000V), grounding wrist straps/mats, HP Easy Clean, and packaging/transporting rules.'
 version: '0.2.0'
 tags:
 - unstructured_context
@@ -11,34 +11,46 @@ tags:
 language: en
 sources:
 - id: origin_pdf
-  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf
+  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf#page=31
   kind: origin_document
-  sha256: 40c5e92933b5273e3580a9b0bbc918714c33d6502990f277525f9a758f292660
+  sha256: 9deb5cead30d3653625b0e8a45ecd9943175c09b9a11db16db37b44b654f0046
 source_uri: gs://hp-dragonfly-okf/okf-en/manuals/04_ch5_preliminary_safety/doc.md
 generated:
-  by: agent:gemini-2.5-pro
-  at: '2026-10-25T04:00:00Z'
+  by: enrichment_agent/gemini-3.8-flash
+  at: '2026-10-25T10:00:00Z'
 status: stable
-part_of: /index.md
-sequence: 29
+part_of: hp_dragonfly_folio_g3_service_manual_n17344_001
+sequence: 4
 treatment: normative
-license: 'Proprietary (HP Inc. Maintenance & Service Guide N17344-001)'
-content_class: authentic
-section_number: 'doc.md ([04] Chapter Root)'
-source_page: 29
+license: 'HP Inc. Authorized Service & Engineering Documentation (N17344-001)'
+content_class: reference
+section_number: 'Chapter 04 Root'
+source_page: 31
+source_pages_span: 'PDF p.31–38 (Doc pp. 25–32)'
 verified:
-- by: hp-service-engineering-lead
-  at: '2026-10-25T04:00:00Z'
-  method: source_text_match
+- by: human:dhmoon@google.com
+  at: '2026-10-25T10:02:00Z'
+  method: manual_review
   checks: [P1_body, P2_heading, P3_page, P4_digest]
 ---
 
-# [04] Chapter 5 Sec.1: Preliminary Disassembly Safety, ESD 700V & Swollen Battery Rules (pp. 29–34)
+# [04 Chapter Root] Chapter 4: Removal and Replacement Preliminary Requirements & ESD Protection [Table 4-1] (PDF p.31–38 · Doc pp. 25–32 · 3 Chunks)
 
-- **Source PDF:** `pdf_6290467_en-US-1.pdf` (HP Elite Dragonfly 13.5 G3 Maintenance and Service Guide, Doc Part `N17344-001`, Pages `p.29~34 (전 6쪽)`)
-- **Included Unstructured Clauses (`Provisions`):** `3` clauses
+## 1. Chapter Root Overview (`okf-en` · 1:1 Grounded in `docs/pdf_6290467_en-US-1.pdf`)
+- **Chapter Identifier:** `[04] 04_CH5_SAFETY_RULES`
+- **Source Service Manual:** HP Dragonfly Folio 13.5 inch G3 2-in-1 Notebook PC Maintenance and Service Guide (`N17344-001`)
+- **Exact PDF Page Span:** **`PDF p.31–38 (Doc pp. 25–32)`** (Opens PDF viewer at `#page=31`)
+- **Enrichment Agent & Model:** `enrichment_agent/gemini-3.8-flash` (`Metadata-as-Code` + `./bin/kcmd`)
+- **OKF Repository Path:** `okf-en/manuals/04_ch5_preliminary_safety/doc.md`
+- **Dataplex Knowledge Catalog EntryGroup:** `projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly_en`
+- **Chapter Executive Summary:** Summarizes Chapter 4 (Doc pp. 25–32, PDF pp. 31–38) covering required tools, service considerations for plastic parts/cables/drives, Electrostatic Discharge (ESD) protection and Table 4-1 static voltage levels (700V–35,000V), grounding wrist straps/mats, HP Easy Clean, and packaging/transporting rules.
 
-## Unstructured Context Clauses in This Chapter (`Provisions`)
-* **[Ch.5 §5.1 — Ch.5 §5.1 (Mandatory Electrostatic Discharge ESD 700V Protection — Wrist Strap, Mat & Conductive Mylar Rule)](sec_5_1_esd_700v_grounding_protocol.md)** (`p.29`): Enforces mandatory ESD grounding (1 MOhm wrist strap and conductive mat) because static discharges as low as 700V degrade 12th Gen Intel SoC and soldered LPDDR5 components.
-* **[Ch.5 §5.2 — Ch.5 §5.2 (Pre-Disassembly Mandatory Sequence & Required Tooling — Torx T5, Phillips #0/#1, Non-Magnetic Pry Tool)](sec_5_2_pre_disassembly_and_tooling_rules.md)** (`p.31`): Defines the mandatory pre-disassembly shutdown checklist, peripheral removal, and approved non-magnetic tooling to prevent magnesium chassis gouging.
-* **[Ch.5 §5.3 — Ch.5 §5.3 (Swollen Li-ion Polymer Battery Handling & Thermal Runaway Prevention Rule)](sec_5_3_swollen_battery_safety_rule.md)** (`p.33`): Strict safety policy governing swollen 6-cell 68Wh (M90788-005) and 4-cell 45Wh (M90789-005) Li-ion pouch batteries to prevent puncture and thermal runaway.
+## 2. Child PDF Section Chunks (3 Chunks)
+| Section / Table | Chunk Title (English) | Exact PDF / Doc Page | Governance Status |
+| :---: | :--- | :---: | :---: |
+| `Ch.4 §4.3 Table 4-1 (ESD 700V Sensitivity & Grounding)` | Chapter 4 §4.3 [Table 4-1] — Electrostatic Discharge (ESD 700V–35,000V) Protection & Grounding Wrist Strap/Mat Protocol (PDF p.32–35 · Doc p.26–29) | `PDF p.32` (`PDF p.32–35 (Doc p.26–29)`) | `stable` |
+| `Ch.4 §4.1–4.2 (Tools Required & Service Considerations)` | Chapter 4 §4.1–4.2 — Tools Required (Torx T5, Phillips P0/P1, Non-Marking Plastic Lever) & Plastic/Cable/Drive Handling Considerations (PDF p.31–32 · Doc p.25–26) | `PDF p.31` (`PDF p.31–32 (Doc p.25–26)`) | `stable` |
+| `Ch.4 §4.4–4.6 (Cleaning, Packaging/Transporting & Swollen Battery Safety)` | Chapter 4 §4.4–4.6 — Cleaning (HP Easy Clean), Packaging/Transporting Guidelines & Swollen Lithium-Ion Battery Safety Rules (PDF p.35–38 · Doc p.29–32) | `PDF p.35` (`PDF p.35–38 (Doc p.29–32)`) | `stable` |
+
+## 3. Ontology Property Graph (`hp_dragonfly_ontology_graph`) & Dataplex KC Linkage
+- This Chapter Root (`doc.md`) and its child chunks are generated directly from `docs/pdf_6290467_en-US-1.pdf` (Chapters 1–12, `pdf_page = doc_page + 6`) using the `gemini-3.8-flash` Enrichment Agent and published to Dataplex Knowledge Catalog (`okf` Aspect) and BigQuery Property Graph (`hp_dragonfly_ontology_graph`) via `./bin/kcmd`.

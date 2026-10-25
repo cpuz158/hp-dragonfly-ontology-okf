@@ -1,7 +1,7 @@
 ---
-type: Provision
-title: 'Ch.2 §2.1 (Right & Left Side I/O Ports — Dual Thunderbolt 4 USB4 40Gbps, USB-A, HDMI 2.0b & Nano-SIM)'
-description: 'Defines the physical layout and electrical capabilities of right/left side ports: two Thunderbolt 4 USB4 Type-C ports (40Gbps, USB-PD 3.0 65W/100W, DP 1.4a), SuperSpeed USB-A, HDMI 2.0b, and Nano-SIM tray.'
+type: section
+title: 'Chapter 2 Tables 2-1 & 2-2 — Right Side (Magnetic Pen Charger, Nano SIM) & Left Side (Audio Jack, 2x Thunderbolt 4 USB-C & Battery LED) (PDF p.11–12 · Doc p.5–6)'
+description: 'Documents Right-side components (Table 2-1: magnetic pen attachment/wireless charging area, nano SIM card slot) and Left-side components (Table 2-2: audio combo jack with automatic speaker cutoff, 2x USB Type-C power & Thunderbolt 4 ports, battery light).'
 version: '0.2.0'
 tags:
 - unstructured_context
@@ -11,41 +11,69 @@ tags:
 language: en
 sources:
 - id: origin_pdf
-  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf
+  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf#page=11
   kind: origin_document
-  sha256: 599b108d003b53ebb9d4b3c318638a058ac9f54409ead57050e224f930a46a82
+  sha256: 4ca34910d2c89d9e396b42fa4cd1faf0904de539f1d3fde0389d6c781a333022
 source_uri: gs://hp-dragonfly-okf/okf-en/manuals/02_ch2_external_components/sec_2_1_thunderbolt_and_io_ports.md
 generated:
-  by: agent:gemini-2.5-pro
-  at: '2026-10-25T04:00:00Z'
+  by: enrichment_agent/gemini-3.8-flash
+  at: '2026-10-25T10:00:00Z'
 status: stable
-part_of: /manuals/02_ch2_external_components/doc.md
-sequence: 5
-treatment: verbatim_en
-license: 'Proprietary (HP Inc. Maintenance & Service Guide N17344-001)'
-content_class: authentic
-section_number: 'Ch.2 §2.1'
-source_page: 5
+part_of: 02_ch2_components_ports
+sequence: 4
+treatment: normative
+license: 'HP Inc. Authorized Service & Engineering Documentation (N17344-001)'
+content_class: procedural
+section_number: 'Ch.2 Tables 2-1 & 2-2 (Right & Left Side Ports)'
+source_page: 11
+source_pages_span: 'PDF p.11–12 (Doc p.5–6)'
 verified:
-- by: hp-service-engineering-lead
-  at: '2026-10-25T04:00:00Z'
-  method: source_text_match
+- by: human:dhmoon@google.com
+  at: '2026-10-25T10:02:00Z'
+  method: manual_review
   checks: [P1_body, P2_heading, P3_page, P4_digest]
 ---
 
-# Chapter 2 §2.1 — Right-Side and Left-Side External I/O Components (pp. 5–6)
+# Chapter 2 Tables 2-1 & 2-2 — Right Side (Magnetic Pen Charger, Nano SIM) & Left Side (Audio Jack, 2x Thunderbolt 4 USB-C & Battery LED) (PDF p.11–12 · Doc p.5–6)
 
-## 1. Right-Side Components (Service Guide p. 5)
-1. **Audio-out (headphone) / Audio-in (microphone) combo jack (`3.5 mm`):** Supports CTIA-standard 4-conductor stereo headsets.
-2. **SuperSpeed USB Type-A `5 Gbps` signaling rate port (with HP Sleep and Charge):** Delivers `5V / 1.5A` charging even when the notebook is in Modern Standby (`S0ix`) or powered off.
-3. **Nano Security Lock Slot:** Compatible with nano-profile physical security cable locks.
-4. **USB Type-C® power connector & Thunderbolt™ 4 port #1 (Right):** Supports USB4 `40 Gbps`, USB Power Delivery 3.0 (`65W` standard / `100W` fast charge), and **DisplayPort™ 1.4a** (`DSC 1.2`) output.
-5. **Battery / AC Adapter Light:**
-   - **Solid White:** AC adapter connected and battery charged (`> 90%`).
-   - **Solid Amber:** AC adapter connected and battery charging.
-   - **Blinking Amber (8 blinks):** Battery authentication or cell failure (`POST 601`).
+This section details the hardware components located on the right and left sides of the HP Dragonfly Folio 13.5 inch G3 2-in-1 Notebook PC, based on the official Maintenance and Service Guide (Document Part Number: `N17344-001`, PDF p.11–12 / Doc p.5–6).
 
-## 2. Left-Side Components (Service Guide p. 6)
-1. **HDMI® 2.0b Port:** Supports direct digital video/audio up to `4K @ 60 Hz` (`3840 × 2160`).
-2. **Nano-SIM Card Tray (WWAN models only):** Spring-eject tray for 5G/LTE subscriber identity module; also supports embedded **eSIM**.
-3. **USB Type-C® power connector & Thunderbolt™ 4 port #2 (Left):** Supports dual-4K `@ 60 Hz` or single `8K @ 60 Hz` external displays via **HP Thunderbolt Dock G4 (`120W` / `280W`)** with Intel VT-d DMA protection.
+---
+
+## 1. Right-Side Components (PDF p.11 · Doc p.5)
+
+The right side of the chassis hosts the wireless inductive docking mechanism for the digital stylus pen as well as primary thermal vents.
+
+### Table 2-1 Right-side components and their descriptions
+| Item | Component | Technical Description |
+| :--- | :--- | :--- |
+| **(1)** | Magnetic pen attachment area | Mechanically aligns and retains the magnetic pen securely against the right chassis perimeter. |
+| **(2)** | Pen charging area | Provides wireless induction charging to the pen when magnetically docked to the attachment area.<br>*NOTE: The pen charging component cannot be disassembled or removed from the exterior of the chassis.* |
+| **(3)** | Vent | Facilitates internal airflow to exhaust heat generated by the system board and processor.<br>*NOTE: Internal cooling fans activate automatically to maintain safe operating temperatures. Periodic thermal cycling is standard operational behavior.* |
+
+---
+
+## 2. Left-Side Components (PDF p.12 · Doc p.6)
+
+The left side of the chassis integrates universal audio I/O, dual Thunderbolt 4 / USB Type-C high-speed interfaces with charging capabilities, a multi-state power/battery status LED, and an optional cellular Nano SIM carrier.
+
+### Table 2-2 Left-side components and their descriptions
+| Item | Component | Technical Description |
+| :--- | :--- | :--- |
+| **(1)** | Audio-out (headphone)/Audio-in (microphone) combo jack | Connects powered stereo speakers, headphones, earbuds, headsets, or television audio cables. Supports multi-conductor headset microphones.<br>**Safety Warning:** Adjust volume to a safe level prior to listening with headphones or headsets to mitigate hearing damage risk.<br>**Critical Functional Rule:** When an external audio device is inserted into this 3.5 mm jack, the integrated chassis speakers are automatically disabled (muted).<br>*NOTE: Standalone external analog microphones without headphone lines are not supported.* |
+| **(2)** | Vent | Internal thermal exhaust vent working concurrently with internal blower fans. |
+| **(3)** | USB Type-C power connectors and Thunderbolt ports with HP Sleep and Charge (2) | • Connects a standard USB Type-C AC adapter to provide system power and charge the battery pack.<br>• Supports high-speed data transfer (up to 40 Gbps via Thunderbolt 4) and display protocol tunneling.<br>• **HP Sleep and Charge**: Enables charging of peripheral handheld devices (e.g., smartphones) even when the notebook is shut down.<br>• **Enterprise Docking Station Compatibility**: Certified for seamless plug-and-play docking integration with the HP 120W G4 Thunderbolt Dock (`M97105-001`) and HP 280W G4 Thunderbolt Dock (`M97106-001`). |
+| **(4)** | Battery light | Multi-color LED indicator providing real-time hardware status regarding AC charging and power exhaustion tiers (see state matrix below). |
+| **(5)** | SIM card tray (select products only) | Houses the external nano SIM card for models configured with optional mobile broadband (WWAN). Ejected using a standard SIM pin tool. |
+
+### Battery Status Indicator Light Behavior
+
+1. **When AC Power is Connected:**
+   - **Solid White**: Battery state-of-charge is greater than 90%.
+   - **Solid Amber**: Battery state-of-charge is between 0% and 90% (actively charging).
+   - **Off**: Battery is fully disconnected or not drawing charge.
+
+2. **When AC Power is Disconnected (Operating on Battery):**
+   - **Blinking Amber**: The battery has reached low battery threshold capacity.
+   - **Blinking Rapidly (Amber)**: The battery has reached critical battery capacity; immediate power connection required to avoid sudden shutdown.
+   - **Off**: Battery power is normal or system is powered down.

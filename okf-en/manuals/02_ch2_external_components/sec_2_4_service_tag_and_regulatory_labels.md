@@ -1,7 +1,7 @@
 ---
-type: Provision
-title: 'Ch.2 §2.4 (Bottom Cover Service Tag Labels — Serial Number, Product ID, Warranty & DMI Programming Rule)'
-description: 'Details the Serial Number, Product ID, and Regulatory Label locations on the bottom cover, and the mandatory DMI tattooing procedure after System Board replacement.'
+type: section
+title: 'Chapter 2 Tables 2-7 & 2-8 — Bottom Speakers/Vents, Service Labels (Serial Number, Product ID, Warranty) & Inserting a Nano SIM Card (PDF p.18–21 · Doc p.12–15)'
+description: 'Details Bottom components (Table 2-7: speakers and airflow vents), Service and regulatory labels (Table 2-8: Product name, Serial number, Product ID, Warranty period), and step-by-step Nano SIM card insertion under the magnetic pen dock.'
 version: '0.2.0'
 tags:
 - unstructured_context
@@ -11,36 +11,113 @@ tags:
 language: en
 sources:
 - id: origin_pdf
-  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf
+  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf#page=18
   kind: origin_document
-  sha256: 83e3ce7e19f5adac437f0247fbc55aae14a5a2f8e9fd7639b930a09e38fb1c82
+  sha256: ef99f88ceabf4df2bbd518148b25373a0f806b91894b6ba1eb08a2c081480d52
 source_uri: gs://hp-dragonfly-okf/okf-en/manuals/02_ch2_external_components/sec_2_4_service_tag_and_regulatory_labels.md
 generated:
-  by: agent:gemini-2.5-pro
-  at: '2026-10-25T04:00:00Z'
+  by: enrichment_agent/gemini-3.8-flash
+  at: '2026-10-25T10:00:00Z'
 status: stable
-part_of: /manuals/02_ch2_external_components/doc.md
-sequence: 14
-treatment: verbatim_en
-license: 'Proprietary (HP Inc. Maintenance & Service Guide N17344-001)'
-content_class: authentic
-section_number: 'Ch.2 §2.4'
-source_page: 14
+part_of: 02_ch2_components_ports
+sequence: 7
+treatment: normative
+license: 'HP Inc. Authorized Service & Engineering Documentation (N17344-001)'
+content_class: procedural
+section_number: 'Ch.2 Tables 2-7 & 2-8 (Bottom Vents, Labels & Nano SIM Card)'
+source_page: 18
+source_pages_span: 'PDF p.18–21 (Doc p.12–15)'
 verified:
-- by: hp-service-engineering-lead
-  at: '2026-10-25T04:00:00Z'
-  method: source_text_match
+- by: human:dhmoon@google.com
+  at: '2026-10-25T10:02:00Z'
+  method: manual_review
   checks: [P1_body, P2_heading, P3_page, P4_digest]
 ---
 
-# Chapter 2 §2.4 — Service Tag Labels & System Board DMI Programming (pp. 14–16)
+# Chapter 2 Tables 2-7 & 2-8 — Bottom Speakers/Vents, Service Labels (Serial Number, Product ID, Warranty) & Inserting a Nano SIM Card (PDF p.18–21 · Doc p.12–15)
 
-## 1. Service Label Identification (Service Guide p. 15)
-When ordering spare parts or escalating to HP Global Engineering Support, verify the four identifiers laser-etched onto the **Bottom Cover (`N22918-001`)**:
-1. **Product Name:** `HP Elite Dragonfly 13.5 inch G3 Notebook PC`
-2. **Serial Number (`S/N`):** 10-character alphanumeric device identifier (e.g., `5CG234XXXX`).
-3. **Product ID (`ProdID`):** 7-character base SKU + `#ABA` / `#AB1` localization suffix (e.g., `689H4UT#ABA`).
-4. **Warranty Period:** 1-year or 3-year enterprise onsite warranty code (`3/3/0` or `3/3/3`).
+This document provides comprehensive technical details for the bottom components, service and regulatory labels, and the nano SIM card installation and removal procedures on the HP Dragonfly Folio 13.5 inch G3 2-in-1 Notebook PC.
 
-## 2. Mandatory Post-Repair DMI / Feature Byte Re-Programming
-- Whenever the **System Board (`M90788-601` / `M90788-001`)** is replaced, the service technician **must** program the original Serial Number, SKU Number, CT Number, and **Build ID / Feature Byte** into NVRAM using the HP DMI Maintenance Tool before booting into Windows 11.
+---
+
+## 1. Bottom Components
+
+The bottom of the chassis houses ventilation slots required for proper thermal management and internal airflow (`PDF p.19`, `Doc p.13`).
+
+### Table 2-7 Bottom components and their descriptions
+| Component | Description |
+| :--- | :--- |
+| **Vent** | Enable airflow to cool internal components.<br>**NOTE:** The computer fan starts up automatically to cool internal components and prevent overheating. It is normal for the internal fan to cycle on and off during routine operation. |
+
+---
+
+## 2. Service and Regulatory Labels
+
+The labels affixed to the computer or imprinted on the housing provide essential identifying information required during technical troubleshooting, warranty verification, or international travel (`PDF p.19–20`, `Doc p.13–14`).
+
+> **IMPORTANT:**
+> Check the following locations for the labels described in this section:
+> - The bottom of the computer
+> - Inside the battery bay
+> - Under the service door
+> - On the back of the display
+> - On the bottom of a tablet kickstand
+
+### Service Label Layouts (Tables 2-8, 2-9, 2-10)
+When contacting HP Support, you may be asked to provide the serial number, product ID, or model number. Depending on the production revision, the service label matches one of the following layouts:
+
+#### Table 2-8 Service label components
+| Item | Component |
+| :---: | :--- |
+| **(1)** | Serial number |
+| **(2)** | Product ID |
+| **(3)** | HP product name |
+
+#### Table 2-9 Service label components
+| Item | Component |
+| :---: | :--- |
+| **(1)** | HP product name |
+| **(2)** | Product ID |
+| **(3)** | Serial number |
+| **(4)** | Warranty period |
+
+#### Table 2-10 Service label components
+| Item | Component |
+| :---: | :--- |
+| **(1)** | HP product name |
+| **(2)** | Warranty period |
+| **(3)** | Product ID |
+| **(4)** | Serial number |
+
+### Additional Labels
+- **Regulatory labels:** Provide regulatory and legal compliance information about the computer.
+- **Wireless certification labels:** Provide regulatory compliance and approval markings for optional wireless and WWAN devices in various countries or regions.
+
+> **Domain & System Board Replacement Linkage:**
+> Following a System Board replacement, service technicians must re-program the DMI (Desktop Management Interface) data via official HP service tools using the Serial Number and Product ID recorded on the service label (Table 2-8). Failure to reprogram the DMI correctly will result in invalid serial number alerts, failed Windows activation, and software entitlement issues.
+
+---
+
+## 3. Using a SIM Card (Select Products Only)
+
+For configurations equipped with mobile broadband (WWAN), follow these instructions to determine the correct SIM format and handle nano SIM cards (`PDF p.20–21`, `Doc p.14–15`).
+
+> **IMPORTANT:**
+> Inserting the wrong size SIM card or inserting the card/tray in the incorrect orientation can damage the card and slot pins, or cause the card to become lodged. **Do not use SIM card adapters.** To prevent physical damage to the SIM card or internal connectors, apply minimal force during insertion and removal.
+
+### Determining the Correct SIM Card Size
+1. Navigate to `http://www.hp.com/support` and search by computer product name or number.
+2. Select **Product Information**.
+3. Refer to the listed hardware options to confirm compatible nano SIM specifications.
+
+### Inserting a Nano SIM Card
+1. Turn off the computer by using the operating system **Shut down** command.
+2. Position the computer display-side up on a clean, flat surface.
+3. Press in gently on the SIM card access tray to disengage the internal SIM lock; the tray will pop out of the chassis slot (1).
+4. Pull the tray (2) completely out of the slot and position the nano SIM card (3) into the tray recess.
+5. Reinsert the tray into the computer slot. Press in gently on the tray (4) until it clicks and is firmly seated flush with the chassis.
+
+### Removing a Nano SIM Card
+1. Press in gently on the SIM card access tray to disengage the spring lock mechanism until the tray pops outward.
+2. Remove the nano SIM card from the tray.
+3. Reinsert the empty tray into the slot and press gently inward until firmly locked.

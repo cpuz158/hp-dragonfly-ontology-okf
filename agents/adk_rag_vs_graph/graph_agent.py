@@ -270,7 +270,7 @@ def fetch_okf_provision(
   }
 
 
-def build_ontology_graph_agent(model_name: str = "gemini-2.5-pro") -> LlmAgent:
+def build_ontology_graph_agent(model_name: str = "gemini-3.8-flash") -> LlmAgent:
   """Constructs the Google ADK `LlmAgent` for Arm B (Ontology Graph Agent)."""
   return LlmAgent(
       name="hp_dragonfly_ontology_graph_agent",
@@ -278,7 +278,8 @@ def build_ontology_graph_agent(model_name: str = "gemini-2.5-pro") -> LlmAgent:
       description=(
           "Arm B: HP Dragonfly Folio G3 Ontology GraphRAG Agent using BigQuery "
           "Property Graph (ISO/IEC 39075 GQL) + Dataplex Knowledge Catalog "
-          "(okf Aspect) Governance Gate + OKF v0.2 Markdown."
+          "(okf Aspect) Governance Gate + OKF v0.2 Markdown (okf-kr / okf-en) "
+          "powered by gemini-3.8-flash."
       ),
       instruction=ONTOLOGY_GRAPH_INSTRUCTION,
       before_agent_callback=bind_entity_aliases_and_kc_anchors,

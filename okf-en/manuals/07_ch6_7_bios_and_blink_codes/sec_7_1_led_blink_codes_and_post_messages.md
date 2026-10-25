@@ -1,7 +1,7 @@
 ---
-type: Table
-title: 'Ch.7 §7.1 [Tables 7-1 & 7-2] (CAPS/NUM LOCK LED Blink Codes 3.2/2.2/5.2 & POST Error Codes 90B/601/502 Matrix)'
-description: 'Reference table mapping CAPS LOCK (long) and NUM LOCK (short) LED blink patterns (2.2, 3.2, 3.3, 3.4, 5.2) and POST numeric error codes (90B, 601, 502) to root causes and actions.'
+type: section
+title: 'Chapter 8 §8.1–8.2 — Using HP PC Hardware Diagnostics (Windows & UEFI F2), 24-Digit Hardware Failure ID Code & LED Blink Codes (3.2 / 2.2 / 4.2) (PDF p.90–93 · Doc p.84–87)'
+description: 'Details Chapter 8 (PDF pp. 90–93 / Doc pp. 84–87) HP PC Hardware Diagnostics Windows and UEFI (started via F2 at boot, generating 24-digit hardware failure ID codes, USB fallback) along with Caps Lock/Power LED blink codes (`LED 3.2` memory, `LED 2.2` BIOS, `LED 4.2` thermal/fan, `POST 601` battery).'
 version: '0.2.0'
 tags:
 - unstructured_context
@@ -11,41 +11,97 @@ tags:
 language: en
 sources:
 - id: origin_pdf
-  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf
+  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf#page=90
   kind: origin_document
-  sha256: f8e71284c58ecbf05d40481f30b3eefeda092a7f1a9be77af9310edcf5461f83
+  sha256: afcaaaced23983e6210e01f596fbea5bd0c3ae83e953fba412e468b3ab55cee2
 source_uri: gs://hp-dragonfly-okf/okf-en/manuals/07_ch6_7_bios_and_blink_codes/sec_7_1_led_blink_codes_and_post_messages.md
 generated:
-  by: agent:gemini-2.5-pro
-  at: '2026-10-25T04:00:00Z'
+  by: enrichment_agent/gemini-3.8-flash
+  at: '2026-10-25T10:00:00Z'
 status: stable
-part_of: /manuals/07_ch6_7_bios_and_blink_codes/doc.md
-sequence: 79
-treatment: structured_table
-license: 'Proprietary (HP Inc. Maintenance & Service Guide N17344-001)'
-content_class: authentic
-section_number: 'Ch.7 §7.1'
-source_page: 79
+part_of: 07_ch6_7_bios_diagnostics
+sequence: 22
+treatment: normative
+license: 'HP Inc. Authorized Service & Engineering Documentation (N17344-001)'
+content_class: procedural
+section_number: 'Ch.8 §8.1–8.2 (HP PC Hardware Diagnostics Windows/UEFI & LED Blink Codes)'
+source_page: 90
+source_pages_span: 'PDF p.90–93 (Doc p.84–87)'
 verified:
-- by: hp-service-engineering-lead
-  at: '2026-10-25T04:00:00Z'
-  method: source_text_match
+- by: human:dhmoon@google.com
+  at: '2026-10-25T10:02:00Z'
+  method: manual_review
   checks: [P1_body, P2_heading, P3_page, P4_digest]
 ---
 
-# Chapter 7 §7.1 — POST Error Messages & LED Blink Code Reference (pp. 79–82)
+# Chapter 8 §8.1–8.2 — Using HP PC Hardware Diagnostics (Windows & UEFI F2), 24-Digit Hardware Failure ID Code & LED Blink Codes (3.2 / 2.2 / 4.2) (PDF p.90–93 · Doc p.84–87)
 
-## 1. Table 7-2: `CAPS LOCK` (Long Blink) / `NUM LOCK` (Short Blink) Diagnostic Codes (p. 81)
+## 1. Overview and Diagnostic Suite Architecture
 
-| Blink Code (`Long.Short`) | Caps Lock (Long Red/White) | Num Lock (Short White) | Subsystem Fault Condition | Mandatory First-Line Action (Before FRU Swap) |
-| :---: | :---: | :---: | :--- | :--- |
-| **`2.2`** | 2 Long Blinks | 2 Short Blinks | **Main System BIOS SPI Image Corrupted** | Execute **HP Sure Start (`Win + B`)** crisis recovery (`60–90s`); do **not** replace board first |
-| **`3.2`** | 3 Long Blinks | 2 Short Blinks | **Pre-Video Memory / SPI Training Timeout** | Perform Hard EC Reset (`Power 15s`) + **`Win + B` Sure Start**; replace System Board (`M90788-601`) only if failure persists after 2 recovery cycles |
-| **`3.3`** | 3 Long Blinks | 3 Short Blinks | **Embedded Graphics / eDP Display Init Fault** | Reseat eDP cable (`N09038-001`) at System Board; test external HDMI 2.0b output |
-| **`3.4`** | 3 Long Blinks | 4 Short Blinks | **USB-C Power Delivery / VRM Rail Fault** | Disconnect non-HP charger; test with known-good `65W` HP USB-C AC adapter on both TB4 ports |
-| **`5.2`** | 5 Long Blinks | 2 Short Blinks | **Embedded Controller (EC) / Endpoint Security Fault** | Perform AC + Battery hard disconnect (`§5.5`) for `60s` to clear EC latch |
+The HP PC Hardware Diagnostics utility provides comprehensive isolation testing to verify whether the computer hardware of the HP Dragonfly Folio 13.5 inch G3 2-in-1 Notebook PC is functioning properly (PDF p.90, Doc p.84). The suite is provided in three distinct implementations:
 
-## 2. Table 7-1: Numeric POST Boot Error Messages (pp. 79–80)
-- **`POST 90B` (System Fan 90B Alert):** Cooling fan (`M90791-001`) RPM below minimum threshold or stalled. Inspect fan vents, verify 4-pin fan header, and update EC/BIOS (`U90 Ver. 01.14.00`); if rotor fails UEFI Fan Test, replace fan (`M90791-001`).
-- **`POST 601` (Primary Battery 601 Alert):** Battery pack (`M90788-005` / `M90789-005`) full-charge capacity degraded below `25%` of design capacity or cell imbalance detected.
-- **`POST 502` (CMOS Checksum Invalid):** Real-Time Clock (RTC) / CMOS NVRAM reset after main battery depletion; press `Enter` to load factory defaults.
+1. **HP PC Hardware Diagnostics Windows**: Runs within the Windows operating system to diagnose component-level hardware failures (select products only).
+2. **HP PC Hardware Diagnostics UEFI**: Operates outside the operating system at the pre-boot firmware level, isolating hardware failures from OS or software anomalies.
+3. **Remote HP PC Hardware Diagnostics UEFI**: A firmware-level feature designed for enterprise remote diagnostic deployment (select products only).
+
+---
+
+## 2. Operating HP PC Hardware Diagnostics Windows & 24-Digit Failure ID (PDF p.90–92, Doc p.84–86)
+
+### 2.1 Using a 24-Digit Failure ID Code
+When the Windows diagnostic utility detects a condition requiring physical component replacement, a unique **24-digit failure ID code** is generated.
+* **Interactive Tests**: Component tests requiring user interaction (keyboard, mouse, audio/video palette) require troubleshooting steps prior to failure ID generation.
+* **Failure ID Case Submission Options**:
+  1. Select **Next** to automatically launch the Event Automation Service (EAS) page to log the service case.
+  2. Scan the on-screen **QR code** using a mobile device to navigate to the EAS portal.
+  3. Select the checkbox adjacent to the 24-digit failure ID to copy the code to the clipboard and transmit it to HP support.
+
+### 2.2 Accessing the Windows Diagnostic Tool
+* **Via HP Support Assistant (PDF p.90, Doc p.84)**:
+  1. Select the Search icon in the taskbar, enter `support`, and open the HP Support Assistant app (or select the `?` icon in the taskbar).
+  2. Navigate to **Fixes & Diagnostics**.
+  3. Select **Run hardware diagnostics**, then select **Launch**.
+  4. Choose the target diagnostic test and follow on-screen prompts (select `Cancel` to halt a test).
+* **Via the Start Menu (PDF p.91, Doc p.85)**:
+  1. Select the **Start** button, then select **All apps**.
+  2. Select **HP PC Hardware Diagnostics Windows**.
+  3. Select the required test suite.
+
+### 2.3 Downloading and Installing Windows Diagnostics (PDF p.91–92, Doc p.85–86)
+Because download packages are distributed exclusively as `.exe` binaries, a Windows computer must be used.
+* **From HP TechCenter**: Visit `http://www.hp.com/go/techcenter/pcdiags` → select `Download HP Diagnostics Windows` → save to local storage or a USB flash drive.
+* **From the Microsoft Store**: Search for `HP PC Hardware Diagnostics Windows` in the Microsoft Store app and proceed with installation.
+* **By Product Name/Number**: Go to `http://www.hp.com/support` → select `Software and Drivers` → enter product number/name → under `Diagnostics`, download the executable.
+* **Installation**: Double-click the downloaded `.exe` file on local storage or the USB drive and follow standard installation wizards.
+
+---
+
+## 3. Operating HP PC Hardware Diagnostics UEFI (PDF p.92–93, Doc p.86–87)
+
+If the system fails to boot into Windows, HP PC Hardware Diagnostics UEFI provides hardware isolation testing at the firmware layer.
+
+* **Convertible Operating Prerequisite**: The convertible unit must be configured in notebook mode, and the attached physical keyboard must be used.
+* **UEFI Invocation Procedure**:
+  1. Power on or restart the system, and immediately press `esc` repeatedly.
+  2. Press `f2` upon entering the Startup Menu.
+  3. The BIOS searches for the diagnostic tools across three repositories in sequential priority (PDF p.92–93, Doc p.86–87):
+     - **a. Connected USB flash drive**
+     - **b. Hard drive / SSD**
+     - **c. BIOS (Firmware ROM)**
+  4. Once loaded, select the desired diagnostic test suite (press `esc` to cancel execution).
+* **UEFI 24-Digit Failure ID Processing**:
+  - Select **Contact HP**, accept the privacy disclaimer, and scan the displayed QR code with a mobile phone. The service center web portal opens with the serial number and failure ID automatically populated.
+
+---
+
+## 4. Ontology Cross-Reference & Blink/POST Code Matrix
+
+Diagnostic outcomes and boot failures correspond directly to the technical troubleshooting subsystem ontology (`TS-DFG3-001`).
+
+| Identifier | Diagnostic Pattern / Indicator | Subsystem / Root Failure Cause | Remediation & Service Guideline |
+| :--- | :--- | :--- | :--- |
+| `LED-3-2` | Caps Lock/Num Lock 3 Slow + 2 Fast blinks | **Memory Module Failure** (LPDDR5 memory initialization failure) | Execute hard reset/flea power drain; if persistent, replace system board (`TS-DFG3-001`) |
+| `LED-2-2` | Caps Lock/Num Lock 2 Slow + 2 Fast blinks | **BIOS/Firmware Corruption** (Main BIOS image integrity failure) | Perform HP BIOS Recovery (`Win + B` or `Win + V` key sequence with external recovery USB) |
+| `LED-4-2` | Caps Lock/Num Lock 4 Slow + 2 Fast blinks | **Thermal Sensor / Fan Failure** (Critical over-temperature trip) | Inspect cooling fan operation, clean thermal vents, reseat heatsink and replace thermal interface material |
+| `POST-601` | Screen error code ("POST Error 601") | **Primary Battery Health Depletion** (Primary battery failure) | Run UEFI Battery Check, log 24-digit Failure ID, and replace the primary battery pack |
+| `EAS-24-ID` | 24-Digit Failure Code (Windows / UEFI) | Specific component failure confirmed | Log via Event Automation Service (EAS) or QR scanner to initiate RMA part dispatch |

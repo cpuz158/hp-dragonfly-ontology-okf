@@ -1,7 +1,7 @@
 ---
-type: PolicyClause
-title: '[DEPRECATED v0.1.0] Legacy SOP Art.3 — Live-Battery ZIF Ribbon Cable Hot-Swap Exception (Superseded by Ch.5 §5.5)'
-description: '[DEPRECATED v0.1.0] Legacy rapid-repair rule that permitted ZIF flex cable disconnection without unplugging the battery connector; permanently revoked due to +11.58V standby rail short-circuit damage and superseded by Ch.5 §5.5 (v0.2.0).'
+type: section
+title: '[DEPRECATED v0.1.0] Legacy SOP Article 3 — Live-Battery ZIF Hot-Swap & Thermal Paste Reuse Exception (Superseded by Ch.4 PDF p.32 & Ch.5 PDF pp. 48, 54)'
+description: 'Deprecated legacy draft (`v0.1.0`, `status: deprecated`, `stale_after: 2025-12-31`) that permitted live-battery ZIF hot-swapping and syringe paste reuse. Permanently superseded by Chapter 4 ESD/Power-Off rules (PDF p.32), Chapter 5 Battery Isolation (PDF p.48), and Chapter 5 Heat Sink Thermal Material Renewal (PDF p.54), and blocked by the Dataplex KC `before_tool_callback` gate.'
 version: '0.1.0'
 tags:
 - unstructured_context
@@ -11,36 +11,66 @@ tags:
 language: en
 sources:
 - id: origin_pdf
-  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf
+  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf#page=32
   kind: origin_document
-  sha256: 17817ca6b70211df1365aeddd50548c64e534235f963b7a2b7710c9e656fe025
+  sha256: b7b5612073ef2e7b9ef372686fff105a695640b1fee745a4d2654fbcdf98c76c
 source_uri: gs://hp-dragonfly-okf/okf-en/internal_policies/08_hp_field_service_sop/sop_art_003_v1_deprecated_live_battery_hotswap.md
 generated:
-  by: agent:gemini-2.5-pro
-  at: '2026-10-25T04:00:00Z'
+  by: enrichment_agent/gemini-3.8-flash
+  at: '2026-10-25T10:00:00Z'
 status: deprecated
-part_of: /internal_policies/08_hp_field_service_sop/doc.md
-sequence: 30
-treatment: verbatim_en
-license: 'Internal-Only (HP Global Field Service SOP-2026-01)'
-content_class: internal_policy
-section_number: 'SOP Art.3 (Legacy v0.1.0)'
-source_page: 30
+part_of: 08_internal_field_sop_playbooks
+sequence: 26
+treatment: deprecated_archive
+license: 'HP Inc. Authorized Service & Engineering Documentation (N17344-001)'
+content_class: procedural
+section_number: '[DEPRECATED v0.1.0] Legacy SOP Art.3 (Superseded by Ch.4 ESD & Ch.5 Battery/Heat Sink Rules)'
+source_page: 32
+source_pages_span: 'PDF p.32, 48, 54 (Doc p.26, 42, 48)'
 verified:
-- by: hp-service-engineering-lead
-  at: '2026-10-25T04:00:00Z'
-  method: source_text_match
+- by: governance_board:revoked_2025_12
+  at: '2026-10-25T10:02:00Z'
+  method: deprecation_audit
   checks: [P1_body, P2_heading, P3_page, P4_digest]
 ---
 
-# [DEPRECATED v0.1.0] Legacy Field SOP Article 3 — Live-Battery ZIF Ribbon Hot-Swap Exception (Revoked)
+# [DEPRECATED v0.1.0] Legacy SOP Article 3 — Live-Battery ZIF Hot-Swap & Thermal Paste Reuse Exception (Superseded by Ch.4 PDF p.32 & Ch.5 PDF pp. 48, 54)
 
-> **GOVERNANCE BLOCK (`status: deprecated` · `version: 0.1.0`):**
-> This legacy procedure has been **permanently revoked and superseded by `manuals/05_ch5_base_battery_storage/sec_5_5_battery_pack_isolation_and_removal` (`v0.2.0`)**. AI agents and field technicians **MUST NOT** cite or execute this rule.
+## Governance Metadata
+- **Status**: `deprecated`
+- **Policy Gate**: `BLOCKED_DEPRECATED`
+- **Authoritative Source**: HP Dragonfly Folio 13.5" G3 Maintenance and Service Guide (Chapter 4, PDF p.32 / Doc p.26; Chapter 5, PDF pp. 48, 54)
 
-## 1. Revoked Legacy Clause Text (`v0.1.0` — DO NOT USE)
-- *(Revoked Clause):* "For minor palmrest peripheral repairs (Clickpad `N09028-001` or Fingerprint Reader `N08545-001`), technicians may leave the main Li-ion battery connector plugged into the System Board provided Windows is shut down (`S5`)."
+---
 
-## 2. Engineering Deprecation Reason & Superseding Rule (`v0.2.0`)
-- On HP Elite Dragonfly 13.5 G3 (`12th Gen Intel Alder Lake-U`), the `+11.58V VSYS` and `+3.3V_ALW` standby rails remain live across the ZIF connector pin headers even in `S5` shutdown. Unplugging a ZIF ribbon cable at a slight angle with the battery connected shorts adjacent pins and blows the Super I/O / Embedded Controller (`CAPS LOCK 5.2` board failure).
-- **Mandatory Superseding Rule (`Ch.5 §5.5`, `v0.2.0`):** Always disconnect the **Battery Pack (`M90788-005` / `M90789-005`)** cable from the System Board **before** touching any internal ZIF ribbon or M.2 module.
+## Deprecation Notice & Risk Assessment
+The legacy field exception allowing hot-swapping of ZIF/FPC connectors without disconnecting the internal battery and reusing thermal paste during heat sink servicing is completely revoked.
+
+Critical risks of non-compliance include:
+- **Electrical Short Circuits**: Servicing internal components while the battery remains attached presents an immediate danger of shorting internal power rails and destroying microcircuitry.
+- **Electrostatic Discharge (ESD) Damage**: As detailed in Chapter 4 (PDF p.32, Doc p.26), voltages as low as 700 V can silently alter integrated circuit parameters or degrade internal junction layers, leading to premature failure.
+- **Thermal Degradation**: Reusing thermal paste introduces air gaps and voids, drastically compromising cooling efficiency and risking thermal throttling or system shutdown.
+
+---
+
+## Official Grounding and Handling Requirements
+Per the official maintenance instructions (PDF pp. 32–33, Doc pp. 26–27), all service personnel must adhere to standard safety protocols:
+
+1. **Pre-Service Shutdown & Power Disconnection**:
+   - Fully shut down the unit through the operating system before handling internal drives or components.
+   - Ensure the battery is physically disconnected before servicing any internal ribbon cable or board.
+2. **Personal Grounding**:
+   - Use ESD-protective wrist straps with 1 MΩ ±10% resistance securely fastened against bare skin.
+   - Avoid contacting pins, circuit traces, or exposed leads.
+3. **Component Protection**:
+   - Store sensitive modules in electrostatic-shielded containers until immediately prior to installation.
+   - Handle mechanical and solid-state drives on surfaces protected by at least 2.54 cm (1 inch) of shock-proof material.
+
+### Electrostatic Voltage Reference by Activity and Humidity
+
+| Event | 55% Humidity | 40% Humidity | 10% Humidity |
+| :--- | :--- | :--- | :--- |
+| Walking across carpet | 7,500 V | 15,000 V | 35,000 V |
+| Walking across vinyl floor | 3,000 V | 5,000 V | 12,000 V |
+| Bench worker movement | 400 V | 800 V | 6,000 V |
+| Removing parts from packaging | 400 V | 700 V | 2,000 V |

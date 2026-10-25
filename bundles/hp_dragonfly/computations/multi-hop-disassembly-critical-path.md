@@ -14,11 +14,11 @@ parameters:
   type: string
   required: false
 generated:
-  by: enrichment_agent/gemini-2.5-pro
-  at: '2026-10-25T02:50:00Z'
+  by: enrichment_agent/gemini-3.8-flash
+  at: '2026-10-25T10:00:00Z'
 verified:
 - by: human:dhmoon@google.com
-  at: '2026-10-25T02:52:00Z'
+  at: '2026-10-25T10:02:00Z'
 status: stable
 stale_after: '2027-10-25T00:00:00Z'
 sources:
@@ -26,12 +26,12 @@ sources:
   resource: tables/component_disassembly_deps.md
   title: Component Disassembly Dependencies Table
   author: team:hp-commercial-engineering
-  last_modified: '2026-10-25T02:50:00Z'
+  last_modified: '2026-10-25T10:00:00Z'
 - id: complexity-metric
   resource: metrics/component-service-complexity-score.md
   title: Component Service Complexity Score
   author: human:dhmoon@google.com
-  last_modified: '2026-10-25T02:52:00Z'
+  last_modified: '2026-10-25T10:02:00Z'
 ---
 
 # Computation

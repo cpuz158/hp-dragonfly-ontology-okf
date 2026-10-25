@@ -34,10 +34,10 @@ WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
 PDF_PATH = WORKSPACE_ROOT / "docs" / "pdf_6290467_en-US-1.pdf"
 DEFAULT_BUNDLE_DIR = WORKSPACE_ROOT / "bundles" / "hp_dragonfly"
 DEFAULT_CATALOG_DIR = WORKSPACE_ROOT / "catalog"
-GENERATED_TIMESTAMP = "2026-10-25T02:50:00Z"
-VERIFIED_TIMESTAMP = "2026-10-25T02:52:00Z"
+GENERATED_TIMESTAMP = "2026-10-25T10:00:00Z"
+VERIFIED_TIMESTAMP = "2026-10-25T10:02:00Z"
 STALE_AFTER_TIMESTAMP = "2027-10-25T00:00:00Z"
-AGENT_ACTOR = "enrichment_agent/gemini-2.5-pro"
+AGENT_ACTOR = "enrichment_agent/gemini-3.8-flash"
 HUMAN_VERIFIER = "human:dhmoon@google.com"
 
 

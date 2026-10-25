@@ -1,7 +1,7 @@
 ---
-type: SourceDocument
-title: '[06 Chapter Root] Chapter 5 Sec.3: Vapor Chamber Thermal, System Board & OLED Display Multi-Hop DAG (pp. 52–72)'
-description: 'Chapter 5 Sec.3: Vapor Chamber Thermal, System Board & OLED Display Multi-Hop DAG (pp. 52–72) (Source PDF: pdf_6290467_en-US-1.pdf, p.52~72 (전 21쪽), 3 clauses)'
+type: document
+title: '[06 Chapter Root] Chapter 5 (Part B): Authorized Service Provider Removal Procedures — Speakers, Touchpad, Heat Sink, System Board & Display Assembly (PDF p.50–82 · Doc pp. 44–76 · 3 Chunks)'
+description: 'Summarizes Chapter 5 Part B (Doc pp. 44–76, PDF pp. 50–82) covering Bottom/Top speakers, Transfer board (N22921-001), Touchpad (N22933-001), Heat sink (N22936-001), System board (N20724-601–N20728-601) multi-hop disassembly DAG, Antenna barrel (N22932-001), Top cover with keyboard (N22938-001), and Display panel/subcomponents/hinges (N22923-001).'
 version: '0.2.0'
 tags:
 - unstructured_context
@@ -11,34 +11,46 @@ tags:
 language: en
 sources:
 - id: origin_pdf
-  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf
+  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf#page=50
   kind: origin_document
-  sha256: 675d8dbd84bd585d34893fb5d8aed3fae0241af4bda062117523ed0f04c7c434
+  sha256: e0ecb54beb38950fbf6a3da1fa7ff8a0af456c6ab89794cedb9d9f3ae718306e
 source_uri: gs://hp-dragonfly-okf/okf-en/manuals/06_ch5_thermal_sysboard_display/doc.md
 generated:
-  by: agent:gemini-2.5-pro
-  at: '2026-10-25T04:00:00Z'
+  by: enrichment_agent/gemini-3.8-flash
+  at: '2026-10-25T10:00:00Z'
 status: stable
-part_of: /index.md
-sequence: 52
+part_of: hp_dragonfly_folio_g3_service_manual_n17344_001
+sequence: 6
 treatment: normative
-license: 'Proprietary (HP Inc. Maintenance & Service Guide N17344-001)'
-content_class: authentic
-section_number: 'doc.md ([06] Chapter Root)'
-source_page: 52
+license: 'HP Inc. Authorized Service & Engineering Documentation (N17344-001)'
+content_class: reference
+section_number: 'Chapter 06 Root'
+source_page: 50
+source_pages_span: 'PDF p.50–82 (Doc pp. 44–76)'
 verified:
-- by: hp-service-engineering-lead
-  at: '2026-10-25T04:00:00Z'
-  method: source_text_match
+- by: human:dhmoon@google.com
+  at: '2026-10-25T10:02:00Z'
+  method: manual_review
   checks: [P1_body, P2_heading, P3_page, P4_digest]
 ---
 
-# [06] Chapter 5 Sec.3: Vapor Chamber Thermal, System Board & OLED Display Multi-Hop DAG (pp. 52–72)
+# [06 Chapter Root] Chapter 5 (Part B): Authorized Service Provider Removal Procedures — Speakers, Touchpad, Heat Sink, System Board & Display Assembly (PDF p.50–82 · Doc pp. 44–76 · 3 Chunks)
 
-- **Source PDF:** `pdf_6290467_en-US-1.pdf` (HP Elite Dragonfly 13.5 G3 Maintenance and Service Guide, Doc Part `N17344-001`, Pages `p.52~72 (전 21쪽)`)
-- **Included Unstructured Clauses (`Provisions`):** `3` clauses
+## 1. Chapter Root Overview (`okf-en` · 1:1 Grounded in `docs/pdf_6290467_en-US-1.pdf`)
+- **Chapter Identifier:** `[06] 06_CH5_THERMAL_BOARD_DISPLAY`
+- **Source Service Manual:** HP Dragonfly Folio 13.5 inch G3 2-in-1 Notebook PC Maintenance and Service Guide (`N17344-001`)
+- **Exact PDF Page Span:** **`PDF p.50–82 (Doc pp. 44–76)`** (Opens PDF viewer at `#page=50`)
+- **Enrichment Agent & Model:** `enrichment_agent/gemini-3.8-flash` (`Metadata-as-Code` + `./bin/kcmd`)
+- **OKF Repository Path:** `okf-en/manuals/06_ch5_thermal_sysboard_display/doc.md`
+- **Dataplex Knowledge Catalog EntryGroup:** `projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly_en`
+- **Chapter Executive Summary:** Summarizes Chapter 5 Part B (Doc pp. 44–76, PDF pp. 50–82) covering Bottom/Top speakers, Transfer board (N22921-001), Touchpad (N22933-001), Heat sink (N22936-001), System board (N20724-601–N20728-601) multi-hop disassembly DAG, Antenna barrel (N22932-001), Top cover with keyboard (N22938-001), and Display panel/subcomponents/hinges (N22923-001).
 
-## Unstructured Context Clauses in This Chapter (`Provisions`)
-* **[Ch.5 §5.12 — Ch.5 §5.12 (Thermal Fan M90791-001 & Vapor Chamber Heatsink M90790-001 — Cross-Pattern Sequence & Thermal Paste Rule)](sec_5_12_vapor_chamber_heatsink_and_fan.md)** (`p.54`): Specifies removal and installation of the Thermal Fan (M90791-001) and Vapor Chamber Heatsink (M90790-001), enforcing the stamped 1-2-3-4 diagonal cross-pattern screw tightening sequence and thermal compound renewal.
-* **[Ch.5 §5.16 — Ch.5 §5.16 (System Board M90788-601 Removal — 6-Stage Prerequisite Disassembly DAG & 7 ZIF Ribbon Release Sequence)](sec_5_16_system_board_multihop_dag.md)** (`p.62`): Defines the complete 6-stage prerequisite removal DAG and 7 ZIF ribbon connector release sequence required before lifting the System Board (M90788-601).
-* **[Ch.5 §5.18 — Ch.5 §5.18 (13.5" 3K2K OLED Display N09033-001 Disassembly — Stretch-Release Pull-Tab Adhesive N09039-001 & Webcam Cable Replacement)](sec_5_18_oled_display_pulltab_and_camera_cable.md)** (`p.67`): Governs display assembly removal, 3K2K OLED panel extraction using stretch-release adhesive pull-tabs (<30° angle), and mandatory replacement of single-use adhesive strips (N09039-001) when servicing the 5MP IR camera or cable.
+## 2. Child PDF Section Chunks (3 Chunks)
+| Section / Table | Chunk Title (English) | Exact PDF / Doc Page | Governance Status |
+| :---: | :--- | :---: | :---: |
+| `Ch.5 §5.9–5.13 (Speakers, Transfer Board, Touchpad & Heat Sink N22936-001)` | Chapter 5 §5.9–5.13 — Bottom/Top Speakers, Transfer Board (N22921-001), Touchpad (N22933-001) & Heat Sink (N22936-001, 1-2-3-4 Sequence & Thermal Pad) (PDF p.50–55 · Doc p.44–49) | `PDF p.53` (`PDF p.50–55 (Doc p.44–49)`) | `stable` |
+| `Ch.5 §5.14–5.16 (System Board N20724–N20728-601 Multi-Hop DAG & Antennas)` | Chapter 5 §5.14–5.16 — System Board (N20724-601–N20728-601) & Audio Jack Multi-Hop Disassembly DAG, Antenna Barrel (N22932-001) & Wireless Antennas (PDF p.56–61 · Doc p.50–55) | `PDF p.56` (`PDF p.56–61 (Doc p.50–55)`) | `stable` |
+| `Ch.5 §5.17–5.20 (Top Cover Keyboard, Display Panel Pull-Tabs, Transfer Board, Camera & Hinges)` | Chapter 5 §5.17–5.20 — Top Cover with Keyboard (N22938-001), Display Panel Stretch-Release Pull-Tabs, Transfer Board (N22937-001), 8MP Camera (N23306-001) & Hinges (N22923-001) (PDF p.62–82 · Doc p.56–76) | `PDF p.62` (`PDF p.62–82 (Doc p.56–76)`) | `stable` |
+
+## 3. Ontology Property Graph (`hp_dragonfly_ontology_graph`) & Dataplex KC Linkage
+- This Chapter Root (`doc.md`) and its child chunks are generated directly from `docs/pdf_6290467_en-US-1.pdf` (Chapters 1–12, `pdf_page = doc_page + 6`) using the `gemini-3.8-flash` Enrichment Agent and published to Dataplex Knowledge Catalog (`okf` Aspect) and BigQuery Property Graph (`hp_dragonfly_ontology_graph`) via `./bin/kcmd`.

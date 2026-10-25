@@ -1120,18 +1120,18 @@
   function getDocAndChapterHubForOkfFile(f) {
     const k = isKo();
     const docObj = OKF_DOC_ROOTS.find((d) => d.doc_id === f.doc_id) || OKF_DOC_ROOTS[0];
-    const isSop = f.doc_id === "08_INTERNAL_FIELD_SOP_PLAYBOOKS";
+    const isCh9To12 = f.doc_id === "08_INTERNAL_FIELD_SOP_PLAYBOOKS";
     return {
-      docId: isSop ? "DOC::INTERNAL_SOP" : "DOC::N17344_001",
-      docLabel: isSop
+      docId: isCh9To12 ? "DOC::N17344_CH9_12" : "DOC::N17344_001",
+      docLabel: isCh9To12
         ? k
-          ? "사내 표준 정비내규\n(Field Service SOP · [08])"
-          : "HP Field Service SOP\n(Internal Policy · [08])"
+          ? "HP 서비스 매뉴얼 제9~12장\n(전력·ESD·고객지원 · pp.95-106)"
+          : "HP Service Guide Ch.9–12\n(Power, ESD & Support · pp.95-106)"
         : k
-        ? "HP 공식 서비스 매뉴얼 PDF\n(N17344-001 · [01]~[07])"
-        : "HP Service Guide PDF\n(N17344-001 · [01]~[07])",
-      docColor: isSop ? "#527a9a" : "#3b6ea5",
-      docProvIdx: isSop ? 23 : 0,
+        ? "HP 공식 서비스 매뉴얼 PDF\n(N17344-001 · 제1~8장 · pp.7-94)"
+        : "HP Service Guide PDF\n(N17344-001 · Ch.1–8 · pp.7-94)",
+      docColor: isCh9To12 ? "#527a9a" : "#3b6ea5",
+      docProvIdx: isCh9To12 ? 23 : 0,
       partId: `PART::${docObj.doc_id}`,
       partLabel: `[${docObj.doc_num}] ${k ? docObj.doc_short_ko : docObj.doc_short_en}\n(pp.${docObj.source_pages_span})`,
       partProvIdx: Math.max(0, OKF_FILES.findIndex((x) => x.doc_id === docObj.doc_id))
@@ -1782,9 +1782,9 @@
       "HP Authorized Service Provider (ASP) Standard Technical License"
     ],
     generated_by: [
+      "enrichment_agent/gemini-3.8-flash",
       "process:enrichment_agent/2.0",
-      "process:okf_studio_editor/0.2",
-      "agent:gemini-2.5-pro"
+      "process:okf_studio_editor/0.2"
     ],
     verified_by: [
       "hp-service-engineering-lead",
@@ -1914,10 +1914,10 @@
         treatment: fm.treatment || "normative",
         language: "ko",
         license: "HP Inc. 서비스 매뉴얼 정본 (Doc Part N17344-001 · 한글 OKF 정본)",
-        generated_by: (fm.generated && fm.generated.by) || "agent:gemini-2.5-pro",
-        generated_at: (fm.generated && fm.generated.at) || "2026-10-25T04:00:00Z",
+        generated_by: (fm.generated && fm.generated.by) || "enrichment_agent/gemini-3.8-flash",
+        generated_at: (fm.generated && fm.generated.at) || "2026-10-25T10:00:00Z",
         verified_by: (fm.verified && fm.verified.by) || "hp-service-engineering-lead",
-        verified_at: (fm.verified && fm.verified.at) || "2026-10-25T04:00:00Z",
+        verified_at: (fm.verified && fm.verified.at) || "2026-10-25T10:00:00Z",
         verified_method: (fm.verified && fm.verified.method) || "source_text_match",
         part_of: "/index.md",
         sequence: d.pdf_page || 1,
@@ -1942,10 +1942,10 @@
         treatment: fm.treatment || "normative",
         language: "en",
         license: fm.license || "Proprietary (HP Inc. Maintenance & Service Guide N17344-001)",
-        generated_by: (fm.generated && fm.generated.by) || "agent:gemini-2.5-pro",
-        generated_at: (fm.generated && fm.generated.at) || "2026-10-25T04:00:00Z",
+        generated_by: (fm.generated && fm.generated.by) || "enrichment_agent/gemini-3.8-flash",
+        generated_at: (fm.generated && fm.generated.at) || "2026-10-25T10:00:00Z",
         verified_by: (fm.verified && fm.verified.by) || "hp-service-engineering-lead",
-        verified_at: (fm.verified && fm.verified.at) || "2026-10-25T04:00:00Z",
+        verified_at: (fm.verified && fm.verified.at) || "2026-10-25T10:00:00Z",
         verified_method: (fm.verified && fm.verified.method) || "source_text_match",
         part_of: "/index.md",
         sequence: d.pdf_page || 1,
@@ -2016,10 +2016,10 @@
         license: isInternal
           ? "Internal-Only (HP Global Field Service SOP · 사내한 대외비)"
           : "HP Inc. 서비스 매뉴얼 정본 (Doc Part N17344-001 · 한글 OKF 정본)",
-        generated_by: (fm.generated && fm.generated.by) || f.generated_by || "agent:gemini-2.5-pro",
-        generated_at: (fm.generated && fm.generated.at) || f.generated_at || "2026-10-25T04:00:00Z",
+        generated_by: (fm.generated && fm.generated.by) || f.generated_by || "enrichment_agent/gemini-3.8-flash",
+        generated_at: (fm.generated && fm.generated.at) || f.generated_at || "2026-10-25T10:00:00Z",
         verified_by: (fm.verified && fm.verified.by) || f.verified_by || "hp-service-engineering-lead",
-        verified_at: (fm.verified && fm.verified.at) || f.verified_at || "2026-10-25T04:00:00Z",
+        verified_at: (fm.verified && fm.verified.at) || f.verified_at || "2026-10-25T10:00:00Z",
         verified_method: (fm.verified && fm.verified.method) || f.verified_method || "source_text_match",
         part_of: `/${f.rel_path.split("/").slice(0, 2).join("/")}/doc.md`,
         sequence: f.pdf_page || 1,
@@ -2046,10 +2046,10 @@
         license: isInternal
           ? "Internal-Only (HP Global Field Service SOP-2026-01)"
           : "Proprietary (HP Inc. Maintenance & Service Guide N17344-001)",
-        generated_by: (fm.generated && fm.generated.by) || f.generated_by || "agent:gemini-2.5-pro",
-        generated_at: (fm.generated && fm.generated.at) || f.generated_at || "2026-10-25T04:00:00Z",
+        generated_by: (fm.generated && fm.generated.by) || f.generated_by || "enrichment_agent/gemini-3.8-flash",
+        generated_at: (fm.generated && fm.generated.at) || f.generated_at || "2026-10-25T10:00:00Z",
         verified_by: (fm.verified && fm.verified.by) || f.verified_by || "hp-service-engineering-lead",
-        verified_at: (fm.verified && fm.verified.at) || f.verified_at || "2026-10-25T04:00:00Z",
+        verified_at: (fm.verified && fm.verified.at) || f.verified_at || "2026-10-25T10:00:00Z",
         verified_method: (fm.verified && fm.verified.method) || f.verified_method || "source_text_match",
         part_of: `/${f.rel_path.split("/").slice(0, 2).join("/")}/doc.md`,
         sequence: f.pdf_page || 1,
@@ -2227,6 +2227,17 @@
           </div>
 
           <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+            <a
+              href="https://github.com/cpuz158/hp-dragonfly-ontology-okf"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="mgmt-status-pill synced"
+              style="text-decoration:none; display:inline-flex; align-items:center; gap:4px; background:rgba(26,115,232,0.10); color:var(--gcp-blue); border:1px solid rgba(26,115,232,0.28);"
+              title="${k ? "GitHub Metadata-as-Code 리포지토리 열기 (cpuz158/hp-dragonfly-ontology-okf)" : "Open GitHub Metadata-as-Code Repository (cpuz158/hp-dragonfly-ontology-okf)"}"
+            >
+              <span class="material-symbols-outlined" style="font-size:13px;">open_in_new</span>
+              <span>GitHub · cpuz158/hp-dragonfly-ontology-okf</span>
+            </a>
             <span class="mgmt-status-pill synced">SYNCED ${totalFiles - modifiedCount}</span>
             ${modifiedCount > 0 ? `<span class="mgmt-status-pill modified">MODIFIED ${modifiedCount}</span>` : ""}
             ${updatedCount > 0 ? `<span class="mgmt-status-pill versioned">VERSIONED ${updatedCount}</span>` : ""}
@@ -7554,8 +7565,8 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
             <tbody>
               <tr>
                 <td><strong>ADK 에이전트 정의</strong></td>
-                <td><code>LlmAgent(name="hp_dragonfly_vector_rag_agent", model="gemini-2.5-pro")</code></td>
-                <td><code>LlmAgent(name="hp_dragonfly_ontology_graph_agent", model="gemini-2.5-pro")</code></td>
+                <td><code>LlmAgent(name="hp_dragonfly_vector_rag_agent", model="gemini-3.8-flash")</code></td>
+                <td><code>LlmAgent(name="hp_dragonfly_ontology_graph_agent", model="gemini-3.8-flash")</code></td>
               </tr>
               <tr>
                 <td><strong>Step 0 · 사전 콜백</strong></td>
@@ -7628,7 +7639,7 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     if (emptyGraph) emptyGraph.remove();
 
     const userRowHtml = `
-      <div class="msg-row">
+      <div class="msg-row msg-user">
         <div class="msg-user-bubble">${escapeHtml(qText)}</div>
       </div>
     `;
@@ -7636,12 +7647,12 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     graphBox.insertAdjacentHTML("beforeend", userRowHtml);
 
     const ragRespRow = document.createElement("div");
-    ragRespRow.className = "msg-row";
+    ragRespRow.className = "msg-row msg-agent";
     ragRespRow.innerHTML = buildBenchArmTurnBubbleHtml(item, "rag");
     ragBox.appendChild(ragRespRow);
 
     const graphRespRow = document.createElement("div");
-    graphRespRow.className = "msg-row";
+    graphRespRow.className = "msg-row msg-agent";
     graphRespRow.innerHTML = buildBenchArmTurnBubbleHtml(item, "graphrag");
     graphBox.appendChild(graphRespRow);
 
@@ -7664,9 +7675,12 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
           <span style="font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
             ${
               k
-                ? "06 · RAG Agent vs. Graph Agent — Google ADK 기반 정확도 비교 스튜디오 (14 / 14 vs. 3 / 14)"
-                : "06 · RAG Agent vs. Graph Agent — Google ADK Accuracy Benchmark Studio (14 / 14 vs. 3 / 14)"
+                ? "06 · RAG Agent vs. Graph Agent — Google ADK · gemini-3.8-flash 라이브 질의/응답 스튜디오 (14 / 14 vs. 3 / 14)"
+                : "06 · RAG Agent vs. Graph Agent — Google ADK · gemini-3.8-flash Live Benchmark Studio (14 / 14 vs. 3 / 14)"
             }
+          </span>
+          <span class="agent-neutral-pill" style="background:rgba(26,115,232,0.10); color:var(--gcp-blue); border-color:rgba(26,115,232,0.28);">
+            Google ADK · <code>gemini-3.8-flash</code> Live
           </span>
         </div>
         <div class="mgmt-subtab-group">
@@ -7724,10 +7738,10 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
                 <div style="display:flex; align-items:center; gap:8px; min-width:0;">
                   <span class="material-symbols-outlined" style="font-size:17px; color:#c5221f;">search</span>
                   <strong style="font-size:12.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                    Vector RAG Agent (Google ADK)
+                    Vector RAG Agent (Google ADK · gemini-3.8-flash)
                   </strong>
                 </div>
-                <span class="agent-neutral-pill" title="LlmAgent + vertex_rag_search + execute_sql">
+                <span class="agent-neutral-pill" title="LlmAgent(model='gemini-3.8-flash') + vertex_rag_search + execute_sql">
                   <code>vertex_rag_search</code> + <code>execute_sql</code> · 3/14 (21.4%)
                 </span>
               </div>
@@ -7740,10 +7754,10 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
                 <div style="display:flex; align-items:center; gap:8px; min-width:0;">
                   <span class="material-symbols-outlined" style="font-size:17px; color:#137333;">hub</span>
                   <strong style="font-size:12.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                    Ontology Graph Agent (Google ADK)
+                    Ontology Graph Agent (Google ADK · gemini-3.8-flash)
                   </strong>
                 </div>
-                <span class="agent-neutral-pill" style="background:rgba(19,115,51,0.10); color:#137333; border-color:rgba(19,115,51,0.28);" title="LlmAgent + before_agent_callback + graph_query_gql + kc_lookup_aspect + fetch_okf_provision">
+                <span class="agent-neutral-pill" style="background:rgba(19,115,51,0.10); color:#137333; border-color:rgba(19,115,51,0.28);" title="LlmAgent(model='gemini-3.8-flash') + before_agent_callback + graph_query_gql + kc_lookup_aspect + fetch_okf_provision">
                   <code>GQL</code> + <code>Dataplex KC</code> + <code>OKF v0.2</code> · 14/14 (100%)
                 </span>
               </div>
@@ -7811,16 +7825,16 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
 
       <!-- View 2: Static EQ 14 Comparison Report View -->
       <div id="bench-view-report" class="bench-report-scroll" style="display:${
-        BENCH_VIEW_MODE === "report" ? "block" : "none"
+        BENCH_VIEW_MODE === "report" ? "flex" : "none"
       };">
-        <div id="bench-report-container" style="max-width:1440px; margin:0 auto;"></div>
+        <div id="bench-report-container" style="max-width:1440px; width:100%; margin:0 auto;"></div>
       </div>
 
       <!-- View 3: Google ADK Agent Python Code View -->
       <div id="bench-view-code" class="bench-report-scroll" style="display:${
-        BENCH_VIEW_MODE === "code" ? "block" : "none"
+        BENCH_VIEW_MODE === "code" ? "flex" : "none"
       };">
-        <div id="bench-code-container" style="max-width:1440px; margin:0 auto;"></div>
+        <div id="bench-code-container" style="max-width:1440px; width:100%; margin:0 auto;"></div>
       </div>
     `;
 
@@ -7842,7 +7856,7 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
       if (btn) btn.classList.toggle("active", m === mode);
       const view = document.getElementById(`bench-view-${m}`);
       if (view) {
-        view.style.display = m === mode ? (m === "live" ? "flex" : "block") : "none";
+        view.style.display = m === mode ? "flex" : "none";
       }
     });
     if (mode === "report") renderBenchReportContent();
@@ -7910,10 +7924,21 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
 
     const rawQ = inputEl ? inputEl.value.trim() : "";
     const matchedItem = findBenchmarkItem(explicitEqId || rawQ || BENCH_SELECTED_EQ_ID);
-    if (!matchedItem) return;
+    if (!matchedItem && !rawQ) return;
 
-    BENCH_SELECTED_EQ_ID = matchedItem.eq_id;
-    const questionText = rawQ || (k ? matchedItem.question : matchedItem.question_en);
+    if (explicitEqId && matchedItem) {
+      BENCH_SELECTED_EQ_ID = matchedItem.eq_id;
+    } else if (
+      matchedItem &&
+      rawQ &&
+      (rawQ.toLowerCase() === (matchedItem.question || "").trim().toLowerCase() ||
+        rawQ.toLowerCase() === (matchedItem.question_en || "").trim().toLowerCase())
+    ) {
+      BENCH_SELECTED_EQ_ID = matchedItem.eq_id;
+    }
+
+    const questionText = rawQ || (matchedItem ? (k ? matchedItem.question : matchedItem.question_en) : "");
+    if (!questionText) return;
 
     BENCH_IS_SENDING = true;
     if (sendBtn) sendBtn.disabled = true;
@@ -7923,7 +7948,7 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     graphBox.innerHTML = "";
 
     const userBubbleHtml = `
-      <div class="msg-row">
+      <div class="msg-row msg-user">
         <div class="msg-user-bubble">${escapeHtml(questionText)}</div>
       </div>
     `;
@@ -7931,15 +7956,15 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     graphBox.insertAdjacentHTML("beforeend", userBubbleHtml);
 
     const ragLoadingRow = document.createElement("div");
-    ragLoadingRow.className = "msg-row";
+    ragLoadingRow.className = "msg-row msg-agent";
     ragLoadingRow.innerHTML = `
       <div class="msg-agent-bubble" style="padding:14px 18px;">
         <div class="agent-loading-line">
           <span class="material-symbols-outlined gcp-spin-sync" style="font-size:17px; color:var(--text-sub);">sync</span>
           <span id="bench-rag-stage-txt" class="agent-loading-text">${
             k
-              ? "Step 1 · vertex_rag_search : PDF 청크 임베딩 코사인 유사도 Top-4 검색 중..."
-              : "Step 1 · vertex_rag_search : Retrieving top-4 PDF chunks by cosine similarity..."
+              ? "Step 1 · vertex_rag_search : PDF 청크 임베딩 코사인 유사도 Top-4 검색 중 (Google ADK · gemini-3.8-flash)..."
+              : "Step 1 · vertex_rag_search : Retrieving top-4 PDF chunks via Google ADK · gemini-3.8-flash..."
           }</span>
         </div>
       </div>
@@ -7947,15 +7972,15 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     ragBox.appendChild(ragLoadingRow);
 
     const graphLoadingRow = document.createElement("div");
-    graphLoadingRow.className = "msg-row";
+    graphLoadingRow.className = "msg-row msg-agent";
     graphLoadingRow.innerHTML = `
       <div class="msg-agent-bubble" style="padding:14px 18px;">
         <div class="agent-loading-line">
           <span class="material-symbols-outlined gcp-spin-sync" style="font-size:17px; color:var(--text-sub);">sync</span>
           <span id="bench-graph-stage-txt" class="agent-loading-text">${
             k
-              ? "Step 0 · before_agent_callback : 온톨로지 엔티티 & KC 앵커 결정론적 바인딩 중..."
-              : "Step 0 · before_agent_callback : Binding ontology entity & Dataplex KC anchors..."
+              ? "Step 0 · before_agent_callback : 온톨로지 엔티티 & KC 앵커 바인딩 중 (Google ADK · gemini-3.8-flash)..."
+              : "Step 0 · before_agent_callback : Binding ontology & KC anchors (Google ADK · gemini-3.8-flash)..."
           }</span>
         </div>
       </div>
@@ -7964,25 +7989,25 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
 
     const ragStages = k
       ? [
-          "Step 1 · vertex_rag_search : PDF 청크 임베딩 코사인 유사도 Top-4 검색 중...",
-          "Step 2 · execute_sql : 단일 테이블 단발성 SQL 조회 및 답변 합성 중..."
+          "Step 1 · vertex_rag_search : PDF 청크 임베딩 코사인 유사도 Top-4 검색 중 (gemini-3.8-flash)...",
+          "Step 2 · execute_sql : 단일 테이블 단발성 SQL 조회 및 ADK LlmAgent(gemini-3.8-flash) 답변 생성 중..."
         ]
       : [
           "Step 1 · vertex_rag_search : Retrieving top-4 PDF chunks by cosine similarity...",
-          "Step 2 · execute_sql : Running single-pass flat SQL & synthesizing answer..."
+          "Step 2 · execute_sql : Running single-pass flat SQL & ADK LlmAgent(gemini-3.8-flash) synthesis..."
         ];
     const graphStages = k
       ? [
           "Step 0 · before_agent_callback : 온톨로지 엔티티 & KC 앵커 결정론적 바인딩 중...",
           "Step 1 · graph_query_gql : BigQuery hp_dragonfly_ontology_graph ISO/IEC 39075 GQL 탐색 중...",
           "Step 2 · kc_lookup_aspect : Dataplex Knowledge Catalog (okf Aspect) 유효성 검증 중...",
-          "Step 3 · fetch_okf_provision : 정본 OKF v0.2 마크다운 조항 인출 및 답변 합성 중..."
+          "Step 3 · fetch_okf_provision : 정본 OKF v0.2 마크다운 조항 인출 및 ADK LlmAgent(gemini-3.8-flash) 합성 중..."
         ]
       : [
           "Step 0 · before_agent_callback : Binding ontology entity & Dataplex KC anchors...",
           "Step 1 · graph_query_gql : Traversing BigQuery hp_dragonfly_ontology_graph via GQL...",
           "Step 2 · kc_lookup_aspect : Verifying Dataplex Knowledge Catalog (okf Aspect) gate...",
-          "Step 3 · fetch_okf_provision : Fetching attested OKF v0.2 Markdown provisions..."
+          "Step 3 · fetch_okf_provision : Fetching OKF v0.2 provisions & running ADK LlmAgent(gemini-3.8-flash)..."
         ];
 
     let gIdx = 0;
@@ -7992,12 +8017,32 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
       if (rEl && gIdx < ragStages.length) rEl.textContent = ragStages[gIdx];
       const gEl = document.getElementById("bench-graph-stage-txt");
       if (gEl && gIdx < graphStages.length) gEl.textContent = graphStages[gIdx];
-    }, 180);
+    }, 650);
 
     try {
-      await new Promise((r) => setTimeout(r, 420));
-      ragLoadingRow.innerHTML = buildBenchArmTurnBubbleHtml(matchedItem, "rag");
-      graphLoadingRow.innerHTML = buildBenchArmTurnBubbleHtml(matchedItem, "graphrag");
+      let liveItem = null;
+      try {
+        const resp = await fetch("/api/benchmark/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: questionText,
+            eq_id: explicitEqId || null,
+            lang: LANG,
+            live_adk: true
+          })
+        });
+        const data = await resp.json();
+        if (data && data.ok && data.item) {
+          liveItem = data.item;
+        }
+      } catch (_) {}
+
+      const finalItem = liveItem || matchedItem;
+      if (finalItem) {
+        ragLoadingRow.innerHTML = buildBenchArmTurnBubbleHtml(finalItem, "rag");
+        graphLoadingRow.innerHTML = buildBenchArmTurnBubbleHtml(finalItem, "graphrag");
+      }
     } finally {
       clearInterval(stageTimer);
       BENCH_IS_SENDING = false;

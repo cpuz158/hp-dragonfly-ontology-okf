@@ -36,6 +36,7 @@ if str(WORKSPACE_ROOT / "scripts") not in sys.path:
   sys.path.insert(0, str(WORKSPACE_ROOT / "scripts"))
 
 import ontology_nl_engine
+import adk_live_runner
 
 WEB_DIR = WORKSPACE_ROOT / "web"
 DOCS_DIR = WORKSPACE_ROOT / "docs"
@@ -336,8 +337,24 @@ class StudioRequestHandler(SimpleHTTPRequestHandler):
       try:
         payload = json.loads(raw_body)
         eq_id = payload.get("eq_id")
-        question = (payload.get("question") or "").strip().lower()
+        raw_question = (payload.get("question") or "").strip()
+        lang = payload.get("lang") or "ko"
         arm = payload.get("arm", "both")
+        live_adk = payload.get("live_adk", True)
+
+        if live_adk:
+          live_item = adk_live_runner.run_adk_dual_comparison_sync(
+              question=raw_question,
+              eq_id=eq_id,
+              lang=lang,
+          )
+          self._send_json(
+              {"ok": True, "arm": arm, "live_adk": True, "model": "gemini-3.8-flash", "item": live_item},
+              status=200,
+          )
+          return
+
+        question = raw_question.lower()
         eq_path = WEB_DIR / "data" / "eq_compare.json"
         eq_data = json.loads(eq_path.read_text(encoding="utf-8")) if eq_path.exists() else {"items": []}
         items = eq_data.get("items") or []
@@ -356,7 +373,7 @@ class StudioRequestHandler(SimpleHTTPRequestHandler):
           )
         if not matched and items:
           matched = items[0]
-        self._send_json({"ok": True, "arm": arm, "item": matched}, status=200)
+        self._send_json({"ok": True, "arm": arm, "live_adk": False, "item": matched}, status=200)
       except Exception as e:
         self._send_json({"ok": False, "error": str(e)}, status=200)
       return

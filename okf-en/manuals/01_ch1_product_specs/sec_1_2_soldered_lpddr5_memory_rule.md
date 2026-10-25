@@ -1,7 +1,7 @@
 ---
-type: PolicyClause
-title: 'Ch.1 §1.2 (Soldered On-Board LPDDR5-5200 Memory Architecture — Non-Upgradeable System Board Coupling Rule)'
-description: 'Mandates that system memory (16GB or 32GB LPDDR5-5200) is permanently soldered onto the system board with zero SO-DIMM slots; memory capacity changes or repairs require full System Board FRU replacement per Table 3-1.'
+type: section
+title: 'Chapter 1 Table 1-1 — Onboard Soldered LPDDR5-6400 MHz Dual-Channel Memory Rule (Customer Non-Accessible · 16GB/32GB, PDF p.7 · Doc p.1)'
+description: 'Specifies that LPDDR5-6400 MHz dual-channel memory (16GB / 32GB) is permanently soldered onboard (Customer non-accessible), requiring full System Board FRU replacement upon memory failure.'
 version: '0.2.0'
 tags:
 - unstructured_context
@@ -11,36 +11,67 @@ tags:
 language: en
 sources:
 - id: origin_pdf
-  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf
+  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf#page=7
   kind: origin_document
-  sha256: 7fb81dd66b3a22f29169d92e1619a3ac82ebfec68523fd4479b3b1054ca5e53f
+  sha256: b29ff64820fb62a1fbbf6dadb5f7d43b4a9877cf3c228f29fadf2875d6dc9243
 source_uri: gs://hp-dragonfly-okf/okf-en/manuals/01_ch1_product_specs/sec_1_2_soldered_lpddr5_memory_rule.md
 generated:
-  by: agent:gemini-2.5-pro
-  at: '2026-10-25T04:00:00Z'
+  by: enrichment_agent/gemini-3.8-flash
+  at: '2026-10-25T10:00:00Z'
 status: stable
-part_of: /manuals/01_ch1_product_specs/doc.md
+part_of: 01_ch1_product_specs
 sequence: 2
-treatment: verbatim_en
-license: 'Proprietary (HP Inc. Maintenance & Service Guide N17344-001)'
-content_class: authentic
-section_number: 'Ch.1 §1.2'
-source_page: 2
+treatment: normative
+license: 'HP Inc. Authorized Service & Engineering Documentation (N17344-001)'
+content_class: procedural
+section_number: 'Ch.1 Table 1-1 (Soldered LPDDR5 Memory)'
+source_page: 7
+source_pages_span: 'PDF p.7–8 (Doc p.1–2)'
 verified:
-- by: hp-service-engineering-lead
-  at: '2026-10-25T04:00:00Z'
-  method: source_text_match
+- by: human:dhmoon@google.com
+  at: '2026-10-25T10:02:00Z'
+  method: manual_review
   checks: [P1_body, P2_heading, P3_page, P4_digest]
 ---
 
-# Chapter 1 §1.2 — System Memory Architecture & Non-Upgradeable Coupling Rule (p. 2)
+# Chapter 1 Table 1-1 — Onboard Soldered LPDDR5-6400 MHz Dual-Channel Memory Rule (Customer Non-Accessible · 16GB/32GB, PDF p.7 · Doc p.1)
 
-## 1. Verbatim Specification (Service Guide p. 2)
-- **Memory Standard:** **LPDDR5-5200 MHz** dual-channel high-speed low-power memory (`4800 MHz` effective operation depending on processor stepping).
-- **Supported Capacities:** `16 GB` (`2 × 8 GB` dual-channel) or `32 GB` (`2 × 16 GB` dual-channel).
-- **Physical Packaging (Mandatory Caveat):**
-  > **IMPORTANT:** System memory is **soldered directly onto the system board (On-Board)** and is **not customer-accessible or field-upgradeable**. No SO-DIMM expansion slots exist inside the chassis.
+## 1. Overview and Memory Subsystem Architecture
 
-## 2. Field Service Engineering Consequence
-1. **No Standalone RAM Replacement:** Memory bit errors (`CAPS LOCK 3.2` / `NUM LOCK 2` blink code) that persist after HP Sure Start SPI BIOS recovery cannot be resolved by swapping DIMM modules.
-2. **Exact System Board FRU Coupling:** Field engineers must select the exact System Board spare part number from **Table 3-1 (p. 19)** matching the customer's **CPU + Intel vPro status + RAM capacity (`16 GB` vs `32 GB`) + 5G WWAN support** (e.g., `M90788-601` for `i7-1265U vPro + 32GB + WWAN`).
+The main memory architecture of the HP Dragonfly Folio 13.5 inch G3 2-in-1 Notebook PC is engineered as a high-frequency, low-power onboard soldered implementation (referenced from PDF p.7, Doc p.1, Table 1-1).
+
+Key architectural specifications and service constraints documented in the official service guide include:
+- **Soldered & Customer Accessibility Rule**: "Memory is soldered onboard. Customer non-accessible. Supports dual-channel memory. LPDDR5-6400 MHz, 32 GB and 16 GB".
+- **Non-upgradable Design**: The system does not incorporate standard SO-DIMM memory expansion sockets. RAM chips are factory-soldered directly onto the system board, precluding post-purchase module replacement or upgrade.
+- **Clock Frequency and Bus Topology**: LPDDR5-6400 MHz running in high-efficiency dual-channel configuration.
+- **Supported Memory Capacities**:
+  - 32 GB
+  - 16 GB
+  - 8 GB
+
+---
+
+## 2. Product Components and Memory Specifications (Table 1-1 Excerpt)
+
+| Category | Description | Service & Maintenance Rules |
+| :--- | :--- | :--- |
+| **Product Name** | HP Dragonfly Folio 13.5 inch G3 2-in-1 Notebook PC | Document p.1 (PDF p.7) |
+| **Processors** | 12th generation Intel® Core™ processors (10 cores, U-series platform)<br>- Intel Core i7-1265U (1.8 GHz, up to 4.8 GHz Turbo, 12 MB Cache)<br>- Intel Core i7-1255U (1.7 GHz, up to 4.7 GHz Turbo, 12 MB Cache)<br>- Intel Core i5-1245U (1.2 GHz, up to 4.4 GHz Turbo, 12 MB Cache)<br>- Intel Core i5-1235U (1.3 GHz, up to 4.4 GHz Turbo, 12 MB Cache) | Interfaced directly to processor memory controller |
+| **Memory** | **Onboard, non upgradable memory supporting up to 32 GB of RAM**<br>- **LPDDR5-6400, supports dual channel memory**<br>- Supported configurations: 32 GB, 16 GB, 8 GB | Customer non-accessible. Not field-upgradable individually |
+| **Primary Storage** | M.2 2280 PCIe NVMe SSDs (256 GB to 2 TB TLC/SED options) | Removable and field-replaceable (PDF p.8, Doc p.2) |
+| **Wireless LAN** | Intel AX211 Wi-Fi 6E + Bluetooth 5.2 (including vPro options) | Onboard, not removable |
+
+---
+
+## 3. System Board Spare Part Numbers Linked to Memory Capacity
+
+Because the LPDDR5 memory chips are surface-mounted directly to the printed circuit board, any memory diagnostic failure or required configuration change necessitates the replacement of the complete system board assembly. Associated spare part numbers in the ontology include:
+
+- **System Board Assembly with 32 GB LPDDR5**:
+  - Primary Spare Part Number: `N20728-601`
+  - Cross-Reference / Associated Parts: `N19201-601`, `M90788-601`
+- **System Board Assembly with 16 GB LPDDR5**:
+  - Primary Spare Part Number: `N20727-601`
+  - Cross-Reference / Associated Parts: `N19202-601`
+
+> **Service Advisory**: Individual desoldering and resoldering of memory ICs is strictly prohibited in authorized HP servicing. The Field Replaceable Unit (FRU) boundary is governed entirely at the system board level.

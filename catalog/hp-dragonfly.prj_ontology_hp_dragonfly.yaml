@@ -52,12 +52,33 @@ aspects:
       and physical specifications for the HP Dragonfly product family (G1, G2, Max, G3, Folio G3, G4)
       (Node Table: ProductModel)
 
+      - [`tables/edge_case_governed_by_playbook`](../tables/edge_case_governed_by_playbook.md) (12 rows):
+      Cross-Layer ONT-to-LEX Bridge Edge Table: TroubleshootingCase -> ServicePlaybook (GOVERNED_BY_PLAYBOOK).
+
+      - [`tables/edge_component_documented_in_chapter`](../tables/edge_component_documented_in_chapter.md)
+      (38 rows): Cross-Layer ONT-to-LEX Bridge Edge Table: HardwareComponent -> ServiceManualChapter (DOCUMENTED_IN_CHAPTER).
+
+      - [`tables/edge_diagnostic_defined_in_chapter`](../tables/edge_diagnostic_defined_in_chapter.md)
+      (8 rows): Cross-Layer ONT-to-LEX Bridge Edge Table: DiagnosticCode -> ServiceManualChapter (DEFINED_IN_CH6_MANUAL).
+
+      - [`tables/edge_playbook_orchestrates_chapter`](../tables/edge_playbook_orchestrates_chapter.md)
+      (8 rows): LEX Layer Edge Table: ServicePlaybook -> ServiceManualChapter (ORCHESTRATES_REFERENCE).
+
       - [`tables/firmware_bios_and_nvm`](../tables/firmware_bios_and_nvm.md) (8 rows): System BIOS releases,
       SoftPaq driver packages, and Nonvolatile Memory (NVM) / TPM 2.0 security specifications
 
       - [`tables/hardware_components_catalog`](../tables/hardware_components_catalog.md) (38 rows): Official
       spare parts catalog for HP Dragonfly G3 and Folio G3 including major components, display subcomponents,
       and kits (Node Table: HardwareComponent)
+
+      - [`tables/lex_manual_chapters`](../tables/lex_manual_chapters.md) (5 rows): Unstructured LEX Node
+      Table: 5 OKF v0.2 reference chapters extracted from N17344-001 with Dataplex kc_entry_id.
+
+      - [`tables/lex_service_manual_documents`](../tables/lex_service_manual_documents.md) (2 rows): Unstructured
+      LEX Node Table: Origin HP Service Guide PDF roots linked to Dataplex Knowledge Catalog (okf_hp_dragonfly).
+
+      - [`tables/lex_service_playbooks`](../tables/lex_service_playbooks.md) (6 rows): Unstructured LEX
+      Node Table: 6 OKF v0.2 agent playbooks, computations, and metrics with Dataplex kc_entry_id.
 
       - [`tables/ports_sensors_and_docks`](../tables/ports_sensors_and_docks.md) (10 rows): External I/O
       ports, internal sensors, status LEDs, active pen, and official HP docking station compatibility

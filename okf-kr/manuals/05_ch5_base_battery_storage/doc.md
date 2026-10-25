@@ -1,7 +1,7 @@
 ---
-type: SourceDocument
-title: '[05 문서 총괄] 제5장 제2절 하판 커버 · 배터리 팩 · NVMe SSD 및 5G WWAN 분해 절차 (pp. 35–51 · 4개 조항)'
-description: '제5장 제2절 하판 커버 · 배터리 팩 · NVMe SSD 및 5G WWAN 분해 절차 (pp. 35–51 · 4개 조항) (원본 PDF: pdf_6290467_en-US-1.pdf, p.35~51 (전 17쪽), 수록 조문 4건)'
+type: document
+title: '[05 챕터 총괄] 제5장 (Part A) 공인 서비스 파트너 부품 분해 절차 — 하판 커버 · SSD · 펜 슬롯 · SIM 보드 · WWAN · 무선충전 · 배터리 (PDF p.39–49 · Doc pp. 33–43 · 4개 청크)'
+description: '원본 PDF 제5장 전반부(Doc pp. 33–43, PDF p.39–49)의 분해 사전 준비, 하판 커버(N22918-001 및 가죽 커버 분리), M.2 2280 PCIe Gen4 NVMe SSD(EMI 실드 포함), 마그네틱 펜 슬롯, SIM 보드(N22922-001), 5G/LTE WWAN 모듈(4x4 MIMO 안테나 #5/#6/#7/#8), 무선 충전 모듈(N22924-001), 4셀 53Whr 배터리(M90788-005) 분리 절차를 요약합니다.'
 version: '0.2.0'
 tags:
 - unstructured_context
@@ -11,44 +11,47 @@ tags:
 language: ko
 sources:
 - id: origin_pdf
-  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf
+  resource: okf://source/manuals/pdf_6290467_en-US-1.pdf#page=39
   kind: origin_document
-  sha256: c396287fd76aff72eacc1bd517f732d46203778e9ba2eb10645aaa511534266f
+  sha256: 77bad6b53de03c494f1d44a5f953ceeab7a05676bbfedc7f89e1ab04ad6f8cde
 source_uri: gs://hp-dragonfly-okf/okf-kr/manuals/05_ch5_base_battery_storage/doc.md
 generated:
-  by: agent:gemini-2.5-pro
-  at: '2026-10-25T04:00:00Z'
+  by: enrichment_agent/gemini-3.8-flash
+  at: '2026-10-25T10:00:00Z'
 status: stable
-part_of: /index.md
-sequence: 35
+part_of: hp_dragonfly_folio_g3_service_manual_n17344_001
+sequence: 5
 treatment: normative
-license: 'HP Inc. 서비스 매뉴얼 정본 (Doc Part N17344-001 · 한글 OKF 정본)'
-content_class: authentic
-section_number: 'doc.md ([05] 장 총괄)'
-source_page: 35
+license: 'HP Inc. Authorized Service & Engineering Documentation (N17344-001)'
+content_class: reference
+section_number: 'Chapter 05 Root'
+source_page: 39
+source_pages_span: 'PDF p.39–49 (Doc pp. 33–43)'
 verified:
-- by: hp-service-engineering-lead
-  at: '2026-10-25T04:00:00Z'
-  method: source_text_match
+- by: human:dhmoon@google.com
+  at: '2026-10-25T10:02:00Z'
+  method: manual_review
   checks: [P1_body, P2_heading, P3_page, P4_digest]
 ---
 
-# [05 문서 총괄] 제5장 제2절 하판 커버 · 배터리 팩 · NVMe SSD 및 5G WWAN 분해 절차 (pp. 35–51 · 4개 조항)
+# [05 챕터 총괄] 제5장 (Part A) 공인 서비스 파트너 부품 분해 절차 — 하판 커버 · SSD · 펜 슬롯 · SIM 보드 · WWAN · 무선충전 · 배터리 (PDF p.39–49 · Doc pp. 33–43 · 4개 청크)
 
-## 1. 문서 총괄 개요 (`okf-kr` 비정형 컨텍스트 루트)
+## 1. 챕터 총괄 개요 (`okf-kr` · `docs/pdf_6290467_en-US-1.pdf` 원문 1:1 매핑)
 - **챕터 식별코드:** `[05] 05_CH5_BASE_STORAGE_WWAN`
-- **원천 매뉴얼 범위:** HP Elite Dragonfly / Folio 13.5 G3 Maintenance and Service Guide (`N17344-001`, pp. `35~51 (전 17쪽)`)
+- **원천 서비스 매뉴얼:** HP Dragonfly Folio 13.5 inch G3 2-in-1 Notebook PC Maintenance and Service Guide (`N17344-001`)
+- **원본 PDF 페이지 범위:** **`PDF p.39–49 (Doc pp. 33–43)`** (클릭 시 PDF 뷰어 `#page=39` 자동 연동)
+- **생성 에이전트 및 모델:** `enrichment_agent/gemini-3.8-flash` (`Metadata-as-Code` + `./bin/kcmd`)
 - **OKF 리포지토리 경로:** `okf-kr/manuals/05_ch5_base_battery_storage/doc.md`
 - **Dataplex Knowledge Catalog 엔트리 그룹:** `projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly_kr`
-- **요약 설명:** 제5장 제2절 하판 커버 · 배터리 팩 · NVMe SSD 및 5G WWAN 분해 절차 (pp. 35–51 · 4개 조항) (원본 PDF: pdf_6290467_en-US-1.pdf, p.35~51 (전 17쪽), 수록 조문 4건)
+- **챕터 핵심 요약:** 원본 PDF 제5장 전반부(Doc pp. 33–43, PDF p.39–49)의 분해 사전 준비, 하판 커버(N22918-001 및 가죽 커버 분리), M.2 2280 PCIe Gen4 NVMe SSD(EMI 실드 포함), 마그네틱 펜 슬롯, SIM 보드(N22922-001), 5G/LTE WWAN 모듈(4x4 MIMO 안테나 #5/#6/#7/#8), 무선 충전 모듈(N22924-001), 4셀 53Whr 배터리(M90788-005) 분리 절차를 요약합니다.
 
-## 2. 소속 비정형 세부 조항 목록 (4개 조항)
-| 조항 번호 | 조항 제목 (Korean Title) | 원문 페이지 | 거버넌스 상태 |
+## 2. 소속 PDF 청크(Section Chunks) 목록 (4개 청크)
+| 원문 섹션/표 번호 | 청크 제목 (Korean Title) | 원본 PDF / 문서 페이지 | 거버넌스 상태 |
 | :---: | :--- | :---: | :---: |
-| `제5장 §5.4` | 제5장 §5.4 (하판 커버(Bottom Cover, N22918-001) 분리 절차 — 5개 캡티브 Torx T5 나사 및 후면 힌지 클립 해제) | p.35 (`35~37`) | `stable` |
-| `제5장 §5.5` | 제5장 §5.5 (배터리 팩(M90788-005 / M90789-005) 분리 — 모든 내부 FRU 및 ZIF 리본 탈거 전 제1선행 전원 차단 강행 원칙) | p.38 (`38~40`) | `stable` |
-| `제5장 §5.6` | 제5장 §5.6 (M.2 2280 PCIe Gen4 NVMe SSD 분리 및 써멀 패드 · 전도성 흑색 Mylar 차폐 필름(N09040-001) 재부착 의무) | p.41 (`41~42`) | `stable` |
-| `제5장 §5.7` | 제5장 §5.7 (5G WWAN(Intel 5000 / XMM 7560 R+) 모듈 분리 · 4x4 MIMO 동축 안테나 색상 매핑(5·6·7·8) 및 BIOS 화이트리스트) | p.43 (`43~46`) | `stable` |
+| `제5장 §5.1·5.2 (분해 사전 준비 및 하판 커버 N22918-001 분리)` | 제5장 §5.1·5.2 — 분해 사전 준비 및 하판 커버(Bottom Cover, N22918-001) · 가죽 커버 분리 절차 (PDF p.39–41 · Doc p.33–35) | `PDF p.39` (`PDF p.39–41 (Doc p.33–35)`) | `stable` |
+| `제5장 §5.8 (배터리 팩 M90788-005 분리 및 전원 차단)` | 제5장 §5.8 — 4셀 53Whr 배터리 팩(M90788-005) 분리 절차 및 선행 전원 차단 강행 원칙 (PDF p.48–49 · Doc p.42–43) | `PDF p.48` (`PDF p.48–49 (Doc p.42–43)`) | `stable` |
+| `제5장 §5.3 (솔리드 스테이트 드라이브 M.2 2280 NVMe SSD 분리)` | 제5장 §5.3 — 솔리드 스테이트 드라이브(M.2 2280 PCIe Gen4 NVMe SSD) 및 EMI 차폐 실드 분리·장착 절차 (PDF p.41–42 · Doc p.35–36) | `PDF p.41` (`PDF p.41–42 (Doc p.35–36)`) | `stable` |
+| `제5장 §5.4~5.7 (마그네틱 펜 슬롯 · SIM 보드 · 5G WWAN 모듈 · 무선충전 모듈)` | 제5장 §5.4~5.7 — 마그네틱 펜 슬롯 · SIM 보드(N22922-001) · 5G WWAN 모듈(4x4 MIMO 안테나 #5~#8) 및 무선 충전 모듈(N22924-001) 분리 (PDF p.43–47 · Doc p.37–41) | `PDF p.43` (`PDF p.43–47 (Doc p.37–41)`) | `stable` |
 
-## 3. 온톨로지 그래프(`hp_dragonfly_ontology_graph`) 브리지 역할
-- 본 장 총괄 문서(`doc.md`)와 소속 조항들은 BigQuery Property Graph의 `LEX` 비정형 계층(`ServiceManualDocument`, `ServiceManualChapter`, `ServicePlaybook`) 노드로 매핑되며, `DOCUMENTED_IN_CHAPTER`, `DEFINED_IN_CH6`, `GOVERNED_BY_PLAYBOOK`, `CITES_MANUAL` 엣지를 통해 8개 정형 테이블(`ONT` 계층)과 양방향 결합됩니다.
+## 3. 온톨로지 그래프(`hp_dragonfly_ontology_graph`) 및 Dataplex KC 연동 구조
+- 본 챕터 총괄 문서(`doc.md`)와 소속 청크들은 원본 PDF(`docs/pdf_6290467_en-US-1.pdf`)의 실제 목차(Chapters 1~12) 및 PDF 페이지 번호(`pdf_page = doc_page + 6`)와 100% 일치하도록 `gemini-3.8-flash` Enrichment Agent로 생성되었으며, `./bin/kcmd` 파이프라인을 통해 Dataplex Knowledge Catalog(`okf` Aspect) 및 BigQuery Property Graph(`hp_dragonfly_ontology_graph`)와 동기화됩니다.

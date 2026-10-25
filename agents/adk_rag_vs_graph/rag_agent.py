@@ -190,14 +190,14 @@ def execute_sql(
   return res
 
 
-def build_vector_rag_agent(model_name: str = "gemini-2.5-pro") -> LlmAgent:
+def build_vector_rag_agent(model_name: str = "gemini-3.8-flash") -> LlmAgent:
   """Constructs the Google ADK `LlmAgent` for Arm A (Standard Vector RAG)."""
   return LlmAgent(
       name="hp_dragonfly_vector_rag_agent",
       model=model_name,
       description=(
           "Arm A: Standard Vector/Chunk RAG + 1-pass SQL Agent over HP Dragonfly "
-          "Folio G3 Service Manual (N17344-001)."
+          "Folio G3 Service Manual (N17344-001) powered by gemini-3.8-flash."
       ),
       instruction=VECTOR_RAG_INSTRUCTION,
       tools=[
