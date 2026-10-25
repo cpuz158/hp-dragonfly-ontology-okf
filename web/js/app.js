@@ -7357,8 +7357,8 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
             <span class="material-symbols-outlined" style="font-size:15px;">bolt</span>
             <span>${
               k
-                ? `Google ADK (${escapeHtml(liveMeta.model || "gemini-3.8-flash")}) 실시간 비교 실행 완료`
-                : `Live Google ADK (${escapeHtml(liveMeta.model || "gemini-3.8-flash")}) Execution Complete`
+                ? `Google ADK (${escapeHtml(liveMeta.model || "gemini-3.8-flash")}) 에이전트 실시간 추론 생성 완료`
+                : `Live Google ADK (${escapeHtml(liveMeta.model || "gemini-3.8-flash")}) Agent Inference Complete`
             }</span>
           </span>
           <span style="font-size:11px; color:var(--text-sub); font-family:var(--font-mono, monospace);">
@@ -7937,11 +7937,7 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     renderBenchSidebarList();
     renderBenchReportContent();
     renderBenchAdkCodeContent();
-
-    if (curItem) {
-      appendBenchDualTurnToDom(curItem, k ? curItem.question : curItem.question_en);
-      BENCH_INITIAL_SEEDED = true;
-    }
+    window.resetBenchmarkConversation();
   }
 
   window.switchBenchmarkViewMode = function (mode) {
@@ -7993,19 +7989,32 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
     const k = isKo();
     const ragBox = document.getElementById("bench-rag-messages");
     const graphBox = document.getElementById("bench-graphrag-messages");
+    const activeEq = BENCH_SELECTED_EQ_ID || "EQ01";
     if (ragBox) {
-      ragBox.innerHTML = `<div class="bench-empty-placeholder" style="padding:36px 20px; text-align:center; color:var(--text-sub); font-size:12.5px;">${
-        k
-          ? "좌측에서 <code>EQ01</code> ~ <code>EQ14</code> 문항을 선택하거나 하단 입력창에서 동시 실행하면<br><strong>Vector RAG Agent (ADK)</strong>의 응답과 오류 구절 분석이 이곳에 표시됩니다."
-          : "Select <code>EQ01</code>–<code>EQ14</code> on the left or run a prompt below to inspect the <strong>Vector RAG Agent (ADK)</strong> response."
-      }</div>`;
+      ragBox.innerHTML = `<div class="bench-empty-placeholder" style="padding:36px 20px; text-align:center; color:var(--text-sub); font-size:12.5px; line-height:1.65;">
+        <div style="margin-bottom:12px;">${
+          k
+            ? "좌측에서 <code>EQ01</code> ~ <code>EQ14</code> 프리셋 질문을 클릭하거나 하단 입력창에서 실행하면<br><strong>Google ADK · Vector RAG Agent (<code>gemini-3.8-flash</code>)</strong>가 실시간으로 추론한 답변이 이곳에 출력됩니다."
+            : "Click any <code>EQ01</code>–<code>EQ14</code> preset on the left or run a prompt below to execute <strong>Google ADK · Vector RAG Agent (<code>gemini-3.8-flash</code>)</strong> live."
+        }</div>
+        <button type="button" class="bq-run-btn" style="margin:0 auto; height:34px; padding:0 14px; font-size:12px;" onclick="selectBenchmarkQuestion('${escapeHtml(activeEq)}')">
+          <span class="material-symbols-outlined" style="font-size:16px;">play_arrow</span>
+          <span>${k ? `${activeEq} 프리셋 실시간 ADK 에이전트 실행` : `Run ${activeEq} Live via ADK Agents`}</span>
+        </button>
+      </div>`;
     }
     if (graphBox) {
-      graphBox.innerHTML = `<div class="bench-empty-placeholder" style="padding:36px 20px; text-align:center; color:var(--text-sub); font-size:12.5px;">${
-        k
-          ? "좌측에서 <code>EQ01</code> ~ <code>EQ14</code> 문항을 선택하거나 하단 입력창에서 동시 실행하면<br><strong>Ontology Graph Agent (ADK)</strong>의 4단계 GQL + Dataplex KC 검증 응답이 이곳에 표시됩니다."
-          : "Select <code>EQ01</code>–<code>EQ14</code> on the left or run a prompt below to inspect the <strong>Ontology Graph Agent (ADK)</strong> response."
-      }</div>`;
+      graphBox.innerHTML = `<div class="bench-empty-placeholder" style="padding:36px 20px; text-align:center; color:var(--text-sub); font-size:12.5px; line-height:1.65;">
+        <div style="margin-bottom:12px;">${
+          k
+            ? "좌측에서 <code>EQ01</code> ~ <code>EQ14</code> 프리셋 질문을 클릭하거나 하단 입력창에서 실행하면<br><strong>Google ADK · Ontology Graph Agent (<code>gemini-3.8-flash</code>)</strong>가 4단계 GQL + Dataplex KC + OKF v0.2를 통합하여 실시간 생성한 답변이 출력됩니다."
+            : "Click any <code>EQ01</code>–<code>EQ14</code> preset on the left or run a prompt below to execute <strong>Google ADK · Ontology Graph Agent (<code>gemini-3.8-flash</code>)</strong> live."
+        }</div>
+        <button type="button" class="bq-run-btn" style="margin:0 auto; height:34px; padding:0 14px; font-size:12px; background:#137333;" onclick="selectBenchmarkQuestion('${escapeHtml(activeEq)}')">
+          <span class="material-symbols-outlined" style="font-size:16px;">bolt</span>
+          <span>${k ? `${activeEq} 프리셋 실시간 ADK 에이전트 실행` : `Run ${activeEq} Live via ADK Agents`}</span>
+        </button>
+      </div>`;
     }
   };
 
@@ -8276,7 +8285,7 @@ Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dra
         ];
 
     const t0 = performance.now();
-    const stepIntervalMs = strictMatchedItem ? 210 : 750;
+    const stepIntervalMs = 850;
     const stageTimer = setInterval(() => {
       const elapsedMs = performance.now() - t0;
       const elapsedSec = (elapsedMs / 1000).toFixed(1) + "s";

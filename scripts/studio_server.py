@@ -27,6 +27,7 @@ import time
 from typing import Any
 from urllib.parse import unquote, urlparse
 
+os.environ.setdefault("NO_GCE_CHECK", "true")
 os.environ.setdefault("GOOGLE_API_USE_CLIENT_CERTIFICATE", "false")
 os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "true")
 os.environ.setdefault("GOOGLE_CLOUD_PROJECT", "hp-dragonfly")
@@ -420,8 +421,7 @@ def main() -> None:
   args = parser.parse_args()
 
   try:
-    adk_live_runner._load_studio_data()
-    adk_live_runner._load_benchmark_data()
+    adk_live_runner.warmup_adk_runner()
   except Exception:
     pass
 
