@@ -16,7 +16,14 @@
   const GIT_COMMITS = BUNDLE.git_commits || [];
 
   // Global Studio State
-  let LANG = window.INITIAL_STUDIO_LANG || localStorage.getItem("hp_studio_lang") || "ko";
+  let LANG =
+    window.INITIAL_STUDIO_LANG ||
+    (document.documentElement.getAttribute("lang") === "en" ||
+    window.location.pathname.includes("/en") ||
+    window.location.pathname.endsWith("index-en.html") ||
+    window.location.pathname.endsWith("en.html")
+      ? "en"
+      : localStorage.getItem("hp_studio_lang") || "ko");
   let ACTIVE_MODULE = "intro";
   let INTRO_TAB = "arch"; // 'arch' | 'pipeline'
   let MGMT_TAB = "kcmd"; // 'kcmd' | 'git'
@@ -78,6 +85,7 @@
     syncStaticLabels();
     renderActiveModule();
   };
+  window.setLanguage = window.setStudioLang;
 
   window.toggleTheme = function () {
     const isDark = document.body.classList.toggle("dark-mode");
@@ -647,19 +655,27 @@
     }
 
     const okfFileEl = document.getElementById("okf-file-label");
-    if (okfFileEl) okfFileEl.textContent = d.gcs_uri || `okf/${d.rel_path}`;
+    const activeDocGcsUri = k
+      ? d.gcs_uri_ko || `gs://hp-dragonfly-okf/okf-kr/${d.rel_path}`
+      : d.gcs_uri_en || `gs://hp-dragonfly-okf/okf-en/${d.rel_path}`;
+    const activeDocRepoPath = k
+      ? d.okf_repo_path_ko || `okf-kr/${d.rel_path}`
+      : d.okf_repo_path_en || `okf-en/${d.rel_path}`;
+    if (okfFileEl) okfFileEl.textContent = activeDocRepoPath;
 
     const readerEl = document.getElementById("okf-reader");
     if (readerEl) {
-      const rawMatch = (d.raw || "").match(/^---\s*\n([\s\S]*?)\n---/);
-      const rawYaml = rawMatch ? `---\n${rawMatch[1]}\n---` : "";
+      const activeRawYaml = k
+        ? d.raw_yaml_ko || d.raw_yaml || ""
+        : d.raw_yaml_en || d.raw_yaml || "";
+      const activeDocBody = k ? d.body_ko || d.body || "" : d.body_en || d.body || "";
       const renderedMd =
         window.marked && typeof window.marked.parse === "function"
-          ? highlightOkfTerms(window.marked.parse(d.body || ""))
-          : `<pre>${escapeHtml(d.body || "")}</pre>`;
+          ? highlightOkfTerms(window.marked.parse(activeDocBody))
+          : `<pre>${escapeHtml(activeDocBody)}</pre>`;
       const childItems = OKF_FILES.map((f, idx) => ({ f, idx })).filter((x) => x.f.doc_id === docId);
       readerEl.innerHTML = `
-        <div class="okf-subpath-line">${escapeHtml(d.gcs_uri || `gs://hp-dragonfly-okf/okf/${d.rel_path}`)}</div>
+        <div class="okf-subpath-line">${escapeHtml(activeDocGcsUri)}</div>
         <div class="section-label">
           <span>${k ? `하위 비정형 조항 컨텍스트 (${childItems.length}건)` : `Child Unstructured Context Clauses (${childItems.length})`}</span>
           <span>${k ? "클릭 시 해당 조항으로 이동" : "Click to inspect clause"}</span>
@@ -692,7 +708,7 @@
             </span>
             <span class="material-symbols-outlined fm-chevron">expand_more</span>
           </summary>
-          <div class="frontmatter-block">${colorizeYaml(rawYaml)}</div>
+          <div class="frontmatter-block">${colorizeYaml(activeRawYaml)}</div>
         </details>
         <div class="section-label">
           <span>${k ? "문서 루트 요약 (Document Root Overview)" : "Document Root Overview (doc.md)"}</span>
@@ -1472,21 +1488,26 @@
       `;
     }
 
-    const rawMatch = (f.raw || "").match(/^---\s*\n([\s\S]*?)\n---/);
-    const rawYaml = rawMatch ? `---\n${rawMatch[1]}\n---` : "# YAML Frontmatter";
+    const rawYaml = k
+      ? f.raw_yaml_ko || f.raw_yaml || "# YAML Frontmatter"
+      : f.raw_yaml_en || f.raw_yaml || "# YAML Frontmatter";
+    const activeBody = k ? f.body_ko || f.body || "" : f.body_en || f.body || "";
+    const activeGcsUri = k
+      ? f.gcs_uri_ko || `gs://hp-dragonfly-okf/okf-kr/${f.rel_path}`
+      : f.gcs_uri_en || `gs://hp-dragonfly-okf/okf-en/${f.rel_path}`;
     const fmType = (f.frontmatter && f.frontmatter.type) || f.okf_type || "Provision";
     const renderedMd =
       window.marked && typeof window.marked.parse === "function"
-        ? highlightOkfTerms(window.marked.parse(f.body || ""))
-        : `<pre>${escapeHtml(f.body || "")}</pre>`;
+        ? highlightOkfTerms(window.marked.parse(activeBody))
+        : `<pre>${escapeHtml(activeBody)}</pre>`;
 
     return `
-      <div class="okf-subpath-line">${escapeHtml(f.gcs_uri || `gs://hp-dragonfly-okf/okf/${f.rel_path}`)}</div>
+      <div class="okf-subpath-line">${escapeHtml(activeGcsUri)}</div>
       ${relHtml}
       <details class="fm-accordion" ${FM_OPEN ? "open" : ""} ontoggle="onFmToggle(this.open)">
         <summary>
           <span class="fm-summary-left">
-            <span>YAML Frontmatter</span>
+            <span>YAML Frontmatter (${k ? "okf-kr · 한글" : "okf-en · EN"})</span>
             <span class="fm-summary-meta">${escapeHtml(fmType)} · PDF p.${f.pdf_page} (${escapeHtml(f.version || "v0.2.0")})</span>
           </span>
           <span class="material-symbols-outlined fm-chevron">expand_more</span>
@@ -1495,7 +1516,7 @@
       </details>
 
       <div class="section-label">
-        <span>${k ? "OKF v0.2 비정형 컨텍스트 마크다운 (Markdown Body)" : "OKF v0.2 Unstructured Context (Markdown Body)"}</span>
+        <span>${k ? "OKF v0.2 비정형 컨텍스트 마크다운 (okf-kr)" : "OKF v0.2 Unstructured Context Markdown (okf-en)"}</span>
         <span style="color:var(--gcp-blue);">[${escapeHtml(f.doc_num || "01")}] ${escapeHtml(k ? f.section_number : f.section_number_en || f.section_number)}</span>
       </div>
       <div class="okf-title">${escapeHtml(k ? f.title_ko : f.title_en)}</div>
@@ -1533,7 +1554,11 @@
     }
 
     const okfFileEl = document.getElementById("okf-file-label");
-    if (okfFileEl) okfFileEl.textContent = f.rel_path;
+    if (okfFileEl) {
+      okfFileEl.textContent = k
+        ? f.okf_repo_path_ko || `okf-kr/${f.rel_path}`
+        : f.okf_repo_path_en || `okf-en/${f.rel_path}`;
+    }
 
     const readerEl = document.getElementById("okf-reader");
     if (readerEl) {
@@ -1819,8 +1844,52 @@
     return s.includes("수석") || s.includes("팀장") || s.includes("Lead");
   }
 
+  function syncSingleMgmtStateLang(st) {
+    if (!st) return;
+    const k = isKo();
+    st.fm = k ? st.fm_ko : st.fm_en;
+    st.baseFm = k ? st.baseFm_ko : st.baseFm_en;
+    st.body = k ? st.body_ko : st.body_en;
+    st.baseBody = k ? st.baseBody_ko : st.baseBody_en;
+    st.sha256 = k ? st.sha256_ko : st.sha256_en;
+    st.changeNote = k ? st.changeNote_ko : st.changeNote_en;
+    st.isModified = k ? st.isModified_ko : st.isModified_en;
+    st.historyCount = k ? st.historyCount_ko : st.historyCount_en;
+  }
+
+  function syncMgmtStateLangBindings() {
+    Object.values(MGMT_DOC_STATE).forEach(syncSingleMgmtStateLang);
+    MGMT_STATE.forEach(syncSingleMgmtStateLang);
+  }
+
+  function persistSingleMgmtStateLang(st) {
+    if (!st) return;
+    if (isKo()) {
+      st.fm_ko = st.fm;
+      st.baseFm_ko = st.baseFm;
+      st.body_ko = st.body;
+      st.baseBody_ko = st.baseBody;
+      st.sha256_ko = st.sha256;
+      st.changeNote_ko = st.changeNote;
+      st.isModified_ko = st.isModified;
+      st.historyCount_ko = st.historyCount;
+    } else {
+      st.fm_en = st.fm;
+      st.baseFm_en = st.baseFm;
+      st.body_en = st.body;
+      st.baseBody_en = st.baseBody;
+      st.sha256_en = st.sha256;
+      st.changeNote_en = st.changeNote;
+      st.isModified_en = st.isModified;
+      st.historyCount_en = st.historyCount;
+    }
+  }
+
   function initManagementState(forceReset) {
-    if (MGMT_STATE.length > 0 && !forceReset) return;
+    if (MGMT_STATE.length > 0 && !forceReset) {
+      syncMgmtStateLangBindings();
+      return;
+    }
 
     MGMT_DOC_STATE = {};
     OKF_DOC_ROOTS.forEach((d, dIdx) => {
@@ -1828,12 +1897,45 @@
       const fm = d.frontmatter || {};
       const verClean = String(fm.version || d.version || "0.2.0").replace(/^v/i, "");
       const defaultContact = OKF_V02_DROPDOWN_OPTIONS.contacts[dIdx % OKF_V02_DROPDOWN_OPTIONS.contacts.length];
-      const editableFm = {
+      const bodyKo = d.body_ko || d.body || "";
+      const bodyEn = d.body_en || d.body || "";
+      const shaKo = simpleSha256Hex64(bodyKo);
+      const shaEn = simpleSha256Hex64(bodyEn);
+
+      const editableFmKo = {
         concept_id: d.id,
         type: fm.type || "Source Document",
-        title: fm.title || d.title_ko,
-        description: fm.description || d.description_ko,
-        tags: Array.isArray(d.tags) ? d.tags.join(", ") : "hp-dragonfly, doc-root, okf-v0.2",
+        title: d.title_ko || fm.title,
+        description: d.desc_ko || fm.description || d.title_ko,
+        tags: Array.isArray(d.tags) ? ["okf-kr", ...d.tags].join(", ") : "okf-kr, hp-dragonfly, doc-root, okf-v0.2",
+        version: verClean,
+        status: fm.status || d.status || "active",
+        content_class: fm.content_class || "curated",
+        treatment: fm.treatment || "normative",
+        language: "ko",
+        license: "HP Inc. 서비스 매뉴얼 정본 (Doc Part N17344-001 · 한글 OKF 정본)",
+        generated_by: (fm.generated && fm.generated.by) || "agent:gemini-2.5-pro",
+        generated_at: (fm.generated && fm.generated.at) || "2026-10-25T04:00:00Z",
+        verified_by: (fm.verified && fm.verified.by) || "hp-service-engineering-lead",
+        verified_at: (fm.verified && fm.verified.at) || "2026-10-25T04:00:00Z",
+        verified_method: (fm.verified && fm.verified.method) || "source_text_match",
+        part_of: "/index.md",
+        sequence: d.pdf_page || 1,
+        section_number: `doc.md ([${d.doc_num}] 장 총괄)`,
+        source_page: d.pdf_page || 1,
+        source_pages_span: d.source_pages_span || String(d.pdf_page || 1),
+        source_resource: "okf://source/manuals/pdf_6290467_en-US-1.pdf",
+        source_uri: d.gcs_uri_ko || `gs://hp-dragonfly-okf/okf-kr/${d.rel_path}`,
+        contacts: defaultContact,
+        sha256: shaKo
+      };
+
+      const editableFmEn = {
+        concept_id: d.id,
+        type: fm.type || "Source Document",
+        title: d.title_en || fm.title,
+        description: d.desc_en || fm.description || d.title_en,
+        tags: Array.isArray(d.tags) ? ["okf-en", ...d.tags].join(", ") : "okf-en, hp-dragonfly, doc-root, okf-v0.2",
         version: verClean,
         status: fm.status || d.status || "active",
         content_class: fm.content_class || "curated",
@@ -1847,15 +1949,16 @@
         verified_method: (fm.verified && fm.verified.method) || "source_text_match",
         part_of: "/index.md",
         sequence: d.pdf_page || 1,
-        section_number: `doc.md ([${d.doc_num}] 장 총괄)`,
+        section_number: `doc.md ([${d.doc_num}] Chapter Root)`,
         source_page: d.pdf_page || 1,
         source_pages_span: d.source_pages_span || String(d.pdf_page || 1),
         source_resource: "okf://source/manuals/pdf_6290467_en-US-1.pdf",
-        source_uri: d.gcs_uri || `gs://hp-dragonfly-okf/okf/${d.rel_path}`,
+        source_uri: d.gcs_uri_en || `gs://hp-dragonfly-okf/okf-en/${d.rel_path}`,
         contacts: defaultContact,
-        sha256: simpleSha256Hex64(d.body)
+        sha256: shaEn
       };
-      MGMT_DOC_STATE[d.doc_id] = {
+
+      const docObj = {
         key: `DOC:${d.doc_id}`,
         isDocRoot: true,
         doc_id: d.doc_id,
@@ -1866,15 +1969,25 @@
         section_number_en: `doc.md ([${d.doc_num}] Root)`,
         rel: d.rel_path,
         kc_entry_id: d.kc_entry_id,
-        fm: JSON.parse(JSON.stringify(editableFm)),
-        baseFm: JSON.parse(JSON.stringify(editableFm)),
-        body: d.body,
-        baseBody: d.body,
-        isModified: false,
-        historyCount: 0,
-        changeNote: "OKF v0.2 Source Document Root Registration (doc.md)",
-        sha256: editableFm.sha256
+        fm_ko: JSON.parse(JSON.stringify(editableFmKo)),
+        baseFm_ko: JSON.parse(JSON.stringify(editableFmKo)),
+        body_ko: bodyKo,
+        baseBody_ko: bodyKo,
+        sha256_ko: shaKo,
+        changeNote_ko: "OKF v0.2 한글 문서 총괄 루트 등록 (okf-kr · doc.md)",
+        isModified_ko: false,
+        historyCount_ko: 0,
+        fm_en: JSON.parse(JSON.stringify(editableFmEn)),
+        baseFm_en: JSON.parse(JSON.stringify(editableFmEn)),
+        body_en: bodyEn,
+        baseBody_en: bodyEn,
+        sha256_en: shaEn,
+        changeNote_en: "OKF v0.2 English Document Root Registration (okf-en · doc.md)",
+        isModified_en: false,
+        historyCount_en: 0
       };
+      syncSingleMgmtStateLang(docObj);
+      MGMT_DOC_STATE[d.doc_id] = docObj;
     });
 
     MGMT_STATE = OKF_FILES.map((f, idx) => {
@@ -1884,23 +1997,25 @@
       const defaultContact = isInternal
         ? OKF_V02_DROPDOWN_OPTIONS.contacts[2]
         : OKF_V02_DROPDOWN_OPTIONS.contacts[idx % OKF_V02_DROPDOWN_OPTIONS.contacts.length];
-      const editableFm = {
+      const bodyKo = f.body_ko || f.body || "";
+      const bodyEn = f.body_en || f.body || "";
+      const shaKo = simpleSha256Hex64(bodyKo);
+      const shaEn = simpleSha256Hex64(bodyEn);
+
+      const editableFmKo = {
         concept_id: f.id,
         type: fm.type || f.okf_type || "Provision",
-        title: fm.title || f.title_ko,
-        description: fm.description || f.description_ko || f.title_ko,
-        tags: Array.isArray(f.tags) ? f.tags.join(", ") : "hp-dragonfly, okf-v0.2",
+        title: f.title_ko || fm.title,
+        description: f.desc_ko || fm.description || f.title_ko,
+        tags: Array.isArray(f.tags) ? ["okf-kr", ...f.tags].join(", ") : "okf-kr, hp-dragonfly, okf-v0.2",
         version: verClean,
         status: fm.status || f.status || "active",
         content_class: fm.content_class || f.content_class || "verbatim",
         treatment: fm.treatment || f.treatment || "normative",
-        language: "en",
-        license:
-          fm.license ||
-          f.license ||
-          (isInternal
-            ? "Internal-Only (HP Global Field Service SOP · 사내한 대외비)"
-            : "Proprietary (HP Inc. Maintenance & Service Guide N17344-001)"),
+        language: "ko",
+        license: isInternal
+          ? "Internal-Only (HP Global Field Service SOP · 사내한 대외비)"
+          : "HP Inc. 서비스 매뉴얼 정본 (Doc Part N17344-001 · 한글 OKF 정본)",
         generated_by: (fm.generated && fm.generated.by) || f.generated_by || "agent:gemini-2.5-pro",
         generated_at: (fm.generated && fm.generated.at) || f.generated_at || "2026-10-25T04:00:00Z",
         verified_by: (fm.verified && fm.verified.by) || f.verified_by || "hp-service-engineering-lead",
@@ -1908,15 +2023,46 @@
         verified_method: (fm.verified && fm.verified.method) || f.verified_method || "source_text_match",
         part_of: `/${f.rel_path.split("/").slice(0, 2).join("/")}/doc.md`,
         sequence: f.pdf_page || 1,
-        section_number: f.section_number,
+        section_number: f.section_number_ko || f.section_number,
         source_page: f.pdf_page || 1,
         source_pages_span: f.source_pages_span || String(f.pdf_page || 1),
         source_resource: "okf://source/manuals/pdf_6290467_en-US-1.pdf",
-        source_uri: f.gcs_uri || `gs://hp-dragonfly-okf/okf/${f.rel_path}`,
+        source_uri: f.gcs_uri_ko || `gs://hp-dragonfly-okf/okf-kr/${f.rel_path}`,
         contacts: defaultContact,
-        sha256: simpleSha256Hex64(f.body)
+        sha256: shaKo
       };
-      return {
+
+      const editableFmEn = {
+        concept_id: f.id,
+        type: fm.type || f.okf_type || "Provision",
+        title: f.title_en || fm.title,
+        description: f.desc_en || fm.description || f.title_en,
+        tags: Array.isArray(f.tags) ? ["okf-en", ...f.tags].join(", ") : "okf-en, hp-dragonfly, okf-v0.2",
+        version: verClean,
+        status: fm.status || f.status || "active",
+        content_class: fm.content_class || f.content_class || "verbatim",
+        treatment: fm.treatment || f.treatment || "normative",
+        language: "en",
+        license: isInternal
+          ? "Internal-Only (HP Global Field Service SOP-2026-01)"
+          : "Proprietary (HP Inc. Maintenance & Service Guide N17344-001)",
+        generated_by: (fm.generated && fm.generated.by) || f.generated_by || "agent:gemini-2.5-pro",
+        generated_at: (fm.generated && fm.generated.at) || f.generated_at || "2026-10-25T04:00:00Z",
+        verified_by: (fm.verified && fm.verified.by) || f.verified_by || "hp-service-engineering-lead",
+        verified_at: (fm.verified && fm.verified.at) || f.verified_at || "2026-10-25T04:00:00Z",
+        verified_method: (fm.verified && fm.verified.method) || f.verified_method || "source_text_match",
+        part_of: `/${f.rel_path.split("/").slice(0, 2).join("/")}/doc.md`,
+        sequence: f.pdf_page || 1,
+        section_number: f.section_number_en || f.section_number,
+        source_page: f.pdf_page || 1,
+        source_pages_span: f.source_pages_span || String(f.pdf_page || 1),
+        source_resource: "okf://source/manuals/pdf_6290467_en-US-1.pdf",
+        source_uri: f.gcs_uri_en || `gs://hp-dragonfly-okf/okf-en/${f.rel_path}`,
+        contacts: defaultContact,
+        sha256: shaEn
+      };
+
+      const itemObj = {
         key: idx,
         idx,
         isDocRoot: false,
@@ -1924,27 +2070,40 @@
         doc_num: f.doc_num,
         doc_short_ko: f.doc_short_ko,
         doc_short_en: f.doc_short_en,
-        section_number: f.section_number,
+        section_number: f.section_number_ko || f.section_number,
         section_number_en: f.section_number_en || f.section_number,
         rel: f.rel_path,
         kc_entry_id: f.kc_entry_id,
-        fm: JSON.parse(JSON.stringify(editableFm)),
-        baseFm: JSON.parse(JSON.stringify(editableFm)),
-        body: f.body,
-        baseBody: f.body,
-        isModified: false,
-        historyCount: 0,
+        fm_ko: JSON.parse(JSON.stringify(editableFmKo)),
+        baseFm_ko: JSON.parse(JSON.stringify(editableFmKo)),
+        body_ko: bodyKo,
+        baseBody_ko: bodyKo,
+        sha256_ko: shaKo,
+        changeNote_ko:
+          editableFmKo.status === "deprecated"
+            ? "v0.2.0(제5장 §5.1 700V ESD 방전 및 배터리 선행 분리 의무화) 개정에 따라 만료(deprecated) 처리"
+            : "OKF v0.2 한글 정본 번들 등록 완료 (okf-kr · P1~P4 검증)",
+        isModified_ko: false,
+        historyCount_ko: 0,
+        fm_en: JSON.parse(JSON.stringify(editableFmEn)),
+        baseFm_en: JSON.parse(JSON.stringify(editableFmEn)),
+        body_en: bodyEn,
+        baseBody_en: bodyEn,
+        sha256_en: shaEn,
+        changeNote_en:
+          editableFmEn.status === "deprecated"
+            ? "Deprecated by v0.2.0 revision (Ch.5 §5.1 700V ESD grounding & mandatory battery isolation)"
+            : "OKF v0.2 English Verbatim Bundle Registration (okf-en · P1~P4 Verified)",
+        isModified_en: false,
+        historyCount_en: 0,
         supersededBy:
-          editableFm.status === "deprecated"
+          editableFmKo.status === "deprecated"
             ? "manuals/04_ch5_preliminary_safety/sec_5_1_esd_700v_grounding_protocol"
             : null,
-        supersededByVer: editableFm.status === "deprecated" ? "0.2.0" : null,
-        changeNote:
-          editableFm.status === "deprecated"
-            ? "v0.2.0(제5장 §5.1 700V ESD 방전 및 배터리 선행 분리 의무화) 개정에 따라 만료(deprecated) 처리"
-            : "OKF v0.2 Verbatim Bundle Registration (P1~P4 Verified)",
-        sha256: editableFm.sha256
+        supersededByVer: editableFmKo.status === "deprecated" ? "0.2.0" : null
       };
+      syncSingleMgmtStateLang(itemObj);
+      return itemObj;
     });
   }
 
@@ -1960,6 +2119,7 @@
   }
 
   function getModifiedCount() {
+    syncMgmtStateLangBindings();
     let cnt = 0;
     Object.values(MGMT_DOC_STATE).forEach((st) => {
       if (st.isModified) cnt++;
@@ -1971,6 +2131,7 @@
   }
 
   function getUpdatedVersionCount() {
+    syncMgmtStateLangBindings();
     let cnt = 0;
     Object.values(MGMT_DOC_STATE).forEach((st) => {
       if (st.historyCount > 0) cnt++;
@@ -1982,6 +2143,7 @@
   }
 
   function getDeprecatedCount() {
+    syncMgmtStateLangBindings();
     let cnt = 0;
     Object.values(MGMT_DOC_STATE).forEach((st) => {
       if (st.fm.status === "deprecated") cnt++;
@@ -2009,6 +2171,7 @@
 
   window.renderManagementModule = function (idx) {
     initManagementState(false);
+    syncMgmtStateLangBindings();
     if (typeof idx === "string" && idx.startsWith("DOC:")) {
       MGMT_ACTIVE_KEY = idx;
     } else if (typeof idx === "number" && idx >= 0 && idx < MGMT_STATE.length) {
@@ -2021,18 +2184,22 @@
     const prevNavList = container.querySelector(".mgmt-sidebar .nav-list");
     const prevNavScrollTop = prevNavList ? prevNavList.scrollTop : null;
 
+    const k = isKo();
     const totalFiles = OKF_DOC_ROOTS.length + MGMT_STATE.length;
     const modifiedCount = getModifiedCount();
     const updatedCount = getUpdatedVersionCount();
     const deprecatedCount = getDeprecatedCount();
-    const gcsBucketLabel = "gs://hp-dragonfly-okf/okf/";
-    const entryGroupLabel = "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly";
+    const activeCorpusId = k ? "okf-kr" : "okf-en";
+    const gcsBucketLabel = k ? "gs://hp-dragonfly-okf/okf-kr/" : "gs://hp-dragonfly-okf/okf-en/";
+    const entryGroupLabel = k
+      ? "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly_kr"
+      : "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly_en";
 
     container.innerHTML = `
       <div class="mgmt-shell">
         <!-- Sub-navigation bar inside 03 · okf-management -->
         <div class="mgmt-top-subbar">
-          <div style="display:flex; align-items:center; gap:14px; min-width:0; overflow:hidden;">
+          <div style="display:flex; align-items:center; gap:12px; min-width:0; overflow:hidden;">
             <div class="mgmt-subtab-group" style="flex-shrink:0;">
               <button class="mgmt-subtab-btn ${MGMT_SUB_VIEW === "EDITOR" ? "active" : ""}" onclick="toggleMgmtSubView('EDITOR')">
                 OKF Editor
@@ -2041,8 +2208,21 @@
                 Knowledge Catalog
               </button>
             </div>
+
+            <!-- Dualized OKF Corpus Switcher (okf-kr vs okf-en) -->
+            <div class="mgmt-subtab-group" style="flex-shrink:0;" title="${
+              k ? "한글(okf-kr) / 영문(okf-en) 이중화 OKF 코퍼스 전환" : "Switch between dualized okf-kr (Korean) and okf-en (English) corpora"
+            }">
+              <button class="mgmt-subtab-btn ${k ? "active" : ""}" onclick="setLanguage('ko')">
+                okf-kr (한글)
+              </button>
+              <button class="mgmt-subtab-btn ${!k ? "active" : ""}" onclick="setLanguage('en')">
+                okf-en (EN)
+              </button>
+            </div>
+
             <span style="font-size:11.5px; color:var(--text-sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-              GCS: <code>${gcsBucketLabel}</code> · EntryGroup: <code>${entryGroupLabel}</code>
+              ${k ? "활성 OKF:" : "Active OKF:"} <code>${activeCorpusId}</code> · GCS: <code>${gcsBucketLabel}</code> · EntryGroup: <code>${entryGroupLabel}</code>
             </span>
           </div>
 
@@ -2369,7 +2549,7 @@
       `<span class="yaml-key">version:</span> '${escapeHtml(fm.version)}'`,
       `<span class="yaml-key">tags:</span>`,
       tagLines,
-      `<span class="yaml-key">language:</span> en`,
+      `<span class="yaml-key">language:</span> ${escapeHtml(fm.language || (isKo() ? "ko" : "en"))}`,
       `<span class="yaml-key">sources:</span>`,
       `- <span class="yaml-key">id:</span> origin_pdf`,
       `  <span class="yaml-key">resource:</span> ${escapeHtml(fm.source_resource)}`,
@@ -2629,6 +2809,7 @@
     st.isModified =
       st.body !== st.baseBody || JSON.stringify(st.fm) !== JSON.stringify(st.baseFm);
     st.sha256 = simpleSha256Hex64(st.body, st.baseFm.sha256);
+    persistSingleMgmtStateLang(st);
     updateLiveMgmtPreview();
   };
 
@@ -2639,6 +2820,7 @@
     st.isModified =
       st.body !== st.baseBody || JSON.stringify(st.fm) !== JSON.stringify(st.baseFm);
     st.sha256 = simpleSha256Hex64(st.body, st.baseFm.sha256);
+    persistSingleMgmtStateLang(st);
     updateLiveMgmtPreview();
   };
 
@@ -2649,6 +2831,7 @@
     st.body = st.baseBody;
     st.isModified = false;
     st.sha256 = st.baseFm.sha256;
+    persistSingleMgmtStateLang(st);
     renderManagementModule();
   };
 
@@ -2797,15 +2980,16 @@
       newFm.contacts = effectiveContacts;
     }
     const shortSlug = st.kc_entry_id || "clause";
+    const activeCorpusDir = isKo() ? "okf-kr" : "okf-en";
     lines.push(
-      `<div class="diff-line-ctx">--- a/gs://hp-dragonfly-okf/okf/versions/${escapeHtml(
+      `<div class="diff-line-ctx">--- a/gs://hp-dragonfly-okf/${activeCorpusDir}/versions/${escapeHtml(
         shortSlug
-      )}_v${escapeHtml(oldFm.version)}.md (DEPRECATED 만료 전환)</div>`
+      )}_v${escapeHtml(oldFm.version)}.md (DEPRECATED ${isKo() ? "만료 전환" : "transitioned"})</div>`
     );
     lines.push(
       `<div class="diff-line-ctx">+++ b/${escapeHtml(
         newFm.source_uri
-      )} (VERIFIED 신규 등록)</div>`
+      )} (VERIFIED ${isKo() ? "신규 등록" : "published"})</div>`
     );
 
     lines.push(`<div class="diff-line-del">- version: '${escapeHtml(oldFm.version)}'</div>`);
@@ -3049,21 +3233,25 @@
 
         <div class="mgmt-card" style="padding:12px 14px; background:var(--bg); overflow:hidden;">
           <div class="section-label" style="margin-bottom:6px;">
-            <span>4. 실행될 GCP 라이프사이클 트랜잭션 (GCS + Knowledge Catalog <code>okf_hp_dragonfly</code>)</span>
+            <span>4. ${
+              isKo()
+                ? `실행될 GCP 라이프사이클 트랜잭션 (GCS + Knowledge Catalog <code>okf_hp_dragonfly_kr</code>)`
+                : `GCP Lifecycle Transaction (GCS + Knowledge Catalog <code>okf_hp_dragonfly_en</code>)`
+            }</span>
             <span class="badge-pill badge-blue">v${escapeHtml(oldVer)} ➔ v${escapeHtml(nextVer)}</span>
           </div>
           <div style="font-size:12px; color:var(--text); line-height:1.7; word-break:break-all; overflow-wrap:anywhere;">
-            1. <strong>프론트매터 타임스탬프 갱신:</strong> <code>verified.at = "${nowTs}"</code>, <code>version = "${nextVer}"</code>${
+            1. <strong>${isKo() ? "프론트매터 타임스탬프 갱신:" : "Frontmatter Timestamp Bump:"}</strong> <code>verified.at = "${nowTs}"</code>, <code>version = "${nextVer}"</code>${
       !isBatch && currentContacts ? `, <code>contacts = "${escapeHtml(currentContacts)}"</code>` : ""
     }<br>
-            2. <strong>구버전 스냅샷 보존 &amp; KC 만료:</strong> <code>gs://hp-dragonfly-okf/okf/versions/${escapeHtml(
+            2. <strong>${isKo() ? "구버전 스냅샷 보존 &amp; KC 만료:" : "Archive Snapshot &amp; Deprecate Old KC Entry:"}</strong> <code>gs://hp-dragonfly-okf/${isKo() ? "okf-kr" : "okf-en"}/versions/${escapeHtml(
               shortSlug
-            )}_v${escapeHtml(oldVer)}.md</code> 생성 및 기존 KC 엔트리 <strong><code>DEPRECATED</code></strong> 전환<br>
-            3. <strong>신규 버전 GCS 덮어쓰기 &amp; KC 활성 등록:</strong> <code>gs://hp-dragonfly-okf/okf/${escapeHtml(
+            )}_v${escapeHtml(oldVer)}.md</code> ${isKo() ? "생성 및 기존 KC 엔트리" : "created &amp; existing KC entry"} <strong><code>DEPRECATED</code></strong><br>
+            3. <strong>${isKo() ? "신규 버전 GCS 덮어쓰기 &amp; KC 활성 등록:" : "Overwrite Canonical GCS &amp; Register Active KC Entry:"}</strong> <code>gs://hp-dragonfly-okf/${isKo() ? "okf-kr" : "okf-en"}/${escapeHtml(
               primarySt.rel
-            )}</code> 덮어쓰기 및 신규 KC 엔트리 <strong><code>VERIFIED (v${escapeHtml(
+            )}</code> ${isKo() ? "덮어쓰기 및 신규 KC 엔트리" : "overwritten &amp; new KC entry"} <strong><code>VERIFIED (v${escapeHtml(
       nextVer
-    )})</code></strong> 등록
+    )})</code></strong>
           </div>
         </div>
 
@@ -3135,12 +3323,19 @@
       st.isModified = false;
       st.historyCount = (st.historyCount || 0) + 1;
       st.changeNote = changeNote;
+      persistSingleMgmtStateLang(st);
 
+      const activeCorpusDir = isKo() ? "okf-kr" : "okf-en";
       if (!st.isDocRoot && OKF_FILES[st.idx]) {
         OKF_FILES[st.idx].version = `v${nextVer}`;
         OKF_FILES[st.idx].status = st.fm.status;
-        OKF_FILES[st.idx].body = st.body;
-        OKF_FILES[st.idx].gcs_uri = st.fm.source_uri;
+        if (isKo()) {
+          OKF_FILES[st.idx].body_ko = st.body;
+          OKF_FILES[st.idx].gcs_uri_ko = st.fm.source_uri;
+        } else {
+          OKF_FILES[st.idx].body_en = st.body;
+          OKF_FILES[st.idx].gcs_uri_en = st.fm.source_uri;
+        }
       }
 
       if (!firstResult) {
@@ -3149,7 +3344,7 @@
           old_version: oldVer,
           new_version: nextVer,
           updated_at: nowTs,
-          snapshot_gcs_uri: `gs://hp-dragonfly-okf/okf/versions/${st.kc_entry_id}_v${oldVer}.md`,
+          snapshot_gcs_uri: `gs://hp-dragonfly-okf/${activeCorpusDir}/versions/${st.kc_entry_id}_v${oldVer}.md`,
           canonical_gcs_uri: st.fm.source_uri
         };
       }
@@ -3166,20 +3361,25 @@
   // =========================================================================
   function getAllCatalogEntriesList() {
     initManagementState(false);
+    syncMgmtStateLangBindings();
     const list = [];
+    const k = isKo();
+    const corpusPrefix = k ? "okf-kr" : "okf-en";
 
     OKF_DOC_ROOTS.forEach((d) => {
       const docKey = `DOC:${d.doc_id}`;
       const st = MGMT_DOC_STATE[d.doc_id];
       if (!st) return;
+      const baseEntryId = st.rel.replace(/\.md$/, "");
       list.push({
         key: `ACTIVE:${docKey}`,
         isDeprecated: false,
         provIdx: docKey,
-        entryId: st.rel.replace(/\.md$/, ""),
-        title: `[${d.doc_num} 문서 총괄] ${st.fm.title}`,
-        sectionNumber: st.section_number,
-        docTitle: isKo() ? d.title_ko : d.title_en,
+        baseEntryId,
+        entryId: `${corpusPrefix}/${baseEntryId}`,
+        title: `[${d.doc_num} ${k ? "문서 총괄" : "Chapter Overview"}] ${st.fm.title}`,
+        sectionNumber: k ? st.section_number : st.section_number_en || st.section_number,
+        docTitle: k ? d.title_ko : d.title_en,
         version: st.fm.version,
         status: st.fm.status,
         updatedAt: st.fm.verified_at,
@@ -3194,16 +3394,19 @@
 
     MGMT_STATE.forEach((st) => {
       const isDep = String(st.fm.status || "").toLowerCase() === "deprecated";
+      const secNum = k ? st.section_number : st.section_number_en || st.section_number;
+      const baseEntryId = st.rel.replace(/\.md$/, "");
       list.push({
         key: isDep ? `DEP:INLINE:${st.idx}` : `ACTIVE:${st.idx}`,
         isDeprecated: isDep,
         provIdx: st.idx,
-        entryId: st.rel.replace(/\.md$/, ""),
-        title: `[${st.doc_num}] ${st.section_number} · ${st.fm.title}`,
-        sectionNumber: st.section_number,
-        docTitle: isKo() ? st.doc_short_ko : st.doc_short_en,
+        baseEntryId,
+        entryId: `${corpusPrefix}/${baseEntryId}`,
+        title: `[${st.doc_num}] ${secNum} · ${st.fm.title}`,
+        sectionNumber: secNum,
+        docTitle: k ? st.doc_short_ko : st.doc_short_en,
         version: st.fm.version,
-        supersededBy: st.supersededBy,
+        supersededBy: st.supersededBy ? `${corpusPrefix}/${st.supersededBy}` : null,
         supersededByVer: st.supersededByVer,
         status: st.fm.status,
         updatedAt: st.fm.verified_at,
@@ -3415,11 +3618,19 @@
               ? `
             <div style="margin-bottom:16px; padding:10px 12px; border-radius:6px; background:var(--gcp-red-bg); border:1px solid var(--gcp-red); display:flex; align-items:center; justify-content:space-between; gap:8px;">
               <span style="font-size:12px; color:var(--gcp-red);">
-                <strong>[만료 이력]</strong> 이 엔트리는 신규 버전 <strong>v${escapeHtml(
-                  sel.supersededByVer || "0.2.0"
-                )}</strong> 배포에 의해 만료(<code>status: deprecated</code>)되었으며 에이전트 인용이 차단됩니다. (사유: ${escapeHtml(
-                  sel.changeNote
-                )})
+                <strong>${k ? "[만료 이력]" : "[Deprecation Lineage]"}</strong> ${
+                  k
+                    ? `이 엔트리는 신규 버전 <strong>v${escapeHtml(
+                        sel.supersededByVer || "0.2.0"
+                      )}</strong> 배포에 의해 만료(<code>status: deprecated</code>)되었으며 에이전트 인용이 차단됩니다. (사유: ${escapeHtml(
+                        sel.changeNote
+                      )})`
+                    : `This entry was superseded by <strong>v${escapeHtml(
+                        sel.supersededByVer || "0.2.0"
+                      )}</strong> (<code>status: deprecated</code>) and is blocked from active agent citation. (Reason: ${escapeHtml(
+                        sel.changeNote
+                      )})`
+                }
               </span>
             </div>
           `
@@ -3427,9 +3638,15 @@
               ? `
             <div style="margin-bottom:16px; padding:10px 12px; border-radius:6px; background:var(--gcp-blue-bg); border:1px solid var(--gcp-blue); display:flex; align-items:center; justify-content:space-between; gap:8px;">
               <span style="font-size:12px; color:var(--gcp-blue);">
-                <strong>[버전 계보]</strong> 구버전(<strong>v${escapeHtml(
-                  counterpart.version
-                )}</strong>)을 만료시키고 승격된 최신 활성 엔트리입니다. (개정 사유: ${escapeHtml(sel.changeNote)})
+                <strong>${k ? "[버전 계보]" : "[Version Lineage]"}</strong> ${
+                  k
+                    ? `구버전(<strong>v${escapeHtml(
+                        counterpart.version
+                      )}</strong>)을 만료시키고 승격된 최신 활성 엔트리입니다. (개정 사유: ${escapeHtml(sel.changeNote)})`
+                    : `Promoted active entry that superseded legacy <strong>v${escapeHtml(
+                        counterpart.version
+                      )}</strong>. (Change Note: ${escapeHtml(sel.changeNote)})`
+                }
               </span>
             </div>
           `
@@ -3654,7 +3871,7 @@
                 </tr>
                 <tr class="kc-nested-row">
                   <th>Language</th>
-                  <td><code>en</code></td>
+                  <td><code>${escapeHtml(fm.language || (isKo() ? "ko" : "en"))}</code></td>
                 </tr>
                 <tr class="kc-nested-row">
                   <th>License</th>

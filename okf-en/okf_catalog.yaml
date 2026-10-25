@@ -1,0 +1,7 @@
+okf_version: '0.2'
+corpus_id: okf-en
+language: en
+project_id: hp-dragonfly
+location: us-central1
+entry_group_id: okf_hp_dragonfly_en
+gcs_prefix: gs://hp-dragonfly-okf/okf-en/
