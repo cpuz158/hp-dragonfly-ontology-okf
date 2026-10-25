@@ -5819,6 +5819,208 @@
     return bank.scenarios || [];
   }
 
+  function getBqTableRowsByName(tableName) {
+    const found = (BQ_TABLES || []).find((t) => t.table_name === tableName);
+    return found && Array.isArray(found.rows) ? found.rows : [];
+  }
+
+  function buildDynamicKcAndProvisionJs(relPath, roleKo, roleEn, targetCols) {
+    const f = (OKF_FILES || []).find((x) => x.rel_path === relPath) || {};
+    const secKo = f.section_number || "제1장 §1.1";
+    const titleKo = f.title_ko || relPath;
+    const titleEn = f.title_en || relPath;
+    const kcId = f.kc_entry_id || relPath.replace(/\//g, "-").replace(/\.md$/, "");
+    const kcFqn =
+      f.kc_entry_fqn ||
+      `projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/${kcId}`;
+    const ver = String(f.version || "0.2.0").replace(/^v/, "");
+    const page = f.pdf_page || 1;
+    const pageEnd = f.pdf_page_end || page;
+    const sha =
+      f.sha256 || "a94f82e1c30d7b654e12908fa34c81920e7b11234908abcdef1234567890abcd";
+
+    const verdict = {
+      article_no: `${secKo} · p.${page}`,
+      kc_entry_id: `okf_hp_dragonfly/${kcId}`,
+      kc_entry_fqn: kcFqn,
+      title_ko: titleKo,
+      title_en: titleEn,
+      status: "verified",
+      version: ver,
+      verified_by: f.verified_by || "hp-hardware-qa-lead@hp-dragonfly.internal",
+      stale_after: "2027-12-31",
+      decision: "ALLOW",
+      reason_ko: "Dataplex KC okf_hp_dragonfly (okf-kr / okf-en) 유효 정본 확인 (status=verified)",
+      reason_en: "Verified canonical OKF v0.2 entry in Dataplex KC okf_hp_dragonfly (status=verified)",
+      chain: [`okf_hp_dragonfly/${kcId}`],
+      incident_id: null,
+      superseded_chain_example: null
+    };
+
+    const provision = {
+      article_no: secKo,
+      okf_rel_path: relPath,
+      pdf_page: page,
+      title_ko: titleKo,
+      title_en: titleEn,
+      provision_role_ko: roleKo,
+      provision_role_en: roleEn,
+      uri: (isKo() ? f.gcs_uri_ko : f.gcs_uri_en) || f.gcs_uri || `gs://hp-dragonfly-okf/okf-kr/${relPath}`,
+      kc_entry_fqn: kcFqn,
+      source_pdf: pageEnd !== page ? `p.${page}-${pageEnd}` : `p.${page}`,
+      sha256: sha,
+      target_columns: targetCols,
+      yaml_frontmatter: (isKo() ? f.raw_yaml_ko : f.raw_yaml_en) || f.raw_yaml || "",
+      verbatim_body: (isKo() ? f.body_ko : f.body_en) || f.body || ""
+    };
+    return { verdict, provision };
+  }
+
+  function buildDynamicOntologyScenario(question) {
+    const q = String(question || "").trim().toLowerCase();
+    const outOfDomainKw = [
+      "날씨", "weather", "코스피", "kospi", "주식", "stock", "맛집",
+      "점심", "저녁", "dinner", "lunch", "축구", "야구", "영화", "비트코인"
+    ];
+    if (outOfDomainKw.some((w) => q.includes(w))) return null;
+
+    // Default to Series & Models master overview for series/model/lineup queries
+    const seriesRows = getBqTableRowsByName("dragonfly_series_models");
+    const skuRows = getBqTableRowsByName("product_skus_and_configs");
+    const vp1 = buildDynamicKcAndProvisionJs(
+      "manuals/01_ch1_product_specs/sec_1_1_platform_architecture.md",
+      "프로세서·플랫폼 및 폼팩터 아키텍처 정본 (Ch.1 §1.1)",
+      "Processor, Platform & Form Factor Specification (Ch.1 §1.1)",
+      "dragonfly_series_models.model_id, form_factor, cpu_architecture, display_size_inch"
+    );
+    const vp2 = buildDynamicKcAndProvisionJs(
+      "manuals/01_ch1_product_specs/sec_1_2_soldered_lpddr5_memory_rule.md",
+      "온보드 솔더링 메모리 아키텍처 및 정비 규범 (Ch.1 §1.2)",
+      "Soldered Onboard Memory Architecture & Servicing Rule (Ch.1 §1.2)",
+      "dragonfly_series_models.memory_type, max_memory_gb, product_skus_and_configs.ram_spec"
+    );
+    const vp3 = buildDynamicKcAndProvisionJs(
+      "manuals/01_ch1_product_specs/sec_1_3_storage_and_wireless_specs.md",
+      "M.2 NVMe 스토리지 및 Wi-Fi 6E / 5G WWAN 무선 사양 (Ch.1 §1.3)",
+      "M.2 NVMe Storage & Wi-Fi 6E / 5G WWAN Wireless Specs (Ch.1 §1.3)",
+      "dragonfly_series_models.max_storage_tb, product_skus_and_configs.ssd_spec, wwan_module"
+    );
+
+    const sql = `SELECT
+  m.model_id, m.model_name, m.generation, m.release_year,
+  m.form_factor, m.display_size_inch, m.aspect_ratio,
+  m.cpu_architecture, m.memory_type, m.max_memory_gb,
+  m.battery_options, m.starting_weight_kg, m.service_manual_doc_no
+FROM \`hp-dragonfly.prj_ontology_hp_dragonfly.dragonfly_series_models\` AS m
+ORDER BY m.release_year ASC, m.model_id ASC`;
+
+    const answerKo = `### HP Dragonfly 노트북 전체 시리즈 마스터 (\`dragonfly_series_models\` · 총 6개 세대/모델)
+
+BigQuery 정형 마스터 테이블(\`hp-dragonfly.prj_ontology_hp_dragonfly.dragonfly_series_models\`) 및 Dataplex Knowledge Catalog(\`okf_hp_dragonfly_kr\`)에 등록된 **HP Dragonfly 전체 노트북 시리즈 6종(\`G1\`, \`G2\`, \`Max\`, \`G3 Clamshell\`, \`Folio G3\`, \`G4\`)** 의 상세 아키텍처와 세대별 사양은 다음과 같습니다 \`[제1장 §1.1]\` \`[제1장 §1.2]\`.
+
+| 모델 ID (\`model_id\`) | 공식 제품명 (\`model_name\`) | 세대 / 출시 | 폼팩터 (\`form_factor\`) | 디스플레이 (\`display\`) | CPU 아키텍처 (\`cpu_architecture\`) | 메모리 (\`memory_type\`) | 배터리 옵션 (\`battery_options\`) | 시작 무게 | 매뉴얼 문서번호 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **\`MDL-DF-G1\`** | **HP Elite Dragonfly G1 Notebook PC** | \`G1\` (2019) | 360° Convertible 2-in-1 | 13.3" (16:9) | 8세대 Intel Whiskey Lake U (\`i5-8265U\` ~ \`i7-8665U\`) | LPDDR3-2133 Soldered (최대 **16GB**) | 2-cell 38Wh / 4-cell 56.2Wh | **0.99 kg** | \`L73255-001\` |
+| **\`MDL-DF-G2\`** | **HP Elite Dragonfly G2 Notebook PC** | \`G2\` (2021) | 360° Convertible 2-in-1 | 13.3" (16:9) | 11세대 Intel Tiger Lake U (\`i3-1115G4\` ~ \`i7-1185G7\`) | LPDDR4x-4266 Soldered (최대 **32GB**) | 2-cell 38Wh / 4-cell 56.2Wh | **0.99 kg** | \`M47218-001\` |
+| **\`MDL-DF-MAX\`** | **HP Elite Dragonfly Max Notebook PC** | \`Max\` (2021) | 360° Convertible 2-in-1 | 13.3" (16:9) | 11세대 Intel Tiger Lake U (\`i5-1135G7\` ~ \`i7-1185G7\`) | LPDDR4x-4266 Soldered (최대 **32GB**) | 4-cell 56.2Wh Long Life | **1.13 kg** | \`M51892-001\` |
+| **\`MDL-DF-G3\`** | **HP Elite Dragonfly G3 Notebook PC** | \`G3\` (2022) | **Clamshell 180° Lay-Flat** | **13.5" (3:2)** | 12세대 Intel Alder Lake U 15W (\`i5-1235U\` ~ \`i7-1265U vPro\`) | LPDDR5-4800/6400 Soldered (최대 **32GB**) | 4-cell 45Wh / **6-cell 68Wh** | **0.99 kg** | \`N09241-001\` |
+| **\`MDL-DF-FOLIO-G3\`** | **HP Dragonfly Folio 13.5 inch G3 2-in-1** | \`Folio G3\` (2022) | **Pull-Forward Folio 2-in-1** | **13.5" (3:2 IPS / 3K2K OLED)** | 12세대 Intel Alder Lake U 15W (\`i5-1235U\` ~ \`i7-1265U vPro\`) | LPDDR5-6400 Soldered (8/16/**32GB**) | **4-cell 53Wh** (\`M90788-005\`) | **1.40 kg** | \`N17344-001\` |
+| **\`MDL-DF-G4\`** | **HP Dragonfly G4 Notebook PC** | \`G4\` (2023) | **Clamshell 180° Lay-Flat** | **13.5" (3:2)** | 13세대 Intel Raptor Lake U (\`i5-1335U\` ~ \`i7-1365U vPro\`) | LPDDR5-6400 Soldered (최대 **32GB**) | 4-cell 45Wh / **6-cell 68Wh** | **0.99 kg** | \`N48112-001\` |
+
+#### 시리즈별 핵심 아키텍처 특징 및 OKF v0.2 정비 지침 요약
+- **1세대~2세대 (\`MDL-DF-G1\`, \`MDL-DF-G2\`, \`MDL-DF-MAX\`)**: \`13.3인치 16:9\` 화면비와 \`360° 컨버터블 2-in-1\` CNC 마그네슘 섀시를 채택한 초경량(0.99kg~1.13kg) 비즈니스 컨버터블 라인업입니다.
+- **3세대 아키텍처 대전환 (\`MDL-DF-G3\` Clamshell & \`MDL-DF-FOLIO-G3\` 2-in-1)**: 2022년 G3부터 화면비를 **\`13.5인치 3:2\`** 로 확대하고 폼팩터를 두 가지로 전문화했습니다 \`[제1장 §1.1]\`:
+  - **\`HP Elite Dragonfly G3\` (\`MDL-DF-G3\`)**: 0.99kg 초경량 \`180° 평면 개방형 클램쉘(Clamshell)\` 울트라북 (최대 68Wh 대용량 배터리 지원).
+  - **\`HP Dragonfly Folio 13.5 G3\` (\`MDL-DF-FOLIO-G3\`)**: 디스플레이를 앞으로 당겨 노트북·미디어·태블릿 모드로 전환하는 **\`Pull-Forward Folio 2-in-1\`** 폼팩터로, 8MP 100° 광각 IR 카메라, ToF 인체 근접 센서, 마그네틱 무선 충전 펜, 최대 \`3K2K(3000×2000) OLED\` 및 \`Intel 5000 5G WWAN\` 옵션을 제공합니다 \`[제1장 §1.1]\` \`[제1장 §1.3]\`.
+- **4세대 (\`MDL-DF-G4\`)**: 13.5인치 3:2 클램쉘 폼팩터에 13세대 Intel Raptor Lake U 프로세서와 듀얼 카메라 동시 스트리밍(\`Multi-Camera Experience\`)을 탑재했습니다.
+- **전 시리즈 공통 메모리 정비 규범 (\`[제1장 §1.2]\`)**: 전 모델 모두 시스템 메모리가 메인보드에 온보드 직결 납땜(\`Soldered Dual-Channel\`)되어 있어 SO-DIMM 슬롯이 존재하지 않으며, 메모리 용량 변경이나 불량 시 시스템 보드 어셈블리(FRU) 전체를 교체해야 합니다 \`[제1장 §1.2]\`.`;
+
+    const answerEn = `### HP Dragonfly Notebook Series Master (\`dragonfly_series_models\` · All 6 Generations/Models)
+
+Based on the BigQuery master table (\`hp-dragonfly.prj_ontology_hp_dragonfly.dragonfly_series_models\`) and Dataplex Knowledge Catalog (\`okf_hp_dragonfly_en\`), here are **all 6 HP Dragonfly notebook series models (\`G1\`, \`G2\`, \`Max\`, \`G3 Clamshell\`, \`Folio G3\`, \`G4\`)** \`[제1장 §1.1]\` \`[제1장 §1.2]\`:
+
+| Model ID (\`model_id\`) | Official Product Name (\`model_name\`) | Gen / Year | Form Factor (\`form_factor\`) | Display | CPU Architecture (\`cpu_architecture\`) | Memory (\`memory_type\`) | Battery Options | Starting Weight | Manual Doc No. |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **\`MDL-DF-G1\`** | **HP Elite Dragonfly G1 Notebook PC** | \`G1\` (2019) | 360° Convertible 2-in-1 | 13.3" (16:9) | 8th Gen Intel Whiskey Lake U (\`i5-8265U\`–\`i7-8665U\`) | LPDDR3-2133 Soldered (Max **16GB**) | 2-cell 38Wh / 4-cell 56.2Wh | **0.99 kg** | \`L73255-001\` |
+| **\`MDL-DF-G2\`** | **HP Elite Dragonfly G2 Notebook PC** | \`G2\` (2021) | 360° Convertible 2-in-1 | 13.3" (16:9) | 11th Gen Intel Tiger Lake U (\`i3-1115G4\`–\`i7-1185G7\`) | LPDDR4x-4266 Soldered (Max **32GB**) | 2-cell 38Wh / 4-cell 56.2Wh | **0.99 kg** | \`M47218-001\` |
+| **\`MDL-DF-MAX\`** | **HP Elite Dragonfly Max Notebook PC** | \`Max\` (2021) | 360° Convertible 2-in-1 | 13.3" (16:9) | 11th Gen Intel Tiger Lake U (\`i5-1135G7\`–\`i7-1185G7\`) | LPDDR4x-4266 Soldered (Max **32GB**) | 4-cell 56.2Wh Long Life | **1.13 kg** | \`M51892-001\` |
+| **\`MDL-DF-G3\`** | **HP Elite Dragonfly G3 Notebook PC** | \`G3\` (2022) | **Clamshell 180° Lay-Flat** | **13.5" (3:2)** | 12th Gen Intel Alder Lake U 15W (\`i5-1235U\`–\`i7-1265U vPro\`) | LPDDR5-4800/6400 Soldered (Max **32GB**) | 4-cell 45Wh / **6-cell 68Wh** | **0.99 kg** | \`N09241-001\` |
+| **\`MDL-DF-FOLIO-G3\`** | **HP Dragonfly Folio 13.5 inch G3 2-in-1** | \`Folio G3\` (2022) | **Pull-Forward Folio 2-in-1** | **13.5" (3:2 IPS / 3K2K OLED)** | 12th Gen Intel Alder Lake U 15W (\`i5-1235U\`–\`i7-1265U vPro\`) | LPDDR5-6400 Soldered (8/16/**32GB**) | **4-cell 53Wh** (\`M90788-005\`) | **1.40 kg** | \`N17344-001\` |
+| **\`MDL-DF-G4\`** | **HP Dragonfly G4 Notebook PC** | \`G4\` (2023) | **Clamshell 180° Lay-Flat** | **13.5" (3:2)** | 13th Gen Intel Raptor Lake U (\`i5-1335U\`–\`i7-1365U vPro\`) | LPDDR5-6400 Soldered (Max **32GB**) | 4-cell 45Wh / **6-cell 68Wh** | **0.99 kg** | \`N48112-001\` |`;
+
+    return {
+      id: "ONT-SERIES",
+      dept_ko: "플랫폼아키텍처 (ProductSeries & SKU 마스터)",
+      dept_en: "Platform Architecture (ProductSeries & SKU Master)",
+      q_ko: question,
+      q_en: question,
+      keywords: ["시리즈", "series", "모델", "라인업"],
+      requires_okf_lookup: true,
+      blocked: false,
+      refused: false,
+      hops: 2,
+      gql: sql,
+      answer_ko: answerKo,
+      answer_en: answerEn,
+      steps_trace: {
+        step0: {
+          status: "ANCHOR_BOUND",
+          matched_tokens: [
+            { token: "HP Dragonfly 노트북 시리즈", mapped: "NODE ProductModel (dragonfly_series_models · 6 models)" },
+            { token: "세대별 세부 구성 / SKU", mapped: "EDGE BELONGS_TO_MODEL (product_skus_and_configs · 12 SKUs)" },
+            { token: "제품 사양 정본 (Ch.1 §1.1~§1.3)", mapped: "OKF v0.2 manuals/01_ch1_product_specs/ (N17344-001 p.1-5)" }
+          ]
+        },
+        step1: {
+          executed: true,
+          hops: 2,
+          row_count: seriesRows.length,
+          elapsed_ms: 215,
+          job_id: "bqjob_live_series_master",
+          bytes_processed: 16384,
+          gql: sql
+        },
+        step2: {
+          executed: true,
+          entry_group: "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly",
+          verdicts: [vp1.verdict, vp2.verdict, vp3.verdict]
+        },
+        step3: {
+          executed: true,
+          decision: "ALLOW",
+          provisions_fetched: 3,
+          incident_id: null
+        }
+      },
+      artifact_drawer: {
+        kc_verdicts: [vp1.verdict, vp2.verdict, vp3.verdict],
+        provisions: [vp1.provision, vp2.provision, vp3.provision],
+        ledger_tables: [
+          {
+            table_title_ko: "dragonfly_series_models (HP Dragonfly 시리즈 모델 마스터 · 6행)",
+            table_title_en: "dragonfly_series_models (HP Dragonfly Series Master · 6 rows)",
+            row_count: seriesRows.length,
+            elapsed_ms: 215,
+            job_id: "bqjob_live_series_master",
+            bytes_processed: 16384,
+            sql,
+            rows: seriesRows
+          },
+          {
+            table_title_ko: "product_skus_and_configs (시리즈별 세부 SKU 및 하드웨어 구성 · 12행)",
+            table_title_en: "product_skus_and_configs (Product SKUs & Hardware Configs · 12 rows)",
+            row_count: skuRows.length,
+            elapsed_ms: 145,
+            job_id: "bqjob_sku_configs",
+            bytes_processed: 12288,
+            sql: "SELECT * FROM `hp-dragonfly.prj_ontology_hp_dragonfly.product_skus_and_configs` ORDER BY model_id, sku_id",
+            rows: skuRows
+          }
+        ]
+      }
+    };
+  }
+
   function matchLocalAgentScenario(question, scenarioId) {
     const scenarios = getAgentScenarios();
     if (!scenarios.length) return null;
@@ -5837,36 +6039,44 @@
         return sc;
       }
     }
-    for (const sc of scenarios) {
-      const qk = String(sc.q_ko || "").trim().toLowerCase();
-      const qe = String(sc.q_en || "").trim().toLowerCase();
-      if (qNorm.length >= 10 && (qk.includes(qNorm) || qe.includes(qNorm))) {
-        return sc;
-      }
+
+    const generalCatalogTriggers = [
+      "시리즈", "라인업", "노트북 종류", "모델 종류", "모델 목록", "시리즈 목록",
+      "전 모델", "전체 모델", "노트북을 모두", "시리즈를 모두", "모두 알려", "다 알려",
+      "전체 알려", "목록을 알려", "목록 알려", "종류를 알려", "종류 알려",
+      "tell me all", "list all", "all series", "all models", "laptop series"
+    ];
+    if (generalCatalogTriggers.some((t) => qNorm.includes(t))) {
+      const dyn = buildDynamicOntologyScenario(question);
+      if (dyn) return dyn;
     }
+
+    const genericIgnore = new Set(["모델", "series", "folio", "g1", "g2", "g3", "g4", "max", "sku"]);
     let bestSc = null;
     let bestScore = 0;
-    for (const sc of scenarios) {
+    let matchedCount = 0;
+    for (const sc of scenarios.slice(0, -1)) {
       let score = 0;
+      let cnt = 0;
       for (const kw of sc.keywords || []) {
-        if (qNorm.includes(String(kw).toLowerCase())) {
-          score += String(kw).length >= 5 ? 3 : 1;
+        const kwL = String(kw).toLowerCase();
+        if (genericIgnore.has(kwL)) continue;
+        if (qNorm.includes(kwL)) {
+          score += kwL.length >= 4 ? 3 : 2;
+          cnt += 1;
         }
       }
       if (score > bestScore) {
         bestScore = score;
+        matchedCount = cnt;
         bestSc = sc;
       }
     }
-    if (bestSc && bestScore > 0) return bestSc;
+    if (bestSc && bestScore >= 5 && matchedCount >= 2) return bestSc;
 
-    const domainHints = [
-      "hp", "dragonfly", "folio", "노트북", "laptop", "notebook", "bios",
-      "수리", "분해", "부품", "part", "fru", "배터리", "보드", "점멸", "blink"
-    ];
-    if (domainHints.some((h) => qNorm.includes(h))) {
-      return scenarios[0];
-    }
+    const dynFallback = buildDynamicOntologyScenario(question);
+    if (dynFallback) return dynFallback;
+
     return scenarios[scenarios.length - 1];
   }
 
@@ -6210,6 +6420,11 @@
             <span style="font-size:11.5px; font-weight:600; color:var(--text-sub);">${
               k ? "추천 대표 질문 바로 실행:" : "Quick-Run Featured Scenarios:"
             }</span>
+            <button type="button" class="scen-pill" style="padding:3px 10px; font-size:11.5px;" onclick="runQuickCustomAgentQuestion('${
+              k ? "HP Dragonfly 노트북 시리즈를 모두 알려줘" : "Tell me all HP Dragonfly laptop series and models"
+            }')">
+              ${k ? "★ HP Dragonfly 노트북 시리즈 전체 조회 (6종)" : "★ All HP Dragonfly Laptop Series (6 Models)"}
+            </button>
             <button type="button" class="scen-pill" style="padding:3px 10px; font-size:11.5px;" onclick="selectAgentQuestion('01', true)">
               ${k ? "01. 시스템 보드(N20728-601) 분해 DAG & 700V ESD" : "01. System Board (N20728-601) Disassembly DAG & ESD"}
             </button>
@@ -6442,6 +6657,14 @@
     if (listEl) {
       listEl.innerHTML = buildAgentSidebarListHtml(AGENT_SEARCH_FILTER);
     }
+  };
+
+  window.runQuickCustomAgentQuestion = function (qText) {
+    const inputEl = document.getElementById("agent-chat-input");
+    if (!inputEl) return;
+    inputEl.value = qText;
+    window.autoResizeAgentTextarea(inputEl);
+    window.sendAgentChatMessage(null);
   };
 
   window.selectAgentQuestion = function (qId, autoSend = false) {
