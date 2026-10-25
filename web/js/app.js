@@ -6,7 +6,7 @@
 (function () {
   "use strict";
 
-  const BUNDLE = window.HP_ONTOLOGY_BUNDLE || {};
+  const BUNDLE = window.HP_ONTOLOGY_BUNDLE || window.HP_STUDIO_DATA || {};
   const OKF_DOC_ROOTS = BUNDLE.okf_doc_roots || [];
   const OKF_FILES = BUNDLE.okf_files || [];
   const OKF_GRAPH = BUNDLE.okf_graph || { nodes: [], edges: [] };
@@ -666,8 +666,8 @@
     const readerEl = document.getElementById("okf-reader");
     if (readerEl) {
       const activeRawYaml = k
-        ? d.raw_yaml_ko || d.raw_yaml || ""
-        : d.raw_yaml_en || d.raw_yaml || "";
+        ? d.yaml_ko || d.raw_yaml_ko || d.raw_yaml || ""
+        : d.yaml_en || d.raw_yaml_en || d.raw_yaml || "";
       const activeDocBody = k ? d.body_ko || d.body || "" : d.body_en || d.body || "";
       const renderedMd =
         window.marked && typeof window.marked.parse === "function"
@@ -1489,8 +1489,8 @@
     }
 
     const rawYaml = k
-      ? f.raw_yaml_ko || f.raw_yaml || "# YAML Frontmatter"
-      : f.raw_yaml_en || f.raw_yaml || "# YAML Frontmatter";
+      ? f.yaml_ko || f.raw_yaml_ko || f.raw_yaml || "# YAML Frontmatter"
+      : f.yaml_en || f.raw_yaml_en || f.raw_yaml || "# YAML Frontmatter";
     const activeBody = k ? f.body_ko || f.body || "" : f.body_en || f.body || "";
     const activeGcsUri = k
       ? f.gcs_uri_ko || `gs://hp-dragonfly-okf/okf-kr/${f.rel_path}`

@@ -906,7 +906,7 @@ def main() -> None:
   print("[4/4] Writing updated `web/data/studio_bundle.js`...")
   out_js = (
       "// Auto-generated HP Dragonfly Ontology Studio Data Bundle (PDF-Grounded Bilingual OKF v0.2 via gemini-3.8-flash)\n"
-      "window.HP_STUDIO_DATA = "
+      "window.HP_ONTOLOGY_BUNDLE = window.HP_STUDIO_DATA = "
       + json.dumps(data, ensure_ascii=False, indent=2)
       + ";\n"
   )
