@@ -381,6 +381,129 @@ def collect_bq_tables() -> list[dict[str, Any]]:
           "title_ko": "현장 및 커뮤니티 고장·트러블슈팅 사례",
           "pdf_page": 63,
       },
+      "lex_service_manual_documents": {
+          "role": "LEX NODE",
+          "label": "ServiceManualDocument (Dataplex KC Entry)",
+          "pk": "doc_id",
+          "layer": "unstructured",
+          "title_en": "[LEX] Origin Service Manual PDFs (Dataplex KC Root)",
+          "title_ko": "[LEX 비정형] 원본 서비스 매뉴얼 PDF 루트 (Dataplex KC 연결)",
+          "pdf_page": 1,
+      },
+      "lex_manual_chapters": {
+          "role": "LEX NODE + EDGE",
+          "label": "ServiceManualChapter -[PART_OF_DOCUMENT]-> ServiceManualDocument",
+          "pk": "chapter_slot_id",
+          "layer": "unstructured",
+          "title_en": "[LEX] OKF v0.2 Service Manual Reference Chapters (Dataplex KC)",
+          "title_ko": "[LEX 비정형] OKF v0.2 매뉴얼 챕터 레퍼런스 (kc_entry_id 포함)",
+          "pdf_page": 19,
+      },
+      "lex_service_playbooks": {
+          "role": "LEX NODE",
+          "label": "ServicePlaybook (OKF Playbooks / Computations / Metrics)",
+          "pk": "playbook_id",
+          "layer": "unstructured",
+          "title_en": "[LEX] OKF v0.2 Agent Triage Playbooks & Attested Computations",
+          "title_ko": "[LEX 비정형] OKF v0.2 에이전트 트러블슈팅 플레이북 및 검증 수식",
+          "pdf_page": 79,
+      },
+      "edge_component_documented_in_chapter": {
+          "role": "ONT↔LEX BRIDGE EDGE",
+          "label": "HardwareComponent -[DOCUMENTED_IN_CHAPTER]-> ServiceManualChapter",
+          "pk": "bridge_id",
+          "layer": "bridge",
+          "title_en": "[Bridge] Hardware Component -> OKF Manual Chapter",
+          "title_ko": "[교차 브릿지] 정형 하드웨어 부품 -> 비정형 OKF 매뉴얼 챕터",
+          "pdf_page": 29,
+      },
+      "edge_diagnostic_defined_in_chapter": {
+          "role": "ONT↔LEX BRIDGE EDGE",
+          "label": "DiagnosticCode -[DEFINED_IN_CH6_MANUAL]-> ServiceManualChapter",
+          "pk": "bridge_id",
+          "layer": "bridge",
+          "title_en": "[Bridge] Diagnostic Blink Code -> OKF Ch.6 Diagnostic Spec",
+          "title_ko": "[교차 브릿지] 정형 LED 진단 코드 -> 비정형 OKF 6장 진단 명세",
+          "pdf_page": 79,
+      },
+      "edge_case_governed_by_playbook": {
+          "role": "ONT↔LEX BRIDGE EDGE",
+          "label": "TroubleshootingCase -[GOVERNED_BY_PLAYBOOK]-> ServicePlaybook",
+          "pk": "bridge_id",
+          "layer": "bridge",
+          "title_en": "[Bridge] Field Troubleshooting Case -> OKF Triage Playbook",
+          "title_ko": "[교차 브릿지] 정형 고장 사례 -> 비정형 OKF 표준 수리 플레이북",
+          "pdf_page": 79,
+      },
+      "edge_playbook_orchestrates_chapter": {
+          "role": "LEX EDGE",
+          "label": "ServicePlaybook -[ORCHESTRATES_REFERENCE]-> ServiceManualChapter",
+          "pk": "bridge_id",
+          "layer": "unstructured",
+          "title_en": "[LEX Edge] OKF Playbook -> Referenced Manual Chapters",
+          "title_ko": "[LEX 엣지] 비정형 OKF 플레이북 -> 인용 매뉴얼 챕터 연결",
+          "pdf_page": 79,
+      },
+  }
+
+  lex_schemas = {
+      "lex_service_manual_documents": [
+          ("doc_id", "STRING", "REQUIRED", "Canonical document root ID (e.g., N17344-001)"),
+          ("doc_title", "STRING", "REQUIRED", "Official document title in English"),
+          ("pdf_filename", "STRING", "REQUIRED", "Source unstructured PDF filename"),
+          ("total_pages", "INT64", "REQUIRED", "Total page count of the source PDF manual"),
+          ("sha256", "STRING", "REQUIRED", "SHA-256 cryptographic digest of the origin PDF"),
+          ("okf_root_path", "STRING", "REQUIRED", "OKF v0.2 bundle root index path"),
+          ("kc_entry_id", "STRING", "REQUIRED", "Dataplex Knowledge Catalog Entry FQN in okf_hp_dragonfly"),
+      ],
+      "lex_manual_chapters": [
+          ("chapter_slot_id", "STRING", "REQUIRED", "Canonical OKF reference chapter ID"),
+          ("doc_id", "STRING", "REQUIRED", "Parent source document ID (FK -> lex_service_manual_documents.doc_id)"),
+          ("chapter_no", "STRING", "REQUIRED", "Manual chapter or appendix number"),
+          ("chapter_title", "STRING", "REQUIRED", "English title of the extracted OKF reference document"),
+          ("pdf_page_start", "INT64", "REQUIRED", "Starting page number in pdf_6290467_en-US-1.pdf"),
+          ("pdf_page_span", "STRING", "REQUIRED", "Page range in the 109-page service manual"),
+          ("okf_rel_path", "STRING", "REQUIRED", "Relative path inside bundles/hp_dragonfly/"),
+          ("kc_entry_id", "STRING", "REQUIRED", "Dataplex Knowledge Catalog Entry FQN in okf_hp_dragonfly"),
+          ("governance_summary", "STRING", "REQUIRED", "Engineering rules and constraints governed by this chapter"),
+      ],
+      "lex_service_playbooks": [
+          ("playbook_id", "STRING", "REQUIRED", "Canonical OKF playbook, computation, or metric ID"),
+          ("okf_type", "STRING", "REQUIRED", "OKF v0.2 type (Playbook, Computation, Metric)"),
+          ("title", "STRING", "REQUIRED", "English title of the OKF playbook or computation"),
+          ("target_issue_domain", "STRING", "REQUIRED", "Target troubleshooting domain"),
+          ("pdf_page_ref", "INT64", "REQUIRED", "Primary page reference in HP Service Guide N17344-001"),
+          ("okf_rel_path", "STRING", "REQUIRED", "Relative path inside bundles/hp_dragonfly/"),
+          ("kc_entry_id", "STRING", "REQUIRED", "Dataplex Knowledge Catalog Entry FQN in okf_hp_dragonfly"),
+          ("agent_directive", "STRING", "REQUIRED", "Mandatory execution rule enforced on the Ontology Agent"),
+      ],
+      "edge_component_documented_in_chapter": [
+          ("bridge_id", "STRING", "REQUIRED", "Unique ONT-to-LEX component bridge ID"),
+          ("part_number", "STRING", "REQUIRED", "Source HardwareComponent part_number"),
+          ("chapter_slot_id", "STRING", "REQUIRED", "Destination ServiceManualChapter chapter_slot_id"),
+          ("manual_chapter_page", "STRING", "REQUIRED", "PDF chapter and page citation"),
+          ("bridge_role", "STRING", "REQUIRED", "Semantic bridge role description"),
+      ],
+      "edge_diagnostic_defined_in_chapter": [
+          ("bridge_id", "STRING", "REQUIRED", "Unique ONT-to-LEX diagnostic bridge ID"),
+          ("diagnostic_code", "STRING", "REQUIRED", "Source DiagnosticCode diagnostic_code"),
+          ("chapter_slot_id", "STRING", "REQUIRED", "Destination ServiceManualChapter chapter_slot_id"),
+          ("manual_reference", "STRING", "REQUIRED", "PDF Chapter 6 page citation"),
+          ("bridge_role", "STRING", "REQUIRED", "Semantic bridge role description"),
+      ],
+      "edge_case_governed_by_playbook": [
+          ("bridge_id", "STRING", "REQUIRED", "Unique ONT-to-LEX case-playbook bridge ID"),
+          ("case_id", "STRING", "REQUIRED", "Source TroubleshootingCase case_id"),
+          ("playbook_id", "STRING", "REQUIRED", "Destination ServicePlaybook playbook_id"),
+          ("issue_category", "STRING", "REQUIRED", "Troubleshooting issue domain"),
+          ("bridge_role", "STRING", "REQUIRED", "Semantic bridge role description"),
+      ],
+      "edge_playbook_orchestrates_chapter": [
+          ("bridge_id", "STRING", "REQUIRED", "Unique LEX playbook-to-chapter edge ID"),
+          ("playbook_id", "STRING", "REQUIRED", "Source ServicePlaybook playbook_id"),
+          ("chapter_slot_id", "STRING", "REQUIRED", "Destination ServiceManualChapter chapter_slot_id"),
+          ("citation_role", "STRING", "REQUIRED", "How the playbook uses this reference chapter"),
+      ],
   }
 
   tables = []
@@ -392,15 +515,17 @@ def collect_bq_tables() -> list[dict[str, Any]]:
         if line.strip():
           rows.append(json.loads(line))
     schema_def = TABLE_SCHEMAS.get(tname, {})
+    raw_fields = schema_def.get("fields", lex_schemas.get(tname, []))
     fields = [
         {"name": f[0], "type": f[1], "mode": f[2], "description": f[3]}
-        for f in schema_def.get("fields", [])
+        for f in raw_fields
     ]
     tables.append({
         "table_name": tname,
         "role": meta["role"],
         "label": meta["label"],
         "pk": meta["pk"],
+        "layer": meta.get("layer", "structured"),
         "title_en": meta["title_en"],
         "title_ko": meta["title_ko"],
         "pdf_page": meta["pdf_page"],
@@ -595,6 +720,67 @@ def build_gql_query_library(bq_tables: list[dict[str, Any]]) -> list[dict[str, A
       }
       q4_edges.append({"from": sid, "to": sb_no, "label": "USES_SYSTEM_BOARD"})
 
+  # 5. GQL Query 5: 2-Layer Cross-Plane Traversal (ONT Structured <-> LEX Unstructured / Dataplex KC)
+  q5_rows = []
+  q5_nodes_map = {}
+  q5_edges = []
+  chap_by_id = {r["chapter_slot_id"]: r for r in table_map.get("lex_manual_chapters", [])}
+  pb_by_id = {r["playbook_id"]: r for r in table_map.get("lex_service_playbooks", [])}
+  comp_chap_map = {r["part_number"]: r["chapter_slot_id"] for r in table_map.get("edge_component_documented_in_chapter", [])}
+  case_pb_map = {r["case_id"]: r["playbook_id"] for r in table_map.get("edge_case_governed_by_playbook", [])}
+
+  for case in table_map["community_troubleshooting_cases"]:
+    cid = case["case_id"]
+    pno = case.get("affected_part_number") or ""
+    dcode = case.get("error_or_diagnostic_code") or ""
+    comp = comp_by_part.get(pno, {})
+    pb_id = case_pb_map.get(cid, "")
+    pb = pb_by_id.get(pb_id, {})
+    chap_id = comp_chap_map.get(pno, "REF-CH05-DISASSEMBLY-ESD")
+    chap = chap_by_id.get(chap_id, {})
+    if not pno or not pb:
+      continue
+    q5_rows.append({
+        "case_id": cid,
+        "issue_category": case["issue_category"],
+        "diagnostic_code": dcode or "None",
+        "part_number": pno,
+        "component_name": comp.get("component_name", pno),
+        "playbook_id": pb_id,
+        "playbook_okf_path": pb.get("okf_rel_path", ""),
+        "playbook_kc_entry": pb.get("kc_entry_id", ""),
+        "chapter_slot_id": chap_id,
+        "chapter_okf_path": chap.get("okf_rel_path", ""),
+        "pdf_page_span": chap.get("pdf_page_span", ""),
+    })
+    q5_nodes_map[cid] = {
+        "id": cid,
+        "label": f"[ONT Case] {cid}\n({case['issue_category']})",
+        "group": "TroubleshootingCase",
+    }
+    q5_nodes_map[pno] = {
+        "id": pno,
+        "label": f"[ONT FRU] {comp.get('component_name', pno)[:26]}\n({pno})",
+        "group": "HardwareComponent",
+    }
+    q5_edges.append({"from": cid, "to": pno, "label": "AFFECTS_COMPONENT"})
+    if pb_id:
+      q5_nodes_map[pb_id] = {
+          "id": pb_id,
+          "label": f"[LEX Playbook] {pb_id}\n(KC: {pb.get('okf_rel_path', '')})",
+          "group": "ServicePlaybook",
+      }
+      q5_edges.append({"from": cid, "to": pb_id, "label": "GOVERNED_BY_PLAYBOOK"})
+    if chap_id:
+      q5_nodes_map[chap_id] = {
+          "id": chap_id,
+          "label": f"[LEX Manual] {chap_id}\n(p.{chap.get('pdf_page_span', '')} / KC)",
+          "group": "ServiceManualChapter",
+      }
+      q5_edges.append({"from": pno, "to": chap_id, "label": "DOCUMENTED_IN_CHAPTER"})
+      if pb_id:
+        q5_edges.append({"from": pb_id, "to": chap_id, "label": "ORCHESTRATES_REFERENCE"})
+
   return [
       {
           "id": "gql_disassembly_dag",
@@ -708,6 +894,41 @@ RETURN
 ORDER BY s.sku_id""",
           "rows": q4_rows,
           "graph": {"nodes": list(q4_nodes_map.values()), "edges": q4_edges},
+      },
+      {
+          "id": "gql_2layer_ont_to_lex_kc",
+          "title_en": "5. [GQL 2-Layer] Structured Case & FRU ↔ Unstructured OKF Playbook & Manual (Dataplex KC Entry)",
+          "title_ko": "5. [GQL 2-Layer 통합] 정형 고장 사례·FRU ↔ 비정형 OKF 플레이북·매뉴얼 챕터(Dataplex KC 엔트리) 교차 탐색",
+          "desc_en": (
+              "Crosses the 2-Layer boundary (`ONT` Structured <-> `LEX` Unstructured) in a single GQL query:"
+              " traverses `TroubleshootingCase -> HardwareComponent -> ServiceManualChapter` and `-> ServicePlaybook`,"
+              " returning exact Dataplex Knowledge Catalog `kc_entry_id` and `okf_rel_path` pointers."
+          ),
+          "desc_ko": (
+              "단일 BigQuery GQL 쿼리로 상부 정형 계층(`TroubleshootingCase`, `HardwareComponent`)에서"
+              " 하부 비정형 계층(`ServicePlaybook`, `ServiceManualChapter`)까지 수직 브릿지 엣지를 따라 교차 탐색하여"
+              " Dataplex Knowledge Catalog 엔트리(`kc_entry_id`)와 OKF 마크다운 경로(`okf_rel_path`)를 즉시 반환합니다."
+          ),
+          "gql": """GRAPH `hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph`
+MATCH
+  (tc:TroubleshootingCase)-[:AFFECTS_COMPONENT]->(c:HardwareComponent)-[:DOCUMENTED_IN_CHAPTER]->(ch:ServiceManualChapter),
+  (tc)-[:GOVERNED_BY_PLAYBOOK]->(pb:ServicePlaybook)
+OPTIONAL MATCH (tc)-[:TRIGGERS_DIAGNOSTIC]->(d:DiagnosticCode)
+RETURN
+  tc.case_id AS case_id,
+  tc.issue_category AS issue_category,
+  d.diagnostic_code AS diagnostic_code,
+  c.part_number AS part_number,
+  c.component_name AS component_name,
+  pb.playbook_id AS playbook_id,
+  pb.okf_rel_path AS playbook_okf_path,
+  pb.kc_entry_id AS playbook_kc_entry,
+  ch.chapter_slot_id AS chapter_slot_id,
+  ch.okf_rel_path AS chapter_okf_path,
+  ch.pdf_page_span AS pdf_page_span
+ORDER BY case_id""",
+          "rows": q5_rows,
+          "graph": {"nodes": list(q5_nodes_map.values()), "edges": q5_edges},
       },
   ]
 

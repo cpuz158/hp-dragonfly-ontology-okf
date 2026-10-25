@@ -12,8 +12,8 @@
     "pdf_filename": "pdf_6290467_en-US-1.pdf",
     "pdf_doc_part": "N17344-001",
     "pdf_pages": 109,
-    "bq_table_count": 8,
-    "bq_total_rows": 109,
+    "bq_table_count": 15,
+    "bq_total_rows": 188,
     "okf_file_count": 28,
     "okf_concept_count": 21,
     "okf_edge_count": 110
@@ -2801,13 +2801,31 @@
   },
   "git_commits": [
     {
-      "hash": "105d1b5b06a2bfa116c895992b5d2508808e27de",
-      "short_hash": "105d1b5",
+      "hash": "c3776e13484a14e51eed757bb180519f8f8666d8",
+      "short_hash": "c3776e1",
+      "author": "dhmoon",
+      "email": "dhmoon@google.com",
+      "date": "2026-10-25 04:13:07 +0000",
+      "subject": "Align 3D Class View node and edge row counts with exact BigQuery table counts",
+      "stat": "web/js/app.js | 58 +++++++++++++++++++++++++++++-----------------------------\n 1 file changed, 29 insertions(+), 29 deletions(-)"
+    },
+    {
+      "hash": "c67771689fad5fa28a6c981842c5edee81094ce9",
+      "short_hash": "c677716",
+      "author": "dhmoon",
+      "email": "dhmoon@google.com",
+      "date": "2026-10-25 04:11:34 +0000",
+      "subject": "Upgrade 04 BigQueryGraph 3D Class View with Node/Edge Sprites, Raycaster hover/click, and Node/Edge Description Inspector",
+      "stat": "web/docs/pdf_6290467_en-US-1.pdf |  Bin 0 -> 16568024 bytes\n web/index-en.html                |   22 +-\n web/index-ko.html                |   22 +-\n web/index.html                   |   22 +-\n web/js/app.js                    | 1597 ++++++++++++++++++++++++++++++++++----\n web/viz.html                     |  599 ++++++++++++++\n 6 files changed, 2102 insertions(+), 160 deletions(-)"
+    },
+    {
+      "hash": "d46fdb76ace02e572257b5c8766ad68f214867da",
+      "short_hash": "d46fdb7",
       "author": "dhmoon",
       "email": "dhmoon@google.com",
       "date": "2026-10-25 03:48:45 +0000",
       "subject": "fix(web): align DOM classes and CSS variables 100% with krda-ontology-studio gcp-console.css",
-      "stat": "web/css/gcp-console.css |  355 ++-----\n web/index-en.html       |  371 +++++--\n web/index-ko.html       |  371 +++++--\n web/index.html          |  395 +++++--\n web/js/app.js           | 2666 +++++++++++++++++++++++++----------------------\n 5 files changed, 2447 insertions(+), 1711 deletions(-)"
+      "stat": "web/css/gcp-console.css     |  355 +-----\n web/data/studio_bundle.js   |   15 +-\n web/data/studio_bundle.json |   15 +-\n web/index-en.html           |  371 +++++-\n web/index-ko.html           |  371 +++++-\n web/index.html              |  395 +++++--\n web/js/app.js               | 2666 +++++++++++++++++++++++--------------------\n 7 files changed, 2471 insertions(+), 1717 deletions(-)"
     },
     {
       "hash": "cc42a89546d36979f50816107a018feb2665e338",
@@ -2859,6 +2877,7 @@
       "role": "NODE",
       "label": "ProductModel",
       "pk": "model_id",
+      "layer": "structured",
       "title_en": "HP Dragonfly Series Models Master",
       "title_ko": "HP Dragonfly 시리즈 모델 마스터",
       "pdf_page": 1,
@@ -3101,6 +3120,7 @@
       "role": "NODE + 2 EDGES",
       "label": "ProductSKU -[BELONGS_TO_MODEL / USES_SYSTEM_BOARD]-> ...",
       "pk": "sku_id",
+      "layer": "structured",
       "title_en": "Product SKUs & Hardware Configurations",
       "title_ko": "제품 세부 SKU 및 하드웨어 구성",
       "pdf_page": 2,
@@ -3517,6 +3537,7 @@
       "role": "NODE",
       "label": "HardwareComponent",
       "pk": "part_number",
+      "layer": "structured",
       "title_en": "Hardware Components & Spare Parts Catalog",
       "title_ko": "하드웨어 교체 부품(FRU) 스페어 카탈로그",
       "pdf_page": 17,
@@ -4091,6 +4112,7 @@
       "role": "EDGE",
       "label": "HardwareComponent -[REQUIRES_REMOVAL_OF]-> HardwareComponent",
       "pk": "dependency_id",
+      "layer": "structured",
       "title_en": "Component Disassembly Precedence DAG",
       "title_ko": "부품 분해 선행 작업 의존성(DAG) 엣지",
       "pdf_page": 29,
@@ -4366,6 +4388,7 @@
       "role": "NODE",
       "label": "PortSensorSpec",
       "pk": "feature_id",
+      "layer": "structured",
       "title_en": "Ports, Sensors & Thunderbolt Dock Compatibility",
       "title_ko": "포트, 근접 센서 및 썬더볼트 독 호환성",
       "pdf_page": 5,
@@ -4528,6 +4551,7 @@
       "role": "NODE",
       "label": "FirmwareRelease",
       "pk": "release_or_nvm_id",
+      "layer": "structured",
       "title_en": "BIOS, SoftPaq Drivers & NVM Security Specs",
       "title_ko": "BIOS, SoftPaq 드라이버 및 NVM 보안 명세",
       "pdf_page": 73,
@@ -4698,6 +4722,7 @@
       "role": "NODE",
       "label": "DiagnosticCode",
       "pk": "diagnostic_code",
+      "layer": "structured",
       "title_en": "Diagnostic LED Blink & UEFI Failure Codes",
       "title_ko": "진단용 LED 점멸 코드 및 UEFI 오류 사전",
       "pdf_page": 81,
@@ -4826,6 +4851,7 @@
       "role": "NODE + 2 EDGES",
       "label": "TroubleshootingCase -[AFFECTS_COMPONENT / TRIGGERS_DIAGNOSTIC]-> ...",
       "pk": "case_id",
+      "layer": "structured",
       "title_en": "Field & Community Troubleshooting Cases",
       "title_ko": "현장 및 커뮤니티 고장·트러블슈팅 사례",
       "pdf_page": 63,
@@ -5126,6 +5152,956 @@
           "requires_part_replacement": false,
           "occurrence_count": 115,
           "avg_resolution_time_min": 40
+        }
+      ]
+    },
+    {
+      "table_name": "lex_service_manual_documents",
+      "role": "LEX NODE",
+      "label": "ServiceManualDocument (Dataplex KC Entry)",
+      "pk": "doc_id",
+      "layer": "unstructured",
+      "title_en": "[LEX] Origin Service Manual PDFs (Dataplex KC Root)",
+      "title_ko": "[LEX 비정형] 원본 서비스 매뉴얼 PDF 루트 (Dataplex KC 연결)",
+      "pdf_page": 1,
+      "row_count": 2,
+      "schema": [
+        {
+          "name": "doc_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Canonical document root ID (e.g., N17344-001)"
+        },
+        {
+          "name": "doc_title",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Official document title in English"
+        },
+        {
+          "name": "pdf_filename",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Source unstructured PDF filename"
+        },
+        {
+          "name": "total_pages",
+          "type": "INT64",
+          "mode": "REQUIRED",
+          "description": "Total page count of the source PDF manual"
+        },
+        {
+          "name": "sha256",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "SHA-256 cryptographic digest of the origin PDF"
+        },
+        {
+          "name": "okf_root_path",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "OKF v0.2 bundle root index path"
+        },
+        {
+          "name": "kc_entry_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Dataplex Knowledge Catalog Entry FQN in okf_hp_dragonfly"
+        }
+      ],
+      "rows": [
+        {
+          "doc_id": "N17344-001",
+          "doc_title": "HP Dragonfly Folio 13.5 inch G3 2-in-1 Notebook PC Maintenance and Service Guide",
+          "pdf_filename": "pdf_6290467_en-US-1.pdf",
+          "total_pages": 109,
+          "sha256": "d3462b27b2211fcc088a50addbe08993cafde1b6bf8eaa94c61c3001429e1646",
+          "okf_root_path": "bundles/hp_dragonfly/index.md",
+          "kc_entry_id": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/index"
+        },
+        {
+          "doc_id": "N09241-001",
+          "doc_title": "HP Dragonfly 13.5 inch G3 Clamshell Notebook PC Maintenance and Service Guide",
+          "pdf_filename": "hp_dragonfly_g3_clamshell_msg.pdf",
+          "total_pages": 98,
+          "sha256": "d3462b27b2211fcc088a50addbe08993cafde1b6bf8eaa94c61c3001429e1646",
+          "okf_root_path": "bundles/hp_dragonfly/datasets/prj_ontology_hp_dragonfly.md",
+          "kc_entry_id": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/datasets-prj-ontology-hp-dragonfly"
+        }
+      ]
+    },
+    {
+      "table_name": "lex_manual_chapters",
+      "role": "LEX NODE + EDGE",
+      "label": "ServiceManualChapter -[PART_OF_DOCUMENT]-> ServiceManualDocument",
+      "pk": "chapter_slot_id",
+      "layer": "unstructured",
+      "title_en": "[LEX] OKF v0.2 Service Manual Reference Chapters (Dataplex KC)",
+      "title_ko": "[LEX 비정형] OKF v0.2 매뉴얼 챕터 레퍼런스 (kc_entry_id 포함)",
+      "pdf_page": 19,
+      "row_count": 5,
+      "schema": [
+        {
+          "name": "chapter_slot_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Canonical OKF reference chapter ID"
+        },
+        {
+          "name": "doc_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Parent source document ID (FK -> lex_service_manual_documents.doc_id)"
+        },
+        {
+          "name": "chapter_no",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Manual chapter or appendix number"
+        },
+        {
+          "name": "chapter_title",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "English title of the extracted OKF reference document"
+        },
+        {
+          "name": "pdf_page_start",
+          "type": "INT64",
+          "mode": "REQUIRED",
+          "description": "Starting page number in pdf_6290467_en-US-1.pdf"
+        },
+        {
+          "name": "pdf_page_span",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Page range in the 109-page service manual"
+        },
+        {
+          "name": "okf_rel_path",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Relative path inside bundles/hp_dragonfly/"
+        },
+        {
+          "name": "kc_entry_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Dataplex Knowledge Catalog Entry FQN in okf_hp_dragonfly"
+        },
+        {
+          "name": "governance_summary",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Engineering rules and constraints governed by this chapter"
+        }
+      ],
+      "rows": [
+        {
+          "chapter_slot_id": "REF-CH01-TB4-DOCK",
+          "doc_id": "N17344-001",
+          "chapter_no": "Chapter 1",
+          "chapter_title": "Thunderbolt 4 USB4 Port, Power Delivery & G4 Dock Compatibility Matrix",
+          "pdf_page_start": 12,
+          "pdf_page_span": "1-18",
+          "okf_rel_path": "references/thunderbolt-g4-dock-and-power-matrix.md",
+          "kc_entry_id": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/references-thunderbolt-g4-dock-and-power-matrix",
+          "governance_summary": "Defines Dual Thunderbolt 4 (40Gbps, 100W USB-C PD, DP 1.4), hall/proximity sensors, MPP 2.0 stylus charging, and Dock G4 multi-display rules."
+        },
+        {
+          "chapter_slot_id": "REF-CH03-PARTS-CATALOG",
+          "doc_id": "N17344-001",
+          "chapter_no": "Chapter 3",
+          "chapter_title": "Illustrated Hardware Spare Parts Catalog & System Board FRU Matrix",
+          "pdf_page_start": 19,
+          "pdf_page_span": "19-28",
+          "okf_rel_path": "references/ch03-illustrated-parts-catalog.md",
+          "kc_entry_id": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/references-ch03-illustrated-parts-catalog",
+          "governance_summary": "Maps soldered CPU + LPDDR5 (16GB/32GB) + WWAN configurations to exact HP spare part numbers and FRU replacement tiers."
+        },
+        {
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "doc_id": "N17344-001",
+          "chapter_no": "Chapter 5",
+          "chapter_title": "Component Removal, Replacement Procedures & 700V ESD Safety Protocol",
+          "pdf_page_start": 29,
+          "pdf_page_span": "29-78",
+          "okf_rel_path": "references/ch05-disassembly-and-esd-safety.md",
+          "kc_entry_id": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/references-ch05-disassembly-and-esd-safety",
+          "governance_summary": "Enforces 700V ESD grounding, mandatory Battery (M90788-005) isolation after Bottom Cover (N22918-001), screw specs, and pull-forward display cable routing."
+        },
+        {
+          "chapter_slot_id": "REF-CH06-BLINK-DIAG",
+          "doc_id": "N17344-001",
+          "chapter_no": "Chapter 6",
+          "chapter_title": "Caps Lock LED Blink Codes, POST Error Codes & UEFI Hardware Diagnostics",
+          "pdf_page_start": 79,
+          "pdf_page_span": "79-84",
+          "okf_rel_path": "references/ch06-led-blink-and-post-diagnostics.md",
+          "kc_entry_id": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/references-ch06-led-blink-and-post-diagnostics",
+          "governance_summary": "Defines blink patterns (3.2 soldered LPDDR5 fault, 2.2 BIOS corruption, 5.2 system board fault, POST 90B fan fault) and diagnostic escalation order."
+        },
+        {
+          "chapter_slot_id": "REF-APPXB-SURE-START-NVM",
+          "doc_id": "N17344-001",
+          "chapter_no": "Appendix B",
+          "chapter_title": "Non-Volatile Memory (NVM) Sanitization & HP Sure Start Gen7 Security",
+          "pdf_page_start": 96,
+          "pdf_page_span": "95-102",
+          "okf_rel_path": "references/appx-b-nvm-security-and-sure-start.md",
+          "kc_entry_id": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/references-appx-b-nvm-security-and-sure-start",
+          "governance_summary": "Specifies 32MB SPI BIOS Flash, 16MB Sure Start Private Flash, EC NVM clearing rules (NIST SP 800-88), and Win+B hardware BIOS recovery."
+        }
+      ]
+    },
+    {
+      "table_name": "lex_service_playbooks",
+      "role": "LEX NODE",
+      "label": "ServicePlaybook (OKF Playbooks / Computations / Metrics)",
+      "pk": "playbook_id",
+      "layer": "unstructured",
+      "title_en": "[LEX] OKF v0.2 Agent Triage Playbooks & Attested Computations",
+      "title_ko": "[LEX 비정형] OKF v0.2 에이전트 트러블슈팅 플레이북 및 검증 수식",
+      "pdf_page": 79,
+      "row_count": 6,
+      "schema": [
+        {
+          "name": "playbook_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Canonical OKF playbook, computation, or metric ID"
+        },
+        {
+          "name": "okf_type",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "OKF v0.2 type (Playbook, Computation, Metric)"
+        },
+        {
+          "name": "title",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "English title of the OKF playbook or computation"
+        },
+        {
+          "name": "target_issue_domain",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Target troubleshooting domain"
+        },
+        {
+          "name": "pdf_page_ref",
+          "type": "INT64",
+          "mode": "REQUIRED",
+          "description": "Primary page reference in HP Service Guide N17344-001"
+        },
+        {
+          "name": "okf_rel_path",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Relative path inside bundles/hp_dragonfly/"
+        },
+        {
+          "name": "kc_entry_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Dataplex Knowledge Catalog Entry FQN in okf_hp_dragonfly"
+        },
+        {
+          "name": "agent_directive",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Mandatory execution rule enforced on the Ontology Agent"
+        }
+      ],
+      "rows": [
+        {
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "okf_type": "Playbook",
+          "title": "HP Dragonfly G3 No-Boot, Black Screen & HP Sure Start BIOS Recovery Playbook",
+          "target_issue_domain": "Power / Boot / BIOS / Soldered Memory / System Board",
+          "pdf_page_ref": 79,
+          "okf_rel_path": "playbooks/no-boot-bios-sure-start-recovery.md",
+          "kc_entry_id": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/playbooks-no-boot-bios-sure-start-recovery",
+          "agent_directive": "Step 1: Execute hard EC reset & Win+B HP Sure Start BIOS recovery before opening chassis. Step 2: If Caps Lock 3.2/5.2 persists, traverse USES_SYSTEM_BOARD & REQUIRES_REMOVAL_OF DAG."
+        },
+        {
+          "playbook_id": "PB-THERMAL-BATTERY-SWELLED",
+          "okf_type": "Playbook",
+          "title": "HP Dragonfly G3 Thermal Throttling, Fan 90B & Battery Swelling Triage Playbook",
+          "target_issue_domain": "Thermal / Fan / Battery / Display / Enclosure / Ports",
+          "pdf_page_ref": 41,
+          "okf_rel_path": "playbooks/thermal-throttling-and-battery-swelling.md",
+          "kc_entry_id": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/playbooks-thermal-throttling-and-battery-swelling",
+          "agent_directive": "Enforce 700V ESD precautions, isolate swollen battery M90788-005 without puncturing pouch, and apply new thermal grease whenever heatsink M90790-001 is loosened."
+        },
+        {
+          "playbook_id": "COMP-DISASSEMBLY-PREREQS",
+          "okf_type": "Computation",
+          "title": "System Board & FRU Replacement Prerequisite Disassembly DAG Computation",
+          "target_issue_domain": "Disassembly Order & Fastener Verification",
+          "pdf_page_ref": 67,
+          "okf_rel_path": "computations/system-board-replacement-prerequisites.md",
+          "kc_entry_id": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/computations-system-board-replacement-prerequisites",
+          "agent_directive": "Attested SQL/GQL query resolving multi-hop REQUIRES_REMOVAL_OF steps, screw torque/dimensions, and ZIF cable warnings."
+        },
+        {
+          "playbook_id": "COMP-SYMPTOM-TO-FRU",
+          "okf_type": "Computation",
+          "title": "Symptom & Blink Code to Defective FRU Spare Part Resolution Query",
+          "target_issue_domain": "Diagnostic Triage & FRU Dispatch",
+          "pdf_page_ref": 79,
+          "okf_rel_path": "computations/symptom-to-fru-part-resolution.md",
+          "kc_entry_id": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/computations-symptom-to-fru-part-resolution",
+          "agent_directive": "Attested GQL query traversing TroubleshootingCase -> DiagnosticCode & HardwareComponent -> Prerequisite Disassembly DAG."
+        },
+        {
+          "playbook_id": "METRIC-MTTR-SERVICE",
+          "okf_type": "Metric",
+          "title": "Mean Time To Repair (MTTR) & Disassembly Depth Service Metric",
+          "target_issue_domain": "Field Service KPI & Depot Escalation",
+          "pdf_page_ref": 29,
+          "okf_rel_path": "metrics/mttr-and-disassembly-depth.md",
+          "kc_entry_id": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/metrics-mttr-and-disassembly-depth",
+          "agent_directive": "Calculates total cumulative service time and prerequisite removal depth across component_disassembly_deps."
+        },
+        {
+          "playbook_id": "METRIC-WARRANTY-BIOS-RATE",
+          "okf_type": "Metric",
+          "title": "BIOS Recovery Non-Dispatch Resolution Rate Metric",
+          "target_issue_domain": "Warranty Cost Avoidance & Sure Start Efficacy",
+          "pdf_page_ref": 96,
+          "okf_rel_path": "metrics/bios-recovery-resolution-rate.md",
+          "kc_entry_id": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/metrics-bios-recovery-resolution-rate",
+          "agent_directive": "Measures percentage of field cases resolved via SoftPaq/Sure Start BIOS recovery without FRU motherboard replacement."
+        }
+      ]
+    },
+    {
+      "table_name": "edge_component_documented_in_chapter",
+      "role": "ONT↔LEX BRIDGE EDGE",
+      "label": "HardwareComponent -[DOCUMENTED_IN_CHAPTER]-> ServiceManualChapter",
+      "pk": "bridge_id",
+      "layer": "bridge",
+      "title_en": "[Bridge] Hardware Component -> OKF Manual Chapter",
+      "title_ko": "[교차 브릿지] 정형 하드웨어 부품 -> 비정형 OKF 매뉴얼 챕터",
+      "pdf_page": 29,
+      "row_count": 38,
+      "schema": [
+        {
+          "name": "bridge_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Unique ONT-to-LEX component bridge ID"
+        },
+        {
+          "name": "part_number",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Source HardwareComponent part_number"
+        },
+        {
+          "name": "chapter_slot_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Destination ServiceManualChapter chapter_slot_id"
+        },
+        {
+          "name": "manual_chapter_page",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "PDF chapter and page citation"
+        },
+        {
+          "name": "bridge_role",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Semantic bridge role description"
+        }
+      ],
+      "rows": [
+        {
+          "bridge_id": "BR-COMP-CHAP-001",
+          "part_number": "N20728-601",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.17 & Ch.5 p.50-53",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-002",
+          "part_number": "N20727-601",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.18 & Ch.5 p.50",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-003",
+          "part_number": "N20725-601",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.18 & Ch.5 p.50",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-004",
+          "part_number": "N20724-601",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.18 & Ch.5 p.50",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-005",
+          "part_number": "N20723-601",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.18 & Ch.5 p.50",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-006",
+          "part_number": "N20720-601",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.18 & Ch.5 p.50",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-007",
+          "part_number": "N08576-601",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N09241-001 Ch.3 & Ch.5",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-008",
+          "part_number": "N08575-601",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N09241-001 Ch.3 & Ch.5",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-009",
+          "part_number": "N08571-601",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N09241-001 Ch.3 & Ch.5",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-010",
+          "part_number": "N08569-601",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N09241-001 Ch.3 & Ch.5",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-011",
+          "part_number": "N08564-601",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N09241-001 Ch.3 & Ch.5",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-012",
+          "part_number": "M52027-005",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.17, Ch.5 p.35-36, Ch.9 p.90",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-013",
+          "part_number": "M16560-005",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.17, Ch.5 p.35-36, Ch.9 p.90",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-014",
+          "part_number": "M17436-005",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.17, Ch.5 p.35-36",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-015",
+          "part_number": "M52031-005",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.17, Ch.5 p.36",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-016",
+          "part_number": "M52025-005",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.17, Ch.5 p.36",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-017",
+          "part_number": "M90788-005",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.18 & Ch.5 p.42-44",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-018",
+          "part_number": "N22936-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.17 & Ch.5 p.47-48",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-019",
+          "part_number": "N22918-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.18 & Ch.5 p.33-35",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-020",
+          "part_number": "N22919-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.18 & Ch.5 p.33-35",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-021",
+          "part_number": "N22946-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.17 & Ch.5 p.44-45, 49-50",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-022",
+          "part_number": "N22947-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.17 & Ch.5 p.46-47",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-023",
+          "part_number": "N22942-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.17 & Ch.5 p.45-46",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-024",
+          "part_number": "N26149-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.17 & Ch.5 p.41-42",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-025",
+          "part_number": "N26148-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.18 & Ch.5 p.37-38",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-026",
+          "part_number": "N00181-005",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.18 & Ch.5 p.39-41",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-027",
+          "part_number": "N00182-005",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.18 & Ch.5 p.39-41",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-028",
+          "part_number": "N22940-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.17 & Ch.5 p.38-39",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-029",
+          "part_number": "N31280-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.18 & Ch.5 p.50-53",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-030",
+          "part_number": "N22552-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.17 & Ch.5 p.56",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-031",
+          "part_number": "N23302-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.19 & Ch.5 p.56-66",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-032",
+          "part_number": "N23303-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.19 & Ch.5 p.56-66",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-033",
+          "part_number": "N23305-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.19 & Ch.5 p.56-66",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-034",
+          "part_number": "N23306-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.19 & Ch.5 p.68",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-035",
+          "part_number": "N22937-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.19 & Ch.5 p.68-69",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-036",
+          "part_number": "N22930-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.3 p.20 & Ch.5 p.70-71",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-037",
+          "part_number": "N02954-001",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.1 p.3, Ch.2 p.5, Ch.3 p.18",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-COMP-CHAP-038",
+          "part_number": "L04650-850",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "manual_chapter_page": "N17344-001 Ch.1 p.3, Ch.3 p.20, Ch.9 p.89",
+          "bridge_role": "Links structured spare part to verbatim PDF manual disassembly & illustrated parts section in Dataplex KC"
+        }
+      ]
+    },
+    {
+      "table_name": "edge_diagnostic_defined_in_chapter",
+      "role": "ONT↔LEX BRIDGE EDGE",
+      "label": "DiagnosticCode -[DEFINED_IN_CH6_MANUAL]-> ServiceManualChapter",
+      "pk": "bridge_id",
+      "layer": "bridge",
+      "title_en": "[Bridge] Diagnostic Blink Code -> OKF Ch.6 Diagnostic Spec",
+      "title_ko": "[교차 브릿지] 정형 LED 진단 코드 -> 비정형 OKF 6장 진단 명세",
+      "pdf_page": 79,
+      "row_count": 8,
+      "schema": [
+        {
+          "name": "bridge_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Unique ONT-to-LEX diagnostic bridge ID"
+        },
+        {
+          "name": "diagnostic_code",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Source DiagnosticCode diagnostic_code"
+        },
+        {
+          "name": "chapter_slot_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Destination ServiceManualChapter chapter_slot_id"
+        },
+        {
+          "name": "manual_reference",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "PDF Chapter 6 page citation"
+        },
+        {
+          "name": "bridge_role",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Semantic bridge role description"
+        }
+      ],
+      "rows": [
+        {
+          "bridge_id": "BR-DIAG-CHAP-001",
+          "diagnostic_code": "LED-CAPS-2-2",
+          "chapter_slot_id": "REF-CH06-BLINK-DIAG",
+          "manual_reference": "N17344-001 Ch.7 p.83 & Ch.10 Table 10-1 p.93",
+          "bridge_role": "Maps structured LED blink/POST code to Chapter 6 diagnostic specification in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-DIAG-CHAP-002",
+          "diagnostic_code": "LED-CAPS-3-2",
+          "chapter_slot_id": "REF-CH06-BLINK-DIAG",
+          "manual_reference": "N17344-001 Ch.1 p.1 & Ch.5 p.50",
+          "bridge_role": "Maps structured LED blink/POST code to Chapter 6 diagnostic specification in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-DIAG-CHAP-003",
+          "diagnostic_code": "LED-CAPS-5-2",
+          "chapter_slot_id": "REF-CH06-BLINK-DIAG",
+          "manual_reference": "N17344-001 Ch.5 p.45, 69-71",
+          "bridge_role": "Maps structured LED blink/POST code to Chapter 6 diagnostic specification in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-DIAG-CHAP-004",
+          "diagnostic_code": "SPEC-ESD-700V",
+          "chapter_slot_id": "REF-CH06-BLINK-DIAG",
+          "manual_reference": "N17344-001 Ch.4 Table 4-1 & Table 4-2 p.26-28",
+          "bridge_role": "Maps structured LED blink/POST code to Chapter 6 diagnostic specification in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-DIAG-CHAP-005",
+          "diagnostic_code": "LED-BAT-BLINK-AMBER",
+          "chapter_slot_id": "REF-CH06-BLINK-DIAG",
+          "manual_reference": "N17344-001 Ch.2 Table 2-2 p.6 & Ch.8 p.86",
+          "bridge_role": "Maps structured LED blink/POST code to Chapter 6 diagnostic specification in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-DIAG-CHAP-006",
+          "diagnostic_code": "UEFI-24DIGIT-BAT",
+          "chapter_slot_id": "REF-CH06-BLINK-DIAG",
+          "manual_reference": "N17344-001 Ch.5 p.42-44 & Ch.8 p.86",
+          "bridge_role": "Maps structured LED blink/POST code to Chapter 6 diagnostic specification in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-DIAG-CHAP-007",
+          "diagnostic_code": "UEFI-24DIGIT-SSD",
+          "chapter_slot_id": "REF-CH06-BLINK-DIAG",
+          "manual_reference": "N17344-001 Ch.8 p.84-86 & Ch.5 p.35-36",
+          "bridge_role": "Maps structured LED blink/POST code to Chapter 6 diagnostic specification in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-DIAG-CHAP-008",
+          "diagnostic_code": "WARN-WWAN-UNAUTH",
+          "chapter_slot_id": "REF-CH06-BLINK-DIAG",
+          "manual_reference": "N17344-001 Ch.5 IMPORTANT Note p.39",
+          "bridge_role": "Maps structured LED blink/POST code to Chapter 6 diagnostic specification in Dataplex KC"
+        }
+      ]
+    },
+    {
+      "table_name": "edge_case_governed_by_playbook",
+      "role": "ONT↔LEX BRIDGE EDGE",
+      "label": "TroubleshootingCase -[GOVERNED_BY_PLAYBOOK]-> ServicePlaybook",
+      "pk": "bridge_id",
+      "layer": "bridge",
+      "title_en": "[Bridge] Field Troubleshooting Case -> OKF Triage Playbook",
+      "title_ko": "[교차 브릿지] 정형 고장 사례 -> 비정형 OKF 표준 수리 플레이북",
+      "pdf_page": 79,
+      "row_count": 12,
+      "schema": [
+        {
+          "name": "bridge_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Unique ONT-to-LEX case-playbook bridge ID"
+        },
+        {
+          "name": "case_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Source TroubleshootingCase case_id"
+        },
+        {
+          "name": "playbook_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Destination ServicePlaybook playbook_id"
+        },
+        {
+          "name": "issue_category",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Troubleshooting issue domain"
+        },
+        {
+          "name": "bridge_role",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Semantic bridge role description"
+        }
+      ],
+      "rows": [
+        {
+          "bridge_id": "BR-CASE-PB-003",
+          "case_id": "TS-DFG3-008",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "issue_category": "Thermal & Fan",
+          "bridge_role": "Binds field troubleshooting case to mandatory OKF v0.2 triage playbook in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-CASE-PB-004",
+          "case_id": "TS-DFG3-009",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "issue_category": "Display & Sure View",
+          "bridge_role": "Binds field troubleshooting case to mandatory OKF v0.2 triage playbook in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-CASE-PB-006",
+          "case_id": "TS-DFG3-004",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "issue_category": "Battery & Standby",
+          "bridge_role": "Binds field troubleshooting case to mandatory OKF v0.2 triage playbook in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-CASE-PB-007",
+          "case_id": "TS-DFG3-001",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "issue_category": "BIOS & Boot",
+          "bridge_role": "Binds field troubleshooting case to mandatory OKF v0.2 triage playbook in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-CASE-PB-008",
+          "case_id": "TS-DFG3-005",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "issue_category": "Camera & Presence",
+          "bridge_role": "Binds field troubleshooting case to mandatory OKF v0.2 triage playbook in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-CASE-PB-010",
+          "case_id": "TS-DFG3-010",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "issue_category": "BIOS & Boot",
+          "bridge_role": "Binds field troubleshooting case to mandatory OKF v0.2 triage playbook in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-CASE-PB-011",
+          "case_id": "TS-DFG3-011",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "issue_category": "BIOS & Boot",
+          "bridge_role": "Binds field troubleshooting case to mandatory OKF v0.2 triage playbook in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-CASE-PB-012",
+          "case_id": "TS-DFG3-006",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "issue_category": "WWAN & 5G",
+          "bridge_role": "Binds field troubleshooting case to mandatory OKF v0.2 triage playbook in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-CASE-PB-001",
+          "case_id": "TS-DFG3-002",
+          "playbook_id": "PB-THERMAL-BATTERY-SWELLED",
+          "issue_category": "Thunderbolt & Docking",
+          "bridge_role": "Binds field troubleshooting case to mandatory OKF v0.2 triage playbook in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-CASE-PB-002",
+          "case_id": "TS-DFG3-003",
+          "playbook_id": "PB-THERMAL-BATTERY-SWELLED",
+          "issue_category": "Audio & Mic",
+          "bridge_role": "Binds field troubleshooting case to mandatory OKF v0.2 triage playbook in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-CASE-PB-005",
+          "case_id": "TS-DFG3-012",
+          "playbook_id": "PB-THERMAL-BATTERY-SWELLED",
+          "issue_category": "Linux Compatibility",
+          "bridge_role": "Binds field troubleshooting case to mandatory OKF v0.2 triage playbook in Dataplex KC"
+        },
+        {
+          "bridge_id": "BR-CASE-PB-009",
+          "case_id": "TS-DFG3-007",
+          "playbook_id": "PB-THERMAL-BATTERY-SWELLED",
+          "issue_category": "Pen & Charging",
+          "bridge_role": "Binds field troubleshooting case to mandatory OKF v0.2 triage playbook in Dataplex KC"
+        }
+      ]
+    },
+    {
+      "table_name": "edge_playbook_orchestrates_chapter",
+      "role": "LEX EDGE",
+      "label": "ServicePlaybook -[ORCHESTRATES_REFERENCE]-> ServiceManualChapter",
+      "pk": "bridge_id",
+      "layer": "unstructured",
+      "title_en": "[LEX Edge] OKF Playbook -> Referenced Manual Chapters",
+      "title_ko": "[LEX 엣지] 비정형 OKF 플레이북 -> 인용 매뉴얼 챕터 연결",
+      "pdf_page": 79,
+      "row_count": 8,
+      "schema": [
+        {
+          "name": "bridge_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Unique LEX playbook-to-chapter edge ID"
+        },
+        {
+          "name": "playbook_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Source ServicePlaybook playbook_id"
+        },
+        {
+          "name": "chapter_slot_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Destination ServiceManualChapter chapter_slot_id"
+        },
+        {
+          "name": "citation_role",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "How the playbook uses this reference chapter"
+        }
+      ],
+      "rows": [
+        {
+          "bridge_id": "BR-PB-REF-001",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "chapter_slot_id": "REF-CH06-BLINK-DIAG",
+          "citation_role": "Step 1 LED blink decoding"
+        },
+        {
+          "bridge_id": "BR-PB-REF-002",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "chapter_slot_id": "REF-APPXB-SURE-START-NVM",
+          "citation_role": "Step 2 Win+B HP Sure Start SPI flash recovery"
+        },
+        {
+          "bridge_id": "BR-PB-REF-003",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "citation_role": "Step 3 System board FRU replacement DAG"
+        },
+        {
+          "bridge_id": "BR-PB-REF-004",
+          "playbook_id": "PB-THERMAL-BATTERY-SWELLED",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "citation_role": "Battery isolation & thermal module repasting"
+        },
+        {
+          "bridge_id": "BR-PB-REF-005",
+          "playbook_id": "PB-THERMAL-BATTERY-SWELLED",
+          "chapter_slot_id": "REF-CH01-TB4-DOCK",
+          "citation_role": "Thunderbolt 4 PD charging & sensor behavior"
+        },
+        {
+          "bridge_id": "BR-PB-REF-006",
+          "playbook_id": "COMP-DISASSEMBLY-PREREQS",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "citation_role": "Verifies DAG step order against Ch.5"
+        },
+        {
+          "bridge_id": "BR-PB-REF-007",
+          "playbook_id": "COMP-SYMPTOM-TO-FRU",
+          "chapter_slot_id": "REF-CH03-PARTS-CATALOG",
+          "citation_role": "Resolves FRU part numbers against Ch.3"
+        },
+        {
+          "bridge_id": "BR-PB-REF-008",
+          "playbook_id": "METRIC-WARRANTY-BIOS-RATE",
+          "chapter_slot_id": "REF-APPXB-SURE-START-NVM",
+          "citation_role": "Evaluates Sure Start Gen7 self-healing rate"
         }
       ]
     }
@@ -6471,6 +7447,553 @@
             "from": "367R0UT#ABA",
             "to": "N08575-601",
             "label": "USES_SYSTEM_BOARD"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gql_2layer_ont_to_lex_kc",
+      "title_en": "5. [GQL 2-Layer] Structured Case & FRU ↔ Unstructured OKF Playbook & Manual (Dataplex KC Entry)",
+      "title_ko": "5. [GQL 2-Layer 통합] 정형 고장 사례·FRU ↔ 비정형 OKF 플레이북·매뉴얼 챕터(Dataplex KC 엔트리) 교차 탐색",
+      "desc_en": "Crosses the 2-Layer boundary (`ONT` Structured <-> `LEX` Unstructured) in a single GQL query: traverses `TroubleshootingCase -> HardwareComponent -> ServiceManualChapter` and `-> ServicePlaybook`, returning exact Dataplex Knowledge Catalog `kc_entry_id` and `okf_rel_path` pointers.",
+      "desc_ko": "단일 BigQuery GQL 쿼리로 상부 정형 계층(`TroubleshootingCase`, `HardwareComponent`)에서 하부 비정형 계층(`ServicePlaybook`, `ServiceManualChapter`)까지 수직 브릿지 엣지를 따라 교차 탐색하여 Dataplex Knowledge Catalog 엔트리(`kc_entry_id`)와 OKF 마크다운 경로(`okf_rel_path`)를 즉시 반환합니다.",
+      "gql": "GRAPH `hp-dragonfly.prj_ontology_hp_dragonfly.hp_dragonfly_ontology_graph`\nMATCH\n  (tc:TroubleshootingCase)-[:AFFECTS_COMPONENT]->(c:HardwareComponent)-[:DOCUMENTED_IN_CHAPTER]->(ch:ServiceManualChapter),\n  (tc)-[:GOVERNED_BY_PLAYBOOK]->(pb:ServicePlaybook)\nOPTIONAL MATCH (tc)-[:TRIGGERS_DIAGNOSTIC]->(d:DiagnosticCode)\nRETURN\n  tc.case_id AS case_id,\n  tc.issue_category AS issue_category,\n  d.diagnostic_code AS diagnostic_code,\n  c.part_number AS part_number,\n  c.component_name AS component_name,\n  pb.playbook_id AS playbook_id,\n  pb.okf_rel_path AS playbook_okf_path,\n  pb.kc_entry_id AS playbook_kc_entry,\n  ch.chapter_slot_id AS chapter_slot_id,\n  ch.okf_rel_path AS chapter_okf_path,\n  ch.pdf_page_span AS pdf_page_span\nORDER BY case_id",
+      "rows": [
+        {
+          "case_id": "TS-DFG3-001",
+          "issue_category": "BIOS & Boot",
+          "diagnostic_code": "LED-CAPS-2-2",
+          "part_number": "N20728-601",
+          "component_name": "System Board (Intel Core i7-1265U vPro + 32 GB LPDDR5-6400, Windows)",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "playbook_okf_path": "playbooks/no-boot-bios-sure-start-recovery.md",
+          "playbook_kc_entry": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/playbooks-no-boot-bios-sure-start-recovery",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "chapter_okf_path": "references/ch05-disassembly-and-esd-safety.md",
+          "pdf_page_span": "29-78"
+        },
+        {
+          "case_id": "TS-DFG3-002",
+          "issue_category": "Thunderbolt & Docking",
+          "diagnostic_code": "None",
+          "part_number": "N20727-601",
+          "component_name": "System Board (Intel Core i7-1265U vPro + 16 GB LPDDR5-6400, Windows)",
+          "playbook_id": "PB-THERMAL-BATTERY-SWELLED",
+          "playbook_okf_path": "playbooks/thermal-throttling-and-battery-swelling.md",
+          "playbook_kc_entry": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/playbooks-thermal-throttling-and-battery-swelling",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "chapter_okf_path": "references/ch05-disassembly-and-esd-safety.md",
+          "pdf_page_span": "29-78"
+        },
+        {
+          "case_id": "TS-DFG3-003",
+          "issue_category": "Audio & Mic",
+          "diagnostic_code": "None",
+          "part_number": "N22946-001",
+          "component_name": "Quad Speaker Kit (Includes 2 Top Speakers + 2 Bottom Speakers)",
+          "playbook_id": "PB-THERMAL-BATTERY-SWELLED",
+          "playbook_okf_path": "playbooks/thermal-throttling-and-battery-swelling.md",
+          "playbook_kc_entry": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/playbooks-thermal-throttling-and-battery-swelling",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "chapter_okf_path": "references/ch05-disassembly-and-esd-safety.md",
+          "pdf_page_span": "29-78"
+        },
+        {
+          "case_id": "TS-DFG3-004",
+          "issue_category": "Battery & Standby",
+          "diagnostic_code": "LED-BAT-BLINK-AMBER",
+          "part_number": "M90788-005",
+          "component_name": "Battery (4-cell, 53 Whr HP Long Life Li-ion Polymer, includes insulators)",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "playbook_okf_path": "playbooks/no-boot-bios-sure-start-recovery.md",
+          "playbook_kc_entry": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/playbooks-no-boot-bios-sure-start-recovery",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "chapter_okf_path": "references/ch05-disassembly-and-esd-safety.md",
+          "pdf_page_span": "29-78"
+        },
+        {
+          "case_id": "TS-DFG3-005",
+          "issue_category": "Camera & Presence",
+          "diagnostic_code": "None",
+          "part_number": "N23306-001",
+          "component_name": "8 MP + IR Ultrawide Camera & Time-of-Flight Sensor Module",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "playbook_okf_path": "playbooks/no-boot-bios-sure-start-recovery.md",
+          "playbook_kc_entry": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/playbooks-no-boot-bios-sure-start-recovery",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "chapter_okf_path": "references/ch05-disassembly-and-esd-safety.md",
+          "pdf_page_span": "29-78"
+        },
+        {
+          "case_id": "TS-DFG3-006",
+          "issue_category": "WWAN & 5G",
+          "diagnostic_code": "WARN-WWAN-UNAUTH",
+          "part_number": "N00181-005",
+          "component_name": "Intel 5000 5G Solution WWAN Module",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "playbook_okf_path": "playbooks/no-boot-bios-sure-start-recovery.md",
+          "playbook_kc_entry": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/playbooks-no-boot-bios-sure-start-recovery",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "chapter_okf_path": "references/ch05-disassembly-and-esd-safety.md",
+          "pdf_page_span": "29-78"
+        },
+        {
+          "case_id": "TS-DFG3-007",
+          "issue_category": "Pen & Charging",
+          "diagnostic_code": "None",
+          "part_number": "N26149-001",
+          "component_name": "Wireless Charging Module (For Magnetic Digital Pen)",
+          "playbook_id": "PB-THERMAL-BATTERY-SWELLED",
+          "playbook_okf_path": "playbooks/thermal-throttling-and-battery-swelling.md",
+          "playbook_kc_entry": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/playbooks-thermal-throttling-and-battery-swelling",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "chapter_okf_path": "references/ch05-disassembly-and-esd-safety.md",
+          "pdf_page_span": "29-78"
+        },
+        {
+          "case_id": "TS-DFG3-008",
+          "issue_category": "Thermal & Fan",
+          "diagnostic_code": "None",
+          "part_number": "N22936-001",
+          "component_name": "Heat Sink and Dual Fan Assembly",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "playbook_okf_path": "playbooks/no-boot-bios-sure-start-recovery.md",
+          "playbook_kc_entry": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/playbooks-no-boot-bios-sure-start-recovery",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "chapter_okf_path": "references/ch05-disassembly-and-esd-safety.md",
+          "pdf_page_span": "29-78"
+        },
+        {
+          "case_id": "TS-DFG3-009",
+          "issue_category": "Display & Sure View",
+          "diagnostic_code": "None",
+          "part_number": "N22937-001",
+          "component_name": "Display Hub Board (FHD/WUXGA+ Models)",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "playbook_okf_path": "playbooks/no-boot-bios-sure-start-recovery.md",
+          "playbook_kc_entry": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/playbooks-no-boot-bios-sure-start-recovery",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "chapter_okf_path": "references/ch05-disassembly-and-esd-safety.md",
+          "pdf_page_span": "29-78"
+        },
+        {
+          "case_id": "TS-DFG3-010",
+          "issue_category": "BIOS & Boot",
+          "diagnostic_code": "LED-CAPS-3-2",
+          "part_number": "N20720-601",
+          "component_name": "System Board (Intel Core i5-1235U Non-vPro + 16 GB LPDDR5-6400, Windows)",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "playbook_okf_path": "playbooks/no-boot-bios-sure-start-recovery.md",
+          "playbook_kc_entry": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/playbooks-no-boot-bios-sure-start-recovery",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "chapter_okf_path": "references/ch05-disassembly-and-esd-safety.md",
+          "pdf_page_span": "29-78"
+        },
+        {
+          "case_id": "TS-DFG3-011",
+          "issue_category": "BIOS & Boot",
+          "diagnostic_code": "UEFI-24DIGIT-SSD",
+          "part_number": "M52027-005",
+          "component_name": "2 TB M.2 2280 PCIe-4x4 NVMe TLC SSD",
+          "playbook_id": "PB-NO-BOOT-SURE-START",
+          "playbook_okf_path": "playbooks/no-boot-bios-sure-start-recovery.md",
+          "playbook_kc_entry": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/playbooks-no-boot-bios-sure-start-recovery",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "chapter_okf_path": "references/ch05-disassembly-and-esd-safety.md",
+          "pdf_page_span": "29-78"
+        },
+        {
+          "case_id": "TS-DFG3-012",
+          "issue_category": "Linux Compatibility",
+          "diagnostic_code": "None",
+          "part_number": "N08571-601",
+          "component_name": "System Board Elite Dragonfly G3 (Intel Core i7-1255U + 16 GB LPDDR5)",
+          "playbook_id": "PB-THERMAL-BATTERY-SWELLED",
+          "playbook_okf_path": "playbooks/thermal-throttling-and-battery-swelling.md",
+          "playbook_kc_entry": "projects/hp-dragonfly/locations/us-central1/entryGroups/okf_hp_dragonfly/entries/playbooks-thermal-throttling-and-battery-swelling",
+          "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD",
+          "chapter_okf_path": "references/ch05-disassembly-and-esd-safety.md",
+          "pdf_page_span": "29-78"
+        }
+      ],
+      "graph": {
+        "nodes": [
+          {
+            "id": "TS-DFG3-001",
+            "label": "[ONT Case] TS-DFG3-001\n(BIOS & Boot)",
+            "group": "TroubleshootingCase"
+          },
+          {
+            "id": "N20728-601",
+            "label": "[ONT FRU] System Board (Intel Core i\n(N20728-601)",
+            "group": "HardwareComponent"
+          },
+          {
+            "id": "PB-NO-BOOT-SURE-START",
+            "label": "[LEX Playbook] PB-NO-BOOT-SURE-START\n(KC: playbooks/no-boot-bios-sure-start-recovery.md)",
+            "group": "ServicePlaybook"
+          },
+          {
+            "id": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "[LEX Manual] REF-CH05-DISASSEMBLY-ESD\n(p.29-78 / KC)",
+            "group": "ServiceManualChapter"
+          },
+          {
+            "id": "TS-DFG3-002",
+            "label": "[ONT Case] TS-DFG3-002\n(Thunderbolt & Docking)",
+            "group": "TroubleshootingCase"
+          },
+          {
+            "id": "N20727-601",
+            "label": "[ONT FRU] System Board (Intel Core i\n(N20727-601)",
+            "group": "HardwareComponent"
+          },
+          {
+            "id": "PB-THERMAL-BATTERY-SWELLED",
+            "label": "[LEX Playbook] PB-THERMAL-BATTERY-SWELLED\n(KC: playbooks/thermal-throttling-and-battery-swelling.md)",
+            "group": "ServicePlaybook"
+          },
+          {
+            "id": "TS-DFG3-003",
+            "label": "[ONT Case] TS-DFG3-003\n(Audio & Mic)",
+            "group": "TroubleshootingCase"
+          },
+          {
+            "id": "N22946-001",
+            "label": "[ONT FRU] Quad Speaker Kit (Includes\n(N22946-001)",
+            "group": "HardwareComponent"
+          },
+          {
+            "id": "TS-DFG3-004",
+            "label": "[ONT Case] TS-DFG3-004\n(Battery & Standby)",
+            "group": "TroubleshootingCase"
+          },
+          {
+            "id": "M90788-005",
+            "label": "[ONT FRU] Battery (4-cell, 53 Whr HP\n(M90788-005)",
+            "group": "HardwareComponent"
+          },
+          {
+            "id": "TS-DFG3-005",
+            "label": "[ONT Case] TS-DFG3-005\n(Camera & Presence)",
+            "group": "TroubleshootingCase"
+          },
+          {
+            "id": "N23306-001",
+            "label": "[ONT FRU] 8 MP + IR Ultrawide Camera\n(N23306-001)",
+            "group": "HardwareComponent"
+          },
+          {
+            "id": "TS-DFG3-006",
+            "label": "[ONT Case] TS-DFG3-006\n(WWAN & 5G)",
+            "group": "TroubleshootingCase"
+          },
+          {
+            "id": "N00181-005",
+            "label": "[ONT FRU] Intel 5000 5G Solution WWA\n(N00181-005)",
+            "group": "HardwareComponent"
+          },
+          {
+            "id": "TS-DFG3-007",
+            "label": "[ONT Case] TS-DFG3-007\n(Pen & Charging)",
+            "group": "TroubleshootingCase"
+          },
+          {
+            "id": "N26149-001",
+            "label": "[ONT FRU] Wireless Charging Module (\n(N26149-001)",
+            "group": "HardwareComponent"
+          },
+          {
+            "id": "TS-DFG3-008",
+            "label": "[ONT Case] TS-DFG3-008\n(Thermal & Fan)",
+            "group": "TroubleshootingCase"
+          },
+          {
+            "id": "N22936-001",
+            "label": "[ONT FRU] Heat Sink and Dual Fan Ass\n(N22936-001)",
+            "group": "HardwareComponent"
+          },
+          {
+            "id": "TS-DFG3-009",
+            "label": "[ONT Case] TS-DFG3-009\n(Display & Sure View)",
+            "group": "TroubleshootingCase"
+          },
+          {
+            "id": "N22937-001",
+            "label": "[ONT FRU] Display Hub Board (FHD/WUX\n(N22937-001)",
+            "group": "HardwareComponent"
+          },
+          {
+            "id": "TS-DFG3-010",
+            "label": "[ONT Case] TS-DFG3-010\n(BIOS & Boot)",
+            "group": "TroubleshootingCase"
+          },
+          {
+            "id": "N20720-601",
+            "label": "[ONT FRU] System Board (Intel Core i\n(N20720-601)",
+            "group": "HardwareComponent"
+          },
+          {
+            "id": "TS-DFG3-011",
+            "label": "[ONT Case] TS-DFG3-011\n(BIOS & Boot)",
+            "group": "TroubleshootingCase"
+          },
+          {
+            "id": "M52027-005",
+            "label": "[ONT FRU] 2 TB M.2 2280 PCIe-4x4 NVM\n(M52027-005)",
+            "group": "HardwareComponent"
+          },
+          {
+            "id": "TS-DFG3-012",
+            "label": "[ONT Case] TS-DFG3-012\n(Linux Compatibility)",
+            "group": "TroubleshootingCase"
+          },
+          {
+            "id": "N08571-601",
+            "label": "[ONT FRU] System Board Elite Dragonf\n(N08571-601)",
+            "group": "HardwareComponent"
+          }
+        ],
+        "edges": [
+          {
+            "from": "TS-DFG3-001",
+            "to": "N20728-601",
+            "label": "AFFECTS_COMPONENT"
+          },
+          {
+            "from": "TS-DFG3-001",
+            "to": "PB-NO-BOOT-SURE-START",
+            "label": "GOVERNED_BY_PLAYBOOK"
+          },
+          {
+            "from": "N20728-601",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "DOCUMENTED_IN_CHAPTER"
+          },
+          {
+            "from": "PB-NO-BOOT-SURE-START",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "ORCHESTRATES_REFERENCE"
+          },
+          {
+            "from": "TS-DFG3-002",
+            "to": "N20727-601",
+            "label": "AFFECTS_COMPONENT"
+          },
+          {
+            "from": "TS-DFG3-002",
+            "to": "PB-THERMAL-BATTERY-SWELLED",
+            "label": "GOVERNED_BY_PLAYBOOK"
+          },
+          {
+            "from": "N20727-601",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "DOCUMENTED_IN_CHAPTER"
+          },
+          {
+            "from": "PB-THERMAL-BATTERY-SWELLED",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "ORCHESTRATES_REFERENCE"
+          },
+          {
+            "from": "TS-DFG3-003",
+            "to": "N22946-001",
+            "label": "AFFECTS_COMPONENT"
+          },
+          {
+            "from": "TS-DFG3-003",
+            "to": "PB-THERMAL-BATTERY-SWELLED",
+            "label": "GOVERNED_BY_PLAYBOOK"
+          },
+          {
+            "from": "N22946-001",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "DOCUMENTED_IN_CHAPTER"
+          },
+          {
+            "from": "PB-THERMAL-BATTERY-SWELLED",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "ORCHESTRATES_REFERENCE"
+          },
+          {
+            "from": "TS-DFG3-004",
+            "to": "M90788-005",
+            "label": "AFFECTS_COMPONENT"
+          },
+          {
+            "from": "TS-DFG3-004",
+            "to": "PB-NO-BOOT-SURE-START",
+            "label": "GOVERNED_BY_PLAYBOOK"
+          },
+          {
+            "from": "M90788-005",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "DOCUMENTED_IN_CHAPTER"
+          },
+          {
+            "from": "PB-NO-BOOT-SURE-START",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "ORCHESTRATES_REFERENCE"
+          },
+          {
+            "from": "TS-DFG3-005",
+            "to": "N23306-001",
+            "label": "AFFECTS_COMPONENT"
+          },
+          {
+            "from": "TS-DFG3-005",
+            "to": "PB-NO-BOOT-SURE-START",
+            "label": "GOVERNED_BY_PLAYBOOK"
+          },
+          {
+            "from": "N23306-001",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "DOCUMENTED_IN_CHAPTER"
+          },
+          {
+            "from": "PB-NO-BOOT-SURE-START",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "ORCHESTRATES_REFERENCE"
+          },
+          {
+            "from": "TS-DFG3-006",
+            "to": "N00181-005",
+            "label": "AFFECTS_COMPONENT"
+          },
+          {
+            "from": "TS-DFG3-006",
+            "to": "PB-NO-BOOT-SURE-START",
+            "label": "GOVERNED_BY_PLAYBOOK"
+          },
+          {
+            "from": "N00181-005",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "DOCUMENTED_IN_CHAPTER"
+          },
+          {
+            "from": "PB-NO-BOOT-SURE-START",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "ORCHESTRATES_REFERENCE"
+          },
+          {
+            "from": "TS-DFG3-007",
+            "to": "N26149-001",
+            "label": "AFFECTS_COMPONENT"
+          },
+          {
+            "from": "TS-DFG3-007",
+            "to": "PB-THERMAL-BATTERY-SWELLED",
+            "label": "GOVERNED_BY_PLAYBOOK"
+          },
+          {
+            "from": "N26149-001",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "DOCUMENTED_IN_CHAPTER"
+          },
+          {
+            "from": "PB-THERMAL-BATTERY-SWELLED",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "ORCHESTRATES_REFERENCE"
+          },
+          {
+            "from": "TS-DFG3-008",
+            "to": "N22936-001",
+            "label": "AFFECTS_COMPONENT"
+          },
+          {
+            "from": "TS-DFG3-008",
+            "to": "PB-NO-BOOT-SURE-START",
+            "label": "GOVERNED_BY_PLAYBOOK"
+          },
+          {
+            "from": "N22936-001",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "DOCUMENTED_IN_CHAPTER"
+          },
+          {
+            "from": "PB-NO-BOOT-SURE-START",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "ORCHESTRATES_REFERENCE"
+          },
+          {
+            "from": "TS-DFG3-009",
+            "to": "N22937-001",
+            "label": "AFFECTS_COMPONENT"
+          },
+          {
+            "from": "TS-DFG3-009",
+            "to": "PB-NO-BOOT-SURE-START",
+            "label": "GOVERNED_BY_PLAYBOOK"
+          },
+          {
+            "from": "N22937-001",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "DOCUMENTED_IN_CHAPTER"
+          },
+          {
+            "from": "PB-NO-BOOT-SURE-START",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "ORCHESTRATES_REFERENCE"
+          },
+          {
+            "from": "TS-DFG3-010",
+            "to": "N20720-601",
+            "label": "AFFECTS_COMPONENT"
+          },
+          {
+            "from": "TS-DFG3-010",
+            "to": "PB-NO-BOOT-SURE-START",
+            "label": "GOVERNED_BY_PLAYBOOK"
+          },
+          {
+            "from": "N20720-601",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "DOCUMENTED_IN_CHAPTER"
+          },
+          {
+            "from": "PB-NO-BOOT-SURE-START",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "ORCHESTRATES_REFERENCE"
+          },
+          {
+            "from": "TS-DFG3-011",
+            "to": "M52027-005",
+            "label": "AFFECTS_COMPONENT"
+          },
+          {
+            "from": "TS-DFG3-011",
+            "to": "PB-NO-BOOT-SURE-START",
+            "label": "GOVERNED_BY_PLAYBOOK"
+          },
+          {
+            "from": "M52027-005",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "DOCUMENTED_IN_CHAPTER"
+          },
+          {
+            "from": "PB-NO-BOOT-SURE-START",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "ORCHESTRATES_REFERENCE"
+          },
+          {
+            "from": "TS-DFG3-012",
+            "to": "N08571-601",
+            "label": "AFFECTS_COMPONENT"
+          },
+          {
+            "from": "TS-DFG3-012",
+            "to": "PB-THERMAL-BATTERY-SWELLED",
+            "label": "GOVERNED_BY_PLAYBOOK"
+          },
+          {
+            "from": "N08571-601",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "DOCUMENTED_IN_CHAPTER"
+          },
+          {
+            "from": "PB-THERMAL-BATTERY-SWELLED",
+            "to": "REF-CH05-DISASSEMBLY-ESD",
+            "label": "ORCHESTRATES_REFERENCE"
           }
         ]
       }

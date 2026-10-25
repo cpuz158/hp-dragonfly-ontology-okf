@@ -1,0 +1,8 @@
+{"bridge_id": "BR-PB-REF-001", "playbook_id": "PB-NO-BOOT-SURE-START", "chapter_slot_id": "REF-CH06-BLINK-DIAG", "citation_role": "Step 1 LED blink decoding"}
+{"bridge_id": "BR-PB-REF-002", "playbook_id": "PB-NO-BOOT-SURE-START", "chapter_slot_id": "REF-APPXB-SURE-START-NVM", "citation_role": "Step 2 Win+B HP Sure Start SPI flash recovery"}
+{"bridge_id": "BR-PB-REF-003", "playbook_id": "PB-NO-BOOT-SURE-START", "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD", "citation_role": "Step 3 System board FRU replacement DAG"}
+{"bridge_id": "BR-PB-REF-004", "playbook_id": "PB-THERMAL-BATTERY-SWELLED", "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD", "citation_role": "Battery isolation & thermal module repasting"}
+{"bridge_id": "BR-PB-REF-005", "playbook_id": "PB-THERMAL-BATTERY-SWELLED", "chapter_slot_id": "REF-CH01-TB4-DOCK", "citation_role": "Thunderbolt 4 PD charging & sensor behavior"}
+{"bridge_id": "BR-PB-REF-006", "playbook_id": "COMP-DISASSEMBLY-PREREQS", "chapter_slot_id": "REF-CH05-DISASSEMBLY-ESD", "citation_role": "Verifies DAG step order against Ch.5"}
+{"bridge_id": "BR-PB-REF-007", "playbook_id": "COMP-SYMPTOM-TO-FRU", "chapter_slot_id": "REF-CH03-PARTS-CATALOG", "citation_role": "Resolves FRU part numbers against Ch.3"}
+{"bridge_id": "BR-PB-REF-008", "playbook_id": "METRIC-WARRANTY-BIOS-RATE", "chapter_slot_id": "REF-APPXB-SURE-START-NVM", "citation_role": "Evaluates Sure Start Gen7 self-healing rate"}

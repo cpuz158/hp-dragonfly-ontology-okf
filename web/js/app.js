@@ -1375,8 +1375,9 @@
       color: 0x3b735b,
       isHub: true,
       pk: "document_part_number (N17344-001)",
-      view: "okf_hp_dragonfly.ServiceManualDocument",
-      table: "docs/pdf_6290467_en-US-1.pdf (bundles/hp_dragonfly/index.md)",
+      view: "hp_dragonfly_ontology_graph.ServiceManualDocument",
+      table: "hp-dragonfly.prj_ontology_hp_dragonfly.lex_service_manual_documents",
+      tableName: "lex_service_manual_documents",
       okfPath: "index.md",
       desc_ko:
         "HP Dragonfly Folio 13.5 inch G3 2-in-1 Notebook PC Maintenance and Service Guide (문서 파트 번호 N17344-001, 총 109페이지) 원본 PDF 및 OKF v0.2 번들 루트 인덱스(index.md)입니다. SHA-256 해시로 원문 무결성이 검증됩니다.",
@@ -1412,8 +1413,9 @@
       color: 0x3b735b,
       isHub: true,
       pk: "okf_concept_id (references/*.md)",
-      view: "okf_hp_dragonfly.ServiceManualChapter",
-      table: "bundles/hp_dragonfly/references/*.md (5 Files)",
+      view: "hp_dragonfly_ontology_graph.ServiceManualChapter",
+      table: "hp-dragonfly.prj_ontology_hp_dragonfly.lex_manual_chapters",
+      tableName: "lex_manual_chapters",
       okfPath: "references/ch05-disassembly-and-esd-safety.md",
       desc_ko:
         "원본 109페이지 PDF에서 Enrichment Agent가 추출한 5개 핵심 비정형 레퍼런스 문서(Ch.3 일러스트 부품 카탈로그 p.19, Ch.5 ESD/분해 안전 수칙 p.29, Ch.6 점멸 진단코드 p.79, Appendix B Sure Start NVM 보안 p.96, TB4 독 전력 매트릭스 p.12)입니다.",
@@ -1450,8 +1452,9 @@
       color: 0x2d6a4f,
       isHub: false,
       pk: "playbook_id (playbooks/*.md)",
-      view: "okf_hp_dragonfly.ServicePlaybook",
-      table: "bundles/hp_dragonfly/playbooks/*.md & computations/*.md",
+      view: "hp_dragonfly_ontology_graph.ServicePlaybook",
+      table: "hp-dragonfly.prj_ontology_hp_dragonfly.lex_service_playbooks",
+      tableName: "lex_service_playbooks",
       okfPath: "playbooks/no-boot-bios-sure-start-recovery.md",
       desc_ko:
         "온톨로지 에이전트가 부팅 불량·점멸 오류나 발열·배터리 스웰링 문의 시 무분해 복구(Win+B HP Sure Start)를 먼저 수행하고, 실패 시에만 검증된 GQL 쿼리(computations/)를 실행하여 최소 분해 깊이로 부품을 교체하도록 안내하는 표준 운영 플레이북입니다.",
@@ -2184,7 +2187,7 @@
             ${k ? "3. 전체 요약" : "3. All Catalog"}
           </button>
           <button type="button" class="mgmt-subtab-btn ${BQ_INSPECTOR_TAB === "TABLES" ? "active" : ""}" style="flex:1;" onclick="toggleBqTableDrawer('${escapeHtml(SELECTED_BQ_TABLE)}')">
-            ${k ? "4. 테이블 (8)" : "4. Tables (8)"}
+            ${k ? `4. 테이블 (${BQ_TABLES.length})` : `4. Tables (${BQ_TABLES.length})`}
           </button>
         </div>
       </div>
@@ -2732,7 +2735,10 @@
       TroubleshootingCase: "#a85c56",
       DiagnosticCode: "#b88a44",
       ProductSKU: "#6b88a8",
-      ProductModel: "#3b735b"
+      ProductModel: "#3b735b",
+      ServicePlaybook: "#8a5cf5",
+      ServiceManualChapter: "#2d936c",
+      ServiceManualDocument: "#3b735b"
     };
 
     const nodes = (q.graph.nodes || []).map((n) => ({
