@@ -2801,13 +2801,22 @@ window.HP_ONTOLOGY_BUNDLE = {
   },
   "git_commits": [
     {
-      "hash": "409d96a91335caf60ce353a8c583ee14155045fd",
-      "short_hash": "409d96a",
+      "hash": "105d1b5b06a2bfa116c895992b5d2508808e27de",
+      "short_hash": "105d1b5",
+      "author": "dhmoon",
+      "email": "dhmoon@google.com",
+      "date": "2026-10-25 03:48:45 +0000",
+      "subject": "fix(web): align DOM classes and CSS variables 100% with krda-ontology-studio gcp-console.css",
+      "stat": "web/css/gcp-console.css |  355 ++-----\n web/index-en.html       |  371 +++++--\n web/index-ko.html       |  371 +++++--\n web/index.html          |  395 +++++--\n web/js/app.js           | 2666 +++++++++++++++++++++++++----------------------\n 5 files changed, 2447 insertions(+), 1711 deletions(-)"
+    },
+    {
+      "hash": "cc42a89546d36979f50816107a018feb2665e338",
+      "short_hash": "cc42a89",
       "author": "dhmoon",
       "email": "dhmoon@google.com",
       "date": "2026-10-25 03:18:10 +0000",
       "subject": "feat(web): build bilingual (KO/EN) HP Dragonfly Ontology & OKF v0.2 Studio web app",
-      "stat": "scripts/build_web_bundle_data.py |  767 +++++\n scripts/studio_server.py         |  158 +\n web/css/gcp-console.css          | 3830 ++++++++++++++++++++++\n web/data/studio_bundle.js        | 6461 ++++++++++++++++++++++++++++++++++++++\n web/data/studio_bundle.json      | 6461 ++++++++++++++++++++++++++++++++++++++\n web/index-en.html                |  109 +\n web/index-ko.html                |  109 +\n web/index.html                   |  122 +\n web/js/app.js                    | 1475 +++++++++\n web/js/i18n.js                   |  283 ++\n 10 files changed, 19775 insertions(+)"
+      "stat": "scripts/build_web_bundle_data.py |  767 +++++\n scripts/studio_server.py         |  158 +\n web/css/gcp-console.css          | 3830 ++++++++++++++++++++++\n web/data/studio_bundle.js        | 6470 ++++++++++++++++++++++++++++++++++++++\n web/data/studio_bundle.json      | 6470 ++++++++++++++++++++++++++++++++++++++\n web/index-en.html                |  109 +\n web/index-ko.html                |  109 +\n web/index.html                   |  122 +\n web/js/app.js                    | 1475 +++++++++\n web/js/i18n.js                   |  283 ++\n 10 files changed, 19793 insertions(+)"
     },
     {
       "hash": "c5bd065a185e06bbd8ff553c39e8643278a39433",
